@@ -63,6 +63,9 @@ var sounds: LmSounds = null
 ## The player's own settings and the screen Escape opens. See [LmSettings].
 var settings: LmSettings = null
 
+## The player's console. See [method DotConsoleKit.build].
+var console: DotConsoleController = null
+
 
 func _ready() -> void:
 	_build_environment()
@@ -166,6 +169,10 @@ func _build_settings() -> void:
 		# The command line has the keyboard while it is open: its Escape is its own.
 		settings.menu.busy = func() -> bool:
 			return (_command != null and _command.visible) or (chat != null and chat.is_typing())
+		# The console (the key under Escape): net_stat and every other setting by name, and
+		# the server's console when one runs in this process. One of the menu's overlays, so
+		# opening it stops the player and frees the pointer exactly as the menu does.
+		console = DotConsoleKit.build(self, settings.settings, settings.menu)
 		_wire_board()
 
 
