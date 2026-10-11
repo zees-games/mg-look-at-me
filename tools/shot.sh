@@ -6,6 +6,7 @@
 #   tools/shot.sh --view=third --level=3        # third person
 #   tools/shot.sh --view=above --level=16       # the whole level from above, lit
 #   tools/shot.sh --level=2 --room=r3 --yaw=90  # standing in a room
+#   tools/shot.sh --caught=1 --out=res://screenshots/caught.png   # the moment of being caught
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p screenshots

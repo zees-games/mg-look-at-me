@@ -34,11 +34,11 @@ const APP_NAMESPACE := &"look_at_me"
 ## The field of view the camera had before this existed, and still the default.
 const DEFAULT_FOV := 75
 
-## Stock keys nothing here applies: every sound is on the Master bus, the client binds no
-## effects, and the chat box has no switch.
+## Stock keys nothing here applies: every sound is on dot-audio's SFX bus (so master and
+## effects are the two volumes), the only effects are the catch's flash and jolt (no spawned
+## effect for a quality setting to thin out), and the chat box has no switch.
 const NOT_APPLIED: Array[StringName] = [
-	&"sfx_volume", &"ui_volume", &"voice_volume",
-	&"shake_scale", &"allow_flashes", &"fx_quality", &"chat_window",
+	&"ui_volume", &"voice_volume", &"fx_quality", &"chat_window",
 ]
 
 

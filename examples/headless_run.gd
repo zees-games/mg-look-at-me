@@ -10,8 +10,8 @@ const LmLevel := preload("res://game/lm_level.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
-const SECTIONS := 10
-const CHECKS := 41
+const SECTIONS := 11
+const CHECKS := 47
 
 var _passed := 0
 var _failed := 0
@@ -46,6 +46,7 @@ func _ready() -> void:
 	_test_shared()
 	_test_houses()
 	await _test_the_client_settings()
+	await _test_sound_and_effects()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -375,6 +376,85 @@ func _test_the_client_settings() -> void:
 	tab.pressed = false
 	client.call("_unhandled_input", tab)
 	_check(board != null and not board.is_open(), "and letting go puts it away")
+
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
+	_finished_section()
+
+
+## The client's sounds and the catch's effects, through dot-audio and dot-fx. Headless has no
+## sound device, so the manager runs its null sink, which is the real limits and catalogue
+## with a log in place of a speaker; tools/audio_probe (xvfb) is what says a sound is heard.
+func _test_sound_and_effects() -> void:
+	_section("the house's sounds and the catch, through dot-audio and dot-fx")
+	var LmAudio: GDScript = load("res://game/lm_audio.gd")
+	var catalogue: DotAudioCatalogue = LmAudio.call("sound_catalogue")
+	var stand_ins: Dictionary = LmAudio.call("stand_ins")
+	var ids: Array = LmAudio.call("ids")
+	_check(
+		catalogue.validate().ok and ids.all(func(id: StringName) -> bool:
+			return catalogue.find(id) != null and stand_ins.has(id)),
+		"every sound the game names is in its catalogue, with a stand-in",
+		str(ids)
+	)
+
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	client.set("start_level", 8)
+	add_child(client)
+
+	for i in 6:
+		await get_tree().process_frame
+
+	var audio: Node = client.get("audio")
+	var player: LmPlayer = client.get("player")
+	var sink := audio.get("manager").get("sink") as DotAudioSinkNull if audio != null else null
+	var settings: Variant = client.get("settings")
+	_check(
+		sink != null and settings != null and bool(settings.describe().get("audio_bound", false)),
+		"the sounds are dot-audio's, and the volume settings reach its mixer",
+		str(settings.describe()) if settings != null else "no settings"
+	)
+
+	for i in 90:
+		player.meter = 0.9
+		await get_tree().process_frame
+
+	var _clicked: bool = audio.call("click")
+	_check(
+		sink != null and sink.count_of(&"heartbeat") >= 1 and sink.count_of(&"click") == 1 \
+			and int(audio.call("droning")) > 0,
+		"a heartbeat at a high meter, a click, and the drone of a witch nearby",
+		str(sink.played_ids()) if sink != null else "no sink"
+	)
+	var unknown := PackedStringArray()
+
+	if sink != null:
+		for id in sink.played_ids():
+			if catalogue.find(StringName(id)) == null:
+				unknown.append(id)
+
+	_check(sink != null and sink.played().size() > 0 and unknown.is_empty(),
+		"every id the client played is in the catalogue", str(unknown))
+
+	var effects: DotFxManager = client.get("effects")
+	player.meter = 0.0
+	player.caught_left = 1.0
+	await get_tree().process_frame
+	var flashed := effects != null and effects.flash_colour.a > 0.0 and effects.shake.trauma() > 0.0
+	_check(flashed, "being caught flashes red and jolts the view, through dot-fx",
+		str(effects.describe()) if effects != null else "no effects")
+
+	# "Allow flashes" off: the settings reach dot-fx, and the next catch is not flashed.
+	player.caught_left = 0.0
+	await get_tree().process_frame
+	effects.flash_colour.a = 0.0
+	settings.settings.set_value(&"allow_flashes", false)
+	player.caught_left = 1.0
+	await get_tree().process_frame
+	_check(effects != null and is_zero_approx(effects.flash_colour.a),
+		"and not when the player has turned flashes off")
+	settings.settings.set_value(&"allow_flashes", true)
 
 	remove_child(client)
 	client.free()

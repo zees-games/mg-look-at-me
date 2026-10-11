@@ -13,7 +13,7 @@ const LmPlayer := preload("lm_player.gd")
 const LmLevel := preload("lm_level.gd")
 const LmNetBridge := preload("net/lm_net_bridge.gd")
 const LmClientChat := preload("lm_client_chat.gd")
-const LmSounds := preload("lm_sounds.gd")
+const LmAudio := preload("lm_audio.gd")
 
 ## Where dot-server's client publishes its link before the game scene loads.
 const LINK_SERVICE := &"dot_client_link"
@@ -58,7 +58,14 @@ var _offline: bool = true
 ## Connected, the keys are sampled here and sent; the local player is predicted from them.
 var _sampler: DotFpsSampler = null
 var chat: LmClientChat = null
-var sounds: LmSounds = null
+## The house's sounds, through dot-audio. See [LmAudio].
+var audio: LmAudio = null
+## The catch, felt: a red flash and a jolt through dot-fx, so the settings' "allow flashes" and
+## "shake" reach them. See [method _build_effects].
+var effects: DotFxManager = null
+var _flash_rect: ColorRect = null
+## The catch already shown, so a catch is flashed once and not every frame it lasts.
+var _was_caught := false
 
 ## The player's own settings and the screen Escape opens. See [LmSettings].
 var settings: LmSettings = null
@@ -106,9 +113,8 @@ func _ready() -> void:
 	flashlight.position = Vector3(0.2, -0.15, 0.0)
 
 	_build_hud()
-	sounds = LmSounds.new()
-	sounds.name = "Sounds"
-	add_child(sounds)
+	_build_audio()
+	_build_effects()
 	_build_settings()
 	chat = LmClientChat.new()
 	chat.name = "Chat"
@@ -150,6 +156,12 @@ func _build_settings() -> void:
 		return
 
 	settings.bind_camera(camera)
+
+	if audio != null:
+		settings.bind_audio(audio.manager)
+
+	if effects != null:
+		settings.bind_fx(effects)
 
 	if player != null and player.controller != null:
 		settings.bind_look(player.controller.tunables)
@@ -469,6 +481,90 @@ func _on_command(text: String) -> void:
 	_act("command", {"text": text})
 
 
+## The house's sounds. Without one (a broken catalogue) the house is silent, which is all.
+func _build_audio() -> void:
+	audio = LmAudio.new()
+	audio.name = "Sound"
+	add_child(audio)
+	var ready_now := audio.setup()
+
+	if not ready_now.ok:
+		DotLog.warn(CHANNEL, "no sound", {"why": ready_now.error.message})
+		remove_child(audio)
+		audio.free()
+		audio = null
+
+
+## The catch, felt. The red screen while caught is the meter's vignette and stays the HUD's;
+## the MOMENT of being caught is an effect, and an effect belongs to dot-fx, whose manager is
+## where "allow flashes", the three-a-second limit and "shake" are enforced.
+func _build_effects() -> void:
+	var catalogue := DotFxCatalogue.new()
+
+	var flash := DotFxDef.new()
+	flash.id = &"caught"
+	flash.kind = DotFxDef.Kind.SCREEN
+	flash.flash_peak = 0.55
+	flash.flash_colour = Color(0.75, 0.0, 0.0, 1.0)
+	flash.flash_decay_ms = 700
+	catalogue.add(flash)
+
+	var jolt := DotFxDef.new()
+	jolt.id = &"caught_jolt"
+	jolt.kind = DotFxDef.Kind.SHAKE
+	jolt.shake_trauma = 0.5
+	catalogue.add(jolt)
+
+	effects = DotFxManager.new()
+	effects.name = "Effects"
+	effects.catalogue = catalogue
+	effects.config = DotFxConfig.new()
+	effects.register_as_service = false
+	add_child(effects)
+	var built := effects.setup()
+
+	if not built.ok:
+		DotLog.warn(CHANNEL, "no effects", {"why": built.error.message})
+		remove_child(effects)
+		effects.free()
+		effects = null
+		return
+
+	_flash_rect = ColorRect.new()
+	_flash_rect.name = "Flash"
+	_flash_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash_rect.color = Color(0, 0, 0, 0)
+	_hud.add_child(_flash_rect)
+	# Over the world and the vignette, under the words: a flash that dims "SHE SEES YOU" is
+	# hiding the one line that says what happened.
+	_hud.move_child(_flash_rect, _vignette.get_index() + 1)
+
+
+## Sound and effects, once a frame, after the camera is placed.
+func _present(delta: float) -> void:
+	var caught := player.caught_left > 0.0
+
+	if caught and not _was_caught and effects != null:
+		var _flashed := effects.flash(&"caught")
+		effects.shake_at(&"caught_jolt", camera.global_position)
+
+	_was_caught = caught
+
+	if audio != null:
+		audio.meter = player.meter
+		audio.listen_from(camera.global_position)
+
+	if effects != null:
+		effects.viewer_position = camera.global_position
+		effects.viewer_forward = -camera.global_basis.z
+		effects.advance(delta)
+		# dot-fx computes the jolt and touches no camera; it is added here, after the camera
+		# is placed from the player, so it never feeds back into where the player looks.
+		camera.global_position += camera.global_basis * effects.shake.offset()
+		_flash_rect.color = effects.flash_colour
+
+
 func _act(action: String, args: Dictionary = {}) -> void:
 	if player == null:
 		return
@@ -488,7 +584,7 @@ func _act(action: String, args: Dictionary = {}) -> void:
 	match action:
 		"use":
 			if game.interact(local_key) != "":
-				sounds.click()
+				var _heard := audio.click() if audio != null else false
 		"flashlight":
 			game.set_flashlight(local_key, not player.flashlight)
 		"command":
@@ -529,7 +625,7 @@ func _process(delta: float) -> void:
 	var target := game.target_of(player.player_key)
 	_prompt.text = ("[E] %s" % target["text"]) if not target.is_empty() else ""
 	_meter_bar.value = player.meter
-	sounds.meter = player.meter
+	_present(delta)
 	_meter_bar.visible = player.meter > 0.01
 	(_vignette.material as ShaderMaterial).set_shader_parameter("amount", player.meter * 0.85 if player.caught_left <= 0.0 else 1.0)
 
@@ -589,7 +685,6 @@ func _draw_witches() -> void:
 
 			if view == null:
 				view = _witch_view(float(level.witches[i]["sight"]) * game.config.witch_sight_scale, float(level.witches[i]["cone"]) * game.config.witch_cone_scale)
-				view.add_child(LmSounds.drone())
 				add_child(view)
 				_witch_views[key] = view
 
@@ -598,12 +693,28 @@ func _draw_witches() -> void:
 			view.rotation.y = float(pose["facing"])
 			(view.get_node("Head") as Node3D).rotation.y = float(pose["head"])
 
+	var heard := {}
+
 	for key: String in _witch_views.keys():
 		var n := int(key.split("|")[0])
-		(_witch_views[key] as Node3D).visible = n == player.level
+		var view := _witch_views[key] as Node3D
+		view.visible = n == player.level
+
+		if view.visible and audio != null:
+			# Her drone is hung at her head height, where the old player sat in her view.
+			audio.witch(key, view.global_position)
+			heard[key] = true
+
+	# The drones of a level left behind stop: a hidden node's player kept humming, from where
+	# the witch last stood, on a level nobody here was on any more.
+	if audio != null:
+		audio.keep_witches(heard)
 
 
 func _forget_witches() -> void:
+	if audio != null:
+		audio.forget_witches()
+
 	for view: Node in _witch_views.values():
 		if is_instance_valid(view):
 			view.queue_free()

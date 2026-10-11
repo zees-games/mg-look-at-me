@@ -35,6 +35,11 @@ func _ready() -> void:
 	client.game.set_flashlight(player.player_key, str(_args.get("light", "on")) != "off")
 	await get_tree().create_timer(float(_args.get("seconds", "1"))).timeout
 
+	# --caught=1: the moment of being caught, a tenth of a second in (dot-fx's flash and jolt).
+	if _args.has("caught"):
+		player.caught_left = 2.0
+		await get_tree().create_timer(0.1).timeout
+
 	if view == "above":
 		var cam := Camera3D.new()
 		add_child(cam)

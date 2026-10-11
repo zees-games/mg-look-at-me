@@ -25,6 +25,8 @@
 /addons/dot_chat
 /addons/dot_game
 /addons/dot_server
+/addons/dot_audio
+/addons/dot_fx
 
 # Exports
 build/
