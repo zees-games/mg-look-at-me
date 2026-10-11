@@ -286,6 +286,7 @@ func _build_netcode() -> DotResult:
 		_say(game.house_name().to_upper(), 3.0))
 	bridge.said.connect(func(text: String) -> void: _say(text))
 	bridge.notice_received.connect(func(text: String) -> void: _say(text))
+	_listen_for_sounds()
 
 	if link.has_method("ping_ms"):
 		bridge.rtt_source = func() -> float: return float(maxi(0, int(link.call("ping_ms"))))
@@ -482,6 +483,13 @@ func _on_command(text: String) -> void:
 
 
 ## The house's sounds. Without one (a broken catalogue) the house is silent, which is all.
+## What the server says to play: connected, the click of a use is the server's to call, since
+## only it knows whether E landed on something (offline `_act` clicks itself).
+func _listen_for_sounds() -> void:
+	bridge.sound_received.connect(func(id: StringName) -> void:
+		var _heard := audio.play(id) if audio != null else false)
+
+
 func _build_audio() -> void:
 	audio = LmAudio.new()
 	audio.name = "Sound"

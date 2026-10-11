@@ -35,6 +35,8 @@ signal progress_received(data: Dictionary)
 signal said(text: String)
 signal notice_received(text: String)
 signal chat_received(wire: Dictionary)
+## The server says this player should hear [param id] (an LmAudio catalogue id).
+signal sound_received(id: StringName)
 signal voice_arrived(payload: PackedByteArray)
 signal say_requested(peer_id: int, channel_id: StringName, text: String)
 
@@ -391,7 +393,10 @@ func _on_request(message: DotNetMessage) -> void:
 
 			match str(args.get("action", "")):
 				"use":
-					var _text := game.interact(key)
+					# The click offline is "E landed on something" (any answer); the server is
+					# the one who knows, so it tells the presser.
+					if game.interact(key) != "":
+						_tell(peer_id, LmEvents.Kind.SOUND, {"id": "click"})
 				"flashlight":
 					game.set_flashlight(key, bool(args.get("on", true)))
 				"command":
@@ -537,6 +542,8 @@ func _on_event(message: DotNetMessage) -> void:
 				said.emit(str(data.get("text", "")))
 		LmEvents.Kind.CHAT:
 			chat_received.emit(data)
+		LmEvents.Kind.SOUND:
+			sound_received.emit(StringName(str(data.get("id", ""))))
 
 
 func _apply_join(data: Dictionary) -> void:

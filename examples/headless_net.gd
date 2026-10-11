@@ -10,8 +10,8 @@ const LmNetBridge := preload("res://game/net/lm_net_bridge.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
-const SECTIONS := 6
-const CHECKS := 22
+const SECTIONS := 7
+const CHECKS := 24
 const LmAvatars := preload("res://game/lm_avatars.gd")
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -43,6 +43,7 @@ func _ready() -> void:
 		await _test_walking()
 		await _test_a_door_for_one()
 		await _test_the_witches_agree()
+		await _test_the_click()
 		await _test_progress_and_meter()
 
 	print("")
@@ -231,6 +232,41 @@ func _test_the_witches_agree() -> void:
 				ok = false
 	_check(ok, "every witch is where the server has her, posed from the clock alone")
 	_check(absi(_client_game.tick - _server_game.tick) <= INPUT_LEAD + 6, "and the clocks agree", "%d vs %d" % [_client_game.tick, _server_game.tick])
+	_finished_section()
+
+
+## E pressed on a connected client: the server decides it landed and the client's own sound
+## listener plays the click. The client is not put in the tree (its `_ready` would build a house
+## of its own); it is given the bridge and builds only its sound.
+func _test_the_click() -> void:
+	_section("the click of a use, on a connected client")
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	client.set("bridge", _client_bridge)
+	client.call("_build_audio")
+	client.call("_listen_for_sounds")
+	var audio: Node = client.get("audio")
+	var sink := audio.get("manager").get("sink") as DotAudioSinkNull if audio != null else null
+	var server_player: LmPlayer = _server_game.players[_key]
+	var level: LmLevel = _server_game.levels[server_player.level]
+	var item_id := ""
+
+	for id: String in level.items:
+		if not server_player.taken.has(id):
+			item_id = id
+			break
+
+	var at: Vector3 = level.position + (level.items[item_id]["at"] as Vector3) + Vector3(0, 0.9, 0)
+	var eye := at + Vector3(0, 0, 1.2)
+	server_player.place_at(eye - Vector3(0, server_player.EYE_HEIGHT, 0), 0.0)
+	server_player.controller.state.pitch = rad_to_deg(asin(clampf((at - eye).normalized().y, -1.0, 1.0)))
+	server_player.controller.state.yaw = 0.0
+	_client_bridge.ask_act("use")
+	_exchange()
+	await _steps(2)
+	_check(server_player.taken.has(item_id), "E on a connected client takes what the server says it faces", item_id)
+	_check(sink != null and sink.count_of(&"click") == 1, "and the client plays the click",
+		str(sink.played_ids()) if sink != null else "no sink")
+	client.free()
 	_finished_section()
 
 

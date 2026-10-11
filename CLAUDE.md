@@ -28,7 +28,7 @@ game/
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
-examples/        headless_run (11 sections, 47 checks), headless_net (6, 22), dedicated (7, 21)
+examples/        headless_run (11 sections, 47 checks), headless_net (7, 24), dedicated (7, 21)
 tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -73,6 +73,8 @@ The brief: the base game is a map an owner can replace, with a time limit, throu
 
 `LmAudio` is the family's shape (mg-prop-hunt's `PhAudio`): ids (`heartbeat`, `witch_drone`, `click`) in a `DotAudioCatalogue` naming `audio/<id>.ogg`, all on the SFX bus, played through a `DotAudioManager` the settings' master and effects volumes are bound to. No stock `DotAudioSynth` voice is a heartbeat or a sustained hum, so `stand_ins()` bakes the game's own into the sink's bank (as mg-deathrun's machinery does): the 70 to 40 Hz thud and the 880 Hz click through `DotAudioSynth.bake`, the two-sine beating drone by hand. A real `.ogg` in `audio/` wins over the stand-in, one id at a time. The lub-dub's timing stays in `LmAudio._process` (it is the meter, heard). **A drone is asked for every frame** (`LmAudio.witch`), because the manager refuses a sound beyond `max_distance` (18 m) at its start and a drone asked for once from across the level would never sound; drones of a level the player is not on are stopped (they used to hum on from a hidden node).
 
+**Connected, a sound the server decides comes as a SOUND event (an `LmAudio` id, appended to `LmEvents.Kind`) and `LmClient._listen_for_sounds` plays it**: the click of E is the server's, since only it knows E landed; never a sound played only in the offline branch of `_act`. `headless_net` checks the client plays it.
+
 The red screen while caught is the meter's vignette and stays the HUD's. The moment of being caught is a dot-fx `caught` SCREEN flash (red, 0.55, 700 ms) and a `caught_jolt` shake, built in `LmClient._build_effects` and bound to the settings, so "allow flashes", the three-a-second limit and the shake slider apply. `headless_run`'s last section checks every id the client plays is in the catalogue, that the volume settings reach the mixer, and that a catch flashes unless flashes are off.
 
 ## Settings, and Escape opens them
@@ -86,7 +88,7 @@ godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
 godot --headless --path . res://examples/headless_run.tscn   # 11 sections, 47 checks
-godot --headless --path . res://examples/headless_net.tscn   # 6 sections, 22 checks: predicted, through a door open for one, a face that arrives late
+godot --headless --path . res://examples/headless_net.tscn   # 7 sections, 24 checks: predicted, through a door open for one, a face that arrives late, the click
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 21 checks
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third

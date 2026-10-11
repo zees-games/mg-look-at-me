@@ -26,6 +26,9 @@ enum Kind {
 	SAY,
 	## A chat line, as the server's chat router addressed it.
 	CHAT,
+	## A sound for you, by its LmAudio catalogue id: {"id"}. The click of your own E, which only
+	## the server can say landed on something. To one player.
+	SOUND,
 }
 
 enum Ask {

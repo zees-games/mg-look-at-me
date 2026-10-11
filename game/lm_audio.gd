@@ -175,6 +175,12 @@ func _process(delta: float) -> void:
 	var _beat := manager.play(HEARTBEAT, volume, 1.0 if _beat_second else 0.85)
 
 
+## Plays catalogue [param id] as the server asked (`LmEvents.Kind.SOUND`). An id the catalogue
+## does not have is refused, never guessed at.
+func play(id: StringName) -> bool:
+	return manager != null and manager.catalogue.has(id) and manager.play(id) != 0
+
+
 ## A click for something taken or opened.
 func click() -> bool:
 	return manager != null and manager.play(CLICK) != 0
