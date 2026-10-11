@@ -179,8 +179,16 @@ func _build_vote(world: LmGame) -> void:
 				out.append(StringName(str(session.userid)))
 
 		return out
+	# [b]Through this game's chat router, not dot-server's system chat.[/b] The box draws what
+	# arrives over this game's own events (LmClientChat), and dot-server's system lines reach
+	# nothing here: the house ballot's "Vote: The House, The Asylum, Extend (30s)" was never
+	# drawn anywhere. smash and the other minigames announce the same way.
 	vote.announce_fn = func(line: String) -> void:
-		if server != null:
+		var chat: Object = services.get("chat") if services != null else null
+
+		if chat != null:
+			var _said: Variant = chat.call("announce", line, LmServices.CH_ALL)
+		elif server != null:
 			server.broadcast_message(line)
 	vote.is_admin_fn = func(voter: StringName) -> bool:
 		var session := server.session_by_userid(String(voter).to_int()) if server != null else null

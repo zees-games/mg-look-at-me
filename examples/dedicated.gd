@@ -8,7 +8,7 @@ extends Node
 const LmGame := preload("../game/lm_game.gd")
 
 const SECTIONS := 7
-const CHECKS := 21
+const CHECKS := 22
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -185,6 +185,22 @@ func _test_an_empty_server() -> void:
 
 	_check(server.hibernation_changed.is_connected(director.set_hibernating),
 		"the house vote follows the server's hibernation")
+
+	# The vote's lines go through this game's chat router, which is what the box draws.
+	# dot-server's system chat reaches no box in this game.
+	var chat: Object = _module().get("services").get("chat") if _module().get("services") != null else null
+	var heard: Array[String] = []
+	var hear := func(message: Object, _to: PackedInt32Array) -> void: heard.append(str(message.get("text")))
+
+	if chat != null:
+		chat.connect("message_accepted", hear)
+
+	(vote.get("announce_fn") as Callable).call("Vote: The House, The Asylum (30s)")
+	_check(heard.has("Vote: The House, The Asylum (30s)"),
+		"the house vote announces through the game's chat router, which the box draws", str(heard))
+
+	if chat != null:
+		chat.disconnect("message_accepted", hear)
 
 	var before := game.house_id
 	director.advance(director.clock.remaining + 1.0)
