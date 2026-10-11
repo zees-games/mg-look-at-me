@@ -15,6 +15,10 @@ config/description="A dark house, thirty-two levels deep, with witches walking i
 config/features=PackedStringArray("4.7")
 run/main_scene="res://game/lm.tscn"
 
+[audio]
+
+driver/enable_input=true
+
 [physics]
 
 common/physics_ticks_per_second=60
