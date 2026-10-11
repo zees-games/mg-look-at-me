@@ -194,6 +194,16 @@ func _build_vote(world: LmGame) -> void:
 	vote.is_admin_fn = func(voter: StringName) -> bool:
 		var session := server.session_by_userid(String(voter).to_int()) if server != null else null
 		return session != null and session.has_permission(DotAdminFlags.CHANGEMAP)
+	# Who a voter is: the ballot draws their avatar, and dot-vote's chat lines ("Alice
+	# nominated The Asylum.") name them with it. Unset, both fell back to the userid.
+	vote.people_fn = func(voter: StringName) -> Dictionary:
+		var session := server.session_by_userid(String(voter).to_int()) if server != null else null
+
+		if session == null:
+			return {}
+
+		var avatar: Variant = session.identity.get("avatar_url") if session.identity != null else ""
+		return {"name": session.display_name, "avatar": avatar if avatar is String else ""}
 	vote.ballot_fn = func(state: Dictionary) -> void:
 		if server == null:
 			return
