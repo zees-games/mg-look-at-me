@@ -179,10 +179,11 @@ func _build_vote(world: LmGame) -> void:
 				out.append(StringName(str(session.userid)))
 
 		return out
-	# [b]Through this game's chat router, not dot-server's system chat.[/b] The box draws what
-	# arrives over this game's own events (LmClientChat), and dot-server's system lines reach
-	# nothing here: the house ballot's "Vote: The House, The Asylum, Extend (30s)" was never
-	# drawn anywhere. smash and the other minigames announce the same way.
+	# [b]Through this game's chat router, not dot-server's system chat.[/b] A routed line keeps
+	# the channel and colour every other line here has, and reaches a client whose shell is
+	# older than the dot-game that draws dot-server's own lines too (DotGameChatClient). The
+	# house ballot's "Vote: The House, The Asylum, Extend (30s)" was once drawn nowhere.
+	# smash and the other minigames announce the same way.
 	vote.announce_fn = func(line: String) -> void:
 		var chat: Object = services.get("chat") if services != null else null
 

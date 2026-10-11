@@ -12,7 +12,7 @@ const LmSettings := preload("lm_settings.gd")
 const LmPlayer := preload("lm_player.gd")
 const LmLevel := preload("lm_level.gd")
 const LmNetBridge := preload("net/lm_net_bridge.gd")
-const LmClientChat := preload("lm_client_chat.gd")
+const LmServices := preload("lm_services.gd")
 const LmAudio := preload("lm_audio.gd")
 
 ## Where dot-server's client publishes its link before the game scene loads.
@@ -57,7 +57,7 @@ var _started_msec: int = Time.get_ticks_msec()
 var _offline: bool = true
 ## Connected, the keys are sampled here and sent; the local player is predicted from them.
 var _sampler: DotFpsSampler = null
-var chat: LmClientChat = null
+var chat: DotGameChatClient = null
 ## The house's sounds, through dot-audio. See [LmAudio].
 var audio: LmAudio = null
 ## The catch, felt: a red flash and a jolt through dot-fx, so the settings' "allow flashes" and
@@ -116,8 +116,7 @@ func _ready() -> void:
 	_build_audio()
 	_build_effects()
 	_build_settings()
-	chat = LmClientChat.new()
-	chat.name = "Chat"
+	chat = new_chat()
 	add_child(chat)
 
 	if not _offline:
@@ -815,3 +814,20 @@ static func _witch_view(sight: float, cone: float) -> Node3D:
 	fan.position = Vector3(0, -2.0, 0)
 	head.add_child(fan)
 	return root
+
+
+## dot-game's chat box and microphone, with this game's channels and voice format. It also
+## draws dot-server's own lines (the vote between games, joins, an admin's `say`), which arrive
+## on the shell's client link rather than on this game's bridge. Static so a suite can build
+## the same box the client does.
+static func new_chat() -> DotGameChatClient:
+	var box := DotGameChatClient.new()
+	box.name = "Chat"
+	box.channels = [
+		{"id": LmServices.CH_ALL, "label": "All", "colour": Color(0.93, 0.94, 0.96)},
+	]
+	box.max_length = LmServices.MAX_LINE
+	box.voice_config = LmServices.voice_format()
+	# This bridge's `send_voice` is the server's `(peer_id, bytes)`; the client half is this.
+	box.voice_method = &"send_voice_up"
+	return box
