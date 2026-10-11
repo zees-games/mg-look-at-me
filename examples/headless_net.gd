@@ -10,8 +10,8 @@ const LmNetBridge := preload("res://game/net/lm_net_bridge.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
-const SECTIONS := 7
-const CHECKS := 24
+const SECTIONS := 8
+const CHECKS := 26
 const LmAvatars := preload("res://game/lm_avatars.gd")
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -41,6 +41,7 @@ func _ready() -> void:
 	if await _build():
 		await _test_joining()
 		await _test_walking()
+		await _test_a_lost_input()
 		await _test_a_door_for_one()
 		await _test_the_witches_agree()
 		await _test_the_click()
@@ -183,6 +184,52 @@ func _test_walking() -> void:
 	var mine: LmPlayer = _client_game.players[_key]
 	var gap := mine.controller.state.position.distance_to(server_player.controller.state.position)
 	_check(gap < 0.3, "and its prediction ends where the server does", "%.3f m" % gap)
+	_finished_section()
+
+
+## Inputs go unreliable, so every packet carries the last few commands
+## ([constant LmNetBridge.INPUT_COPIES]). One packet is dropped here and the server must still
+## hold that tick's command from the next packet's copies; with one command a packet it never
+## arrives. Then copies of ticks the server has already simulated must be skipped, not pushed
+## (which would count every one of them as a late input).
+func _test_a_lost_input() -> void:
+	_section("a lost input packet")
+	var buffer := _server_net.input_buffer_for(CLIENT_PEER)
+	var late_before := buffer.late_count
+	var duplicates_before := buffer.duplicate_count
+	var turn := DotFpsCommand.new()
+	turn.yaw = 33.0
+	turn.move = Vector2(1, 0)
+
+	# _step, with the client's input packet lost on the way.
+	_tick += 1
+	var _t := _client_net.clock.advance(1.0 / 60.0)
+	_server_bridge.server_tick(_tick)
+	_flush()
+	var lost_tick := _tick + INPUT_LEAD
+	_client_bridge.client_tick(lost_tick, turn)
+	var dropped := 0
+
+	for i in range(_to_server.size() - 1, -1, -1):
+		if _to_server[i]["method"] == &"input":
+			_to_server.remove_at(i)
+			dropped += 1
+
+	_flush()
+	await get_tree().physics_frame
+	var missing := buffer.peek(lost_tick) == null
+
+	await _step()
+	var held := buffer.peek(lost_tick)
+	var move: DotFpsCommand = held.get("move") if held != null else null
+	_check(dropped == 1 and missing and move != null and absf(move.yaw - 33.0) < 0.5 and move.move.x > 0.5,
+		"a dropped input packet is recovered from the next packet's copies",
+		"dropped %d, held %s" % [dropped, "yes" if held != null else "no"])
+
+	await _steps(30)
+	_check(buffer.late_count == late_before and buffer.duplicate_count > duplicates_before,
+		"and the copies of ticks already simulated are skipped, not counted late",
+		"%d late, %d duplicates" % [buffer.late_count - late_before, buffer.duplicate_count - duplicates_before])
 	_finished_section()
 
 

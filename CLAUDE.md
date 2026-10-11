@@ -28,7 +28,7 @@ game/
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
-examples/        headless_run (11 sections, 47 checks), headless_net (7, 24), dedicated (7, 21)
+examples/        headless_run (11 sections, 47 checks), headless_net (8, 26), dedicated (7, 21)
 tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -50,7 +50,7 @@ Each tick, every witch on a player's level asks: in range (`sight`, × `flashlig
 
 ## Decision 5: movement is predicted, and so are the doors
 
-Movement is mg-deathrun's: an `LmNetCommand` a tick into dot-net's input buffer, the owner predicting with the same controller the server simulates. Everything else is mg-dangerous-delivery's: a few JSON events and requests. **The doors are why this game's prediction is its own.** A door open only for one player must be open in that player's PREDICTING controller too, or the client predicts a wall the server walks them through and every snapshot drags them back; so PROGRESS (the owner's holds, opened, used, taken) goes to the owner alone and is applied to the client's own controller before its next predicted tick. `headless_net` walks a client through a door open only for it and ends 5 mm from the server. The levels go one per LEVEL message after the HELLO: all 32 are 210 KB, past a WebSocket's 64 KiB outbound buffer, and a browser client sent them in one would never learn the house it was standing in. Witches are never sent (Decision 2); `headless_net` checks both ends pose all of them alike from the clock. A chat line beginning with a command the house knows (`/r`, `/l3`) is answered by the house (`LmModule._on_say_requested`), the rest goes to the chat router.
+Movement is mg-deathrun's: an `LmNetCommand` a tick into dot-net's input buffer, each packet carrying the last five (`INPUT_COPIES`, so a lost packet costs no tick), the owner predicting with the same controller the server simulates. Everything else is mg-dangerous-delivery's: a few JSON events and requests. **The doors are why this game's prediction is its own.** A door open only for one player must be open in that player's PREDICTING controller too, or the client predicts a wall the server walks them through and every snapshot drags them back; so PROGRESS (the owner's holds, opened, used, taken) goes to the owner alone and is applied to the client's own controller before its next predicted tick. `headless_net` walks a client through a door open only for it and ends 5 mm from the server. The levels go one per LEVEL message after the HELLO: all 32 are 210 KB, past a WebSocket's 64 KiB outbound buffer, and a browser client sent them in one would never learn the house it was standing in. Witches are never sent (Decision 2); `headless_net` checks both ends pose all of them alike from the clock. A chat line beginning with a command the house knows (`/r`, `/l3`) is answered by the house (`LmModule._on_say_requested`), the rest goes to the chat router.
 
 **Furniture** (Kenney's Furniture Kit, 21 models, ×2.3) lines the walls, themed by room name (`LmLevel.FURNITURE`, `ROOM_THEMES`), placed from `LmHash.unit` of level, room, wall and slot so every machine furnishes alike, never within 1.9 m of a door and never deeper than 1.4 m (items are always further in than that, so nothing a level needs is ever behind a sofa). Every piece is a solid StaticBody3D on the world layer, built on a server too: it blocks movement and a witch's sight like a wall, which is what makes it something to hide behind.
 
@@ -88,7 +88,7 @@ godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
 godot --headless --path . res://examples/headless_run.tscn   # 11 sections, 47 checks
-godot --headless --path . res://examples/headless_net.tscn   # 7 sections, 24 checks: predicted, through a door open for one, a face that arrives late, the click
+godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 26 checks: predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 21 checks
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third

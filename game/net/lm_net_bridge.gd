@@ -30,6 +30,14 @@ const CHANNEL := "lookatme.net"
 
 const ACK_BYTES := 4
 
+## Commands in every input packet: this tick's and the four before it, so a lost packet costs
+## the server no tick unless the next four are lost too. Inputs go unreliable, and over ENet
+## (the desktop client) one command a packet made every dropped packet a tick the server ran on
+## the previous command, which the client had predicted on the real one: a correction each time.
+## mg-wipeout's number; game-arena measured 80% of ticks on the right command at 20% loss with
+## one copy and 99-100% with three to five.
+const INPUT_COPIES := 5
+
 signal hello_received(key: StringName)
 signal progress_received(data: Dictionary)
 signal said(text: String)
@@ -349,9 +357,29 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
 		return DotResult.fail(DotError.CODE_PARSE, "Input packet is too short.")
 
 	var _acked := net.receive_ack_payload(peer_id, payload.slice(0, ACK_BYTES))
-	var packet := LmNetCommand.new()
-	packet.read(DotNetReader.new(payload.slice(ACK_BYTES)))
-	return net.input_buffer_for(peer_id).push(packet)
+
+	# A batch: this tick's command and the ones before it (see [constant INPUT_COPIES]). Copies
+	# of ticks already simulated are skipped rather than pushed, or each would count as a late
+	# input; the packet's own tick is always pushed, so a late one still counts.
+	var batch := DotNetInput.read_batch(
+		DotNetReader.new(payload.slice(ACK_BYTES)),
+		func() -> DotNetInput: return LmNetCommand.new()
+	)
+
+	if batch.is_empty():
+		return DotResult.fail(DotError.CODE_PARSE, "Input packet carries no command.")
+
+	var buffer := net.input_buffer_for(peer_id)
+	var newest := batch[batch.size() - 1]
+	var pushed := DotResult.success(false)
+
+	for input in batch:
+		if input != newest and input.tick <= buffer.last_consumed_tick():
+			continue
+
+		pushed = buffer.push(input)
+
+	return pushed
 
 
 func receive_request(peer_id: int, payload: PackedByteArray) -> DotResult:
@@ -475,7 +503,7 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 	if link != null:
 		var payload := net.encode_ack()
 		var writer := DotNetWriter.new()
-		packet.write(writer)
+		DotNetInput.write_batch(writer, _input_copies(packet))
 		payload.append_array(writer.to_bytes())
 		link.send_input(payload)
 
@@ -486,6 +514,15 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 		for identity in net.registry.predicted():
 			for behaviour in identity.behaviours:
 				behaviour._net_simulate(tick, net.clock.tick_duration())
+
+
+## [param packet] and the commands before it from the local replay history, oldest first, for
+## one input packet. See [constant INPUT_COPIES].
+func _input_copies(packet: DotNetInput) -> Array:
+	var batch: Array = Array(net.local_inputs().recent(INPUT_COPIES, packet.tick - 1))
+	batch = batch.slice(maxi(0, batch.size() - (INPUT_COPIES - 1)))
+	batch.append(packet)
+	return batch
 
 
 func _on_event(message: DotNetMessage) -> void:
