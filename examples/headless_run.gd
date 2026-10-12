@@ -10,8 +10,8 @@ const LmLevel := preload("res://game/lm_level.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
-const SECTIONS := 11
-const CHECKS := 51
+const SECTIONS := 12
+const CHECKS := 56
 
 var _passed := 0
 var _failed := 0
@@ -47,6 +47,7 @@ func _ready() -> void:
 	_test_houses()
 	await _test_the_client_settings()
 	await _test_sound_and_effects()
+	await _test_the_mouse_turns_the_view()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -508,6 +509,82 @@ func _test_sound_and_effects() -> void:
 	client.free()
 	await get_tree().process_frame
 	_finished_section()
+
+
+## Real mouse motion, through Input the way a mouse delivers it, turns the camera. Nothing fed
+## the samplers a mouse event, so the view only ever turned when the player walked; every other
+## check set angles directly and passed. Found by Christian's first play test (2026-10-11).
+func _test_the_mouse_turns_the_view() -> void:
+	_section("the mouse turns the view")
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	add_child(client)
+
+	for i in 6:
+		await get_tree().process_frame
+
+	# Headless has no pointer to capture; this says "the pointer is ours" as a window would.
+	client.set("mouse_capture_override", true)
+	var camera: Camera3D = client.get("camera")
+	var start := camera.global_basis.get_euler()
+	await _move_mouse(Vector2(120, 0))
+	var turned := camera.global_basis.get_euler()
+	_check(absf(angle_difference(start.y, turned.y)) > deg_to_rad(2.0),
+		"mouse motion sideways turns the camera",
+		"yaw %.1f -> %.1f" % [rad_to_deg(start.y), rad_to_deg(turned.y)])
+	await _move_mouse(Vector2(0, 80))
+	var tilted := camera.global_basis.get_euler()
+	_check(absf(tilted.x - turned.x) > deg_to_rad(2.0),
+		"and up and down tilts it",
+		"pitch %.1f -> %.1f" % [rad_to_deg(turned.x), rad_to_deg(tilted.x)])
+
+	# The menu stops the look while it is up and gives it back when it closes.
+	var settings: Variant = client.get("settings")
+	settings.open()
+	await get_tree().process_frame
+	var held := camera.global_basis.get_euler()
+	await _move_mouse(Vector2(120, 0))
+	_check(absf(angle_difference(held.y, camera.global_basis.get_euler().y)) < deg_to_rad(0.1),
+		"the menu up, the mouse does not turn the view")
+	settings.close()
+	await get_tree().process_frame
+	var back := camera.global_basis.get_euler()
+	await _move_mouse(Vector2(-120, 0))
+	_check(absf(angle_difference(back.y, camera.global_basis.get_euler().y)) > deg_to_rad(2.0),
+		"and closed, it turns it again",
+		"yaw %.1f -> %.1f" % [rad_to_deg(back.y), rad_to_deg(camera.global_basis.get_euler().y)])
+
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
+
+	# Connected, the sampler that is sent is the client's own, not the player's: the same
+	# event must reach that one. Not put in the tree, which would build a house of its own.
+	var connected: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	var sampler := DotFpsSampler.new(DotFpsTunables.new())
+	connected.set("_offline", false)
+	connected.set("_sampler", sampler)
+	connected.set("mouse_capture_override", true)
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(100, 0)
+	connected.call("_input", motion)
+	_check(absf(sampler.look_now().x) > 1.0, "connected, the client's own sampler takes the mouse",
+		"yaw %.1f" % sampler.yaw)
+	connected.free()
+	_finished_section()
+
+
+## A mouse movement in a few events, as a device sends them, then frames for ticks to run.
+func _move_mouse(by: Vector2) -> void:
+	for i in 4:
+		var motion := InputEventMouseMotion.new()
+		motion.relative = by / 4.0
+		motion.screen_relative = by / 4.0
+		Input.parse_input_event(motion)
+		await get_tree().process_frame
+
+	for i in 4:
+		await get_tree().physics_frame
+	await get_tree().process_frame
 
 
 func _section(name: String) -> void:

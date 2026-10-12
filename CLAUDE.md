@@ -27,7 +27,7 @@ game/
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
-examples/        headless_run (11 sections, 51 checks), headless_net (8, 28), dedicated (7, 21)
+examples/        headless_run (12 sections, 56 checks), headless_net (8, 28), dedicated (7, 21)
 tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -84,13 +84,15 @@ The red screen while caught is the meter's vignette and stays the HUD's. The mom
 
 `LmSettings` is dot-menu's `DotMenuSettings` with this game's schema: sensitivity (ACCOUNT, bound to the controller's tunables, which both samplers read), field of view (SERVER_CLAMPED, default 75), master and effects volume (bound to `LmAudio`'s mixer), shake and flashes (bound to the client's `DotFxManager`). Escape opens the screen; walking is suspended while it is up. `headless_run`'s "the client's settings are read" boots a real client and presses Escape.
 
+**The mouse reaches the look through `LmClient._input`**, which hands each `InputEventMouseMotion` to the sampler in use (the player's offline, the client's connected) while the pointer is captured: a `DotFpsSampler` reads the keys itself but is only handed mouse motion, and until 2026-10-11 nothing handed it any, so the view turned only as the player walked. `headless_run`'s "the mouse turns the view" sends real motion through `Input.parse_input_event`; a check that sets yaw directly cannot catch this.
+
 ## Validating
 
 ```bash
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 11 sections, 47 checks
+godot --headless --path . res://examples/headless_run.tscn   # 12 sections, 56 checks
 godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 26 checks: predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 21 checks
 tools/build_levels.py --check

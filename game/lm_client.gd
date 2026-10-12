@@ -463,6 +463,36 @@ func _say(text: String, seconds: float = 2.5) -> void:
 
 # --- Controls ----------------------------------------------------------------
 
+## Whether the pointer counts as captured: null asks the window, a bool decides. For a suite,
+## since a headless run has no pointer to capture.
+var mouse_capture_override: Variant = null
+
+
+## Whether mouse motion turns the view now: only while the pointer is captured, so a pointer
+## freed for the menu, the command line or a browser tab not yet clicked moves a cursor and
+## not the head.
+func mouse_drives_view() -> bool:
+	if mouse_capture_override != null:
+		return bool(mouse_capture_override)
+	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+
+
+## The mouse turns the view. [b]Nothing fed the samplers a mouse event until 2026-10-11[/b]: a
+## [DotFpsSampler] reads the keys itself but is handed mouse motion, and this client never
+## handed it any, so the view turned only as the player walked. In [code]_input[/code], not
+## [code]_unhandled_input[/code], so no Control under the captured pointer can swallow it.
+## Offline the player's sampler takes it, connected the client's; while the command line is
+## open the player's is held aside, so typing never turns the head.
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseMotion) or not mouse_drives_view():
+		return
+
+	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
+
+	if sampler != null:
+		sampler.handle_event(event)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _command.visible:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
