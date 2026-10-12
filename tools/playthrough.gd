@@ -64,12 +64,17 @@ func _ready() -> void:
 	var seconds := game.seconds_now()
 	var pose := {}
 	var her := Vector3.ZERO
+	var on_her_walk: Array = []
+	for point: Array in level.doc["witches"][0]["path"]:
+		if str(point[0]) == "room" and not on_her_walk.has(str(point[1])):
+			on_her_walk.append(str(point[1]))
 	for i in 600:
 		seconds = game.seconds_now()
 		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
 		her = level.position + (pose["at"] as Vector3)
 		var hers := level.room_at(pose["at"])
-		var mine := "r1" if hers == "r2" else "r2"
+		# The next room on her walk from the one she is in: she comes through its door.
+		var mine: String = on_her_walk[(on_her_walk.find(hers) + 1) % on_her_walk.size()] if on_her_walk.has(hers) else on_her_walk[0]
 		var spot := level.position + level.room_centre(mine)
 		_stand(me, spot, her + Vector3(0, 1.4, 0))
 		await get_tree().physics_frame

@@ -148,8 +148,44 @@ def heartbeat():
     return lowpass(thud + knock * 0.15, 400.0)
 
 
+def slam():
+    """A door slammed somewhere behind you: a hard wooden hit, the frame rattling, the house
+    ringing with it for a moment."""
+    length = 1.6
+    t = t_of(length)
+    thump = np.sin(2 * np.pi * (48.0 + 70.0 * np.exp(-t * 30.0)) * t) * np.exp(-t * 9.0)
+    crack = bandpass(RNG.standard_normal(t.size), 180.0, 3200.0) * np.exp(-t * 45.0)
+    rattle = np.zeros_like(t)
+    for at, gain in ((0.06, 0.5), (0.11, 0.35), (0.19, 0.2)):
+        start = int(at * RATE)
+        n = int(0.03 * RATE)
+        rattle[start:start + n] += bandpass(RNG.standard_normal(n), 900.0, 4000.0) * np.exp(-np.arange(n) / RATE * 120.0) * gain
+    tail = lowpass(RNG.standard_normal(t.size), 600.0) * np.exp(-t * 3.2) * 0.25
+    return np.tanh((thump * 1.2 + crack * 0.9 + rattle + tail) * 1.5)
+
+
+def lights_out():
+    """The lights of a room dying: a mains buzz that stutters, a pop, and nothing."""
+    length = 1.6
+    t = t_of(length)
+    buzz = signal.square(2 * np.pi * 100.0 * t) * 0.35 + np.sin(2 * np.pi * 200.0 * t) * 0.3 + np.sin(2 * np.pi * 300.0 * t) * 0.15
+    buzz = lowpass(buzz, 2500.0)
+    # The stutter: the same rhythm the lamps flicker to (LmClient), on and off, then gone at 1.25 s.
+    gate = np.zeros_like(t)
+    for a, b in ((0.0, 0.18), (0.26, 0.34), (0.45, 0.72), (0.8, 0.86), (0.98, 1.25)):
+        gate[int(a * RATE):int(b * RATE)] = 1.0
+    gate = lowpass(gate, 60.0, order=1)
+    pop_at = int(1.25 * RATE)
+    pop = np.zeros_like(t)
+    n = int(0.25 * RATE)
+    pop[pop_at:pop_at + n] = bandpass(RNG.standard_normal(n), 1200.0, 7000.0) * np.exp(-np.arange(n) / RATE * 40.0)
+    return buzz * gate * 0.8 + pop * 1.2
+
+
 GENERATED = {
     "ambience": ambience, "witch_drone": drone, "stinger": stinger, "scream": scream, "heartbeat": heartbeat,
+    # After the five above, so the seeded generator gives those the same noise it always has.
+    "slam": slam, "lights_out": lights_out,
 }
 
 

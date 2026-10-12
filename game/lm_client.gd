@@ -52,6 +52,15 @@ var _focus: Marker3D = null
 
 var _env: Environment = null
 var _witch_views: Dictionary = {}
+
+## The events this client has shown, for the level it showed them on ([method _show_events]).
+var _events_shown: Dictionary = {}
+var _events_level := -1
+## Room id -> seconds into its lamps' dying flicker.
+var _dying: Dictionary = {}
+## Her, at the far end of a corridor, for a moment (a "glimpse" event); and for how long.
+var _glimpse: Node3D = null
+var _glimpse_left := 0.0
 var _hud: Control = null
 var _step: Label = null
 var _objective: VBoxContainer = null
@@ -136,6 +145,9 @@ func _ready() -> void:
 	camera.name = "Camera"
 	camera.fov = 75.0
 	camera.near = 0.05
+	# Nothing in a dark house is seen from further, and every lamp past it is one fewer lamp
+	# competing for the renderer's few lights (see _process).
+	camera.far = 90.0
 	add_child(camera)
 	camera.current = true
 
@@ -843,8 +855,17 @@ func _process(delta: float) -> void:
 
 	_place_camera()
 	flashlight.visible = player.flashlight
+
+	# Only the level you are on is drawn. Every level is built at once, and the compatibility
+	# renderer draws a capped number of lights: with the lamps of three-times-bigger levels in
+	# view, the nearest lights were the ones dropped, and she stood unlit at the end of her
+	# corridor (2026-10-12). Bodies stay where they are; only the drawing goes.
+	for n: int in game.levels:
+		(game.levels[n] as Node3D).visible = n == player.level
+
 	_draw_witches()
 	_swing_doors(get_process_delta_time())
+	_show_events(get_process_delta_time())
 
 	for key: StringName in game.players:
 		var other: LmPlayer = game.players[key]
@@ -891,7 +912,7 @@ func _hold_names(level: LmLevel) -> PackedStringArray:
 
 			for station: Dictionary in level.doc.get("stations", []):
 				if str(station.get("gives", "")) == item_id:
-					named = "bucket of water" if str(station.get("kind", "")) == "tap" else "a key from the vent"
+					named = str(station["gives_name"]) if station.has("gives_name") else ("bucket of water" if str(station.get("kind", "")) == "tap" else "a key from the vent")
 
 		out.append(named)
 
@@ -1049,6 +1070,123 @@ func _swing_doors(delta: float) -> void:
 				var rest: Transform3D = child.get_meta(&"rest", (child as Node3D).transform)
 				child.set_meta(&"rest", rest)
 				(child as Node3D).transform = Transform3D(turn, hinge - turn * hinge) * rest
+
+
+## How the lamps of a dying room go: on and off over 1.25 s, then out, in step with the
+## stutter in `lights_out.ogg` (tools/make_sounds.py).
+const DYING := [[0.0, 0.18], [0.26, 0.34], [0.45, 0.72], [0.8, 0.86], [0.98, 1.25]]
+const DYING_SECONDS := 1.25
+## Metres from her a glimpse ends early: she is something seen down a corridor, never met.
+const GLIMPSE_NEAR := 6.0
+
+
+## The level's events as they happen to the local player ([member LmPlayer.fired], the server's
+## to decide): a room's lamps flicker and die, a door slams where it is, and she stands at the
+## end of a corridor looking back at you and is gone. Offline and connected alike, from
+## progress. A new level, or a catch that reset this one, lights every lamp again.
+func _show_events(delta: float) -> void:
+	var level := game.level_of(player)
+
+	if level == null:
+		return
+
+	if _events_level != player.level or player.fired.size() < _events_shown.size():
+		for room_id: String in level.lamps:
+			level.set_room_light(room_id, 1.0)
+		if _events_level != player.level and _events_level != -1 and game.levels.has(_events_level):
+			var before: LmLevel = game.levels[_events_level]
+			for room_id: String in before.lamps:
+				before.set_room_light(room_id, 1.0)
+		_events_shown.clear()
+		_dying.clear()
+		_glimpse_left = 0.0
+		_events_level = player.level
+
+	# Heard from where the camera is now: the listener is otherwise moved after this, and a
+	# sound placed from where it was last frame (before a warp) is refused as out of earshot.
+	if audio != null:
+		audio.listen_from(camera.global_position)
+
+	for event_id: String in player.fired:
+		if _events_shown.has(event_id):
+			continue
+		_events_shown[event_id] = true
+		var event: Dictionary = level.events.get(event_id, {})
+		match str(event.get("do", "")):
+			"lights":
+				for room_id in event.get("rooms", []):
+					_dying[str(room_id)] = 0.0
+					if audio != null and level.rooms.has(str(room_id)):
+						var _buzzed := audio.lights_out(level.position + level.room_centre(str(room_id)) + Vector3(0, 2.6, 0))
+			"slam":
+				var door: Dictionary = level.doors.get(str(event.get("door", "")), {})
+				if audio != null and not door.is_empty():
+					var _slammed := audio.slam(level.position + (door["centre"] as Vector3) + Vector3(0, 1.2, 0))
+			"glimpse":
+				_glimpse_at(level, event)
+
+	for room_id: String in _dying.keys():
+		var t: float = _dying[room_id] + delta
+		_dying[room_id] = t
+		var on := false
+		for span: Array in DYING:
+			on = on or (t >= float(span[0]) and t < float(span[1]))
+		level.set_room_light(room_id, 1.0 if on and t < DYING_SECONDS else 0.0)
+		if t >= DYING_SECONDS:
+			_dying.erase(room_id)
+
+	# Lights that died before this client saw them (a reconnect) are simply out.
+	for event_id: String in player.fired:
+		var event: Dictionary = level.events.get(event_id, {})
+		if str(event.get("do", "")) == "lights":
+			for room_id in event.get("rooms", []):
+				if not _dying.has(str(room_id)):
+					level.set_room_light(str(room_id), 0.0)
+
+	if _glimpse != null:
+		_glimpse_left -= delta
+		var near := (_glimpse.get_meta(&"at", Vector3.INF) as Vector3).distance_to(player.global_position) < GLIMPSE_NEAR
+		_glimpse.visible = _glimpse_left > 0.0 and not near
+		if near:
+			_glimpse_left = 0.0
+		if _glimpse.visible:
+			# Standing, breathing, looking back down the corridor at you.
+			var _moved: float = _glimpse.call(&"place", _glimpse.get_meta(&"at"), float(_glimpse.get_meta(&"facing")), 0.0, delta, 0.0)
+
+
+func _glimpse_at(level: LmLevel, event: Dictionary) -> void:
+	var room_id := str(event.get("room", ""))
+
+	if not level.rooms.has(room_id):
+		return
+
+	if _glimpse == null:
+		_glimpse = LmWitch.new()
+		_glimpse.name = "Glimpse"
+		add_child(_glimpse)
+		_glimpse.call(&"build", 0.0, 0.0)
+		# A cold light on her from nowhere: down a dark corridor, with the torch off, two eyes
+		# alone read as a lamp; she has to be a shape standing there.
+		var pale := OmniLight3D.new()
+		pale.name = "Pale"
+		pale.light_color = Color(0.62, 0.75, 0.85)
+		pale.light_energy = 3.0
+		pale.omni_range = 7.0
+		pale.position = Vector3(0.0, 2.4, -0.8)
+		_glimpse.add_child(pale)
+
+	var at := level.position + level._room_point(room_id, event.get("at", [0.5, 0.5]))
+	var cell := float(level.doc.get("cell", 8.0))
+	var look: Array = event.get("look", [])
+	var toward := Vector3(float(look[0]) * cell, 0.0, float(look[1]) * cell) + level.position if look.size() == 2 else player.global_position
+	var dir := toward - at
+	_glimpse.set_meta(&"at", at)
+	_glimpse.set_meta(&"facing", atan2(-dir.x, -dir.z))
+	_glimpse.call(&"set_seeing", false, 0.0)
+	_glimpse_left = float(event.get("seconds", 2.5))
+	_glimpse.visible = true
+	if audio != null:
+		var _stung := audio.stinger()
 
 
 ## The player's own footfalls, and the doors they open, heard. Both from what the world already

@@ -105,7 +105,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 
 	if net.is_server:
 		game.said.connect(func(key: StringName, text: String) -> void: _tell_key(key, LmEvents.Kind.SAY, {"text": text}))
-		for changed in [game.took, game.opened_door]:
+		for changed in [game.took, game.opened_door, game.event_fired]:
 			changed.connect(func(key: StringName, _what: String) -> void: _send_progress(key))
 		game.caught.connect(_send_progress)
 		game.level_done.connect(func(key: StringName, _n: int) -> void: _send_progress.call_deferred(key))
@@ -310,6 +310,7 @@ func _send_progress(key: StringName) -> void:
 	_tell_key(key, LmEvents.Kind.PROGRESS, {
 		"level": player.level, "best": player.best, "won": player.won, "holds": player.holds,
 		"opened": player.opened.keys(), "used": player.used.keys(), "taken": player.taken.keys(),
+		"fired": player.fired.keys(),
 	})
 
 
@@ -641,6 +642,7 @@ func _apply_progress(data: Dictionary) -> void:
 	player.opened = _set_of(data.get("opened", []))
 	player.used = _set_of(data.get("used", []))
 	player.taken = _set_of(data.get("taken", []))
+	player.fired = _set_of(data.get("fired", []))
 	game._apply_doors(player)
 	progress_received.emit(data)
 

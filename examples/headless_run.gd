@@ -11,8 +11,8 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 const LmSettings := preload("res://game/lm_settings.gd")
 
-const SECTIONS := 14
-const CHECKS := 82
+const SECTIONS := 17
+const CHECKS := 99
 
 var _passed := 0
 var _failed := 0
@@ -45,11 +45,14 @@ func _ready() -> void:
 	_test_commands()
 	await _test_winning()
 	_test_shared()
+	_test_events()
 	_test_houses()
 	await _test_the_client_settings()
 	await _test_sound_and_effects()
 	await _test_the_mouse_turns_the_view()
 	await _test_the_witch_and_the_house()
+	await _test_the_events_seen_and_heard()
+	await _test_upstairs()
 	await _test_the_hud_fits()
 
 	print("")
@@ -83,7 +86,51 @@ func _test_levels() -> void:
 			doors_placed = false
 
 	_check(doors_placed, "every door sits on a wall its rooms share")
-	_check((game.levels[1] as LmLevel).witches.size() == 1 and (game.levels[32] as LmLevel).witches.size() == 6, "one witch on level 1, six on level 32")
+	_check((game.levels[1] as LmLevel).witches.size() == 2 and (game.levels[32] as LmLevel).witches.size() == 12, "two witches on level 1, twelve on level 32")
+	# The second build of the levels (2026-10-12, "bigger and longer with more to do"): about
+	# three times the floor of the first, which ran from 960 m2 and 4 rooms to 2,300 m2 and 20.
+	var small := PackedStringArray()
+	var flat := PackedStringArray()
+	var quiet := PackedStringArray()
+
+	for n: int in game.levels:
+		var level: LmLevel = game.levels[n]
+		if level.floor_area() < 2000.0 or level.rooms.size() < 14 + n:
+			small.append("%d (%d m2, %d rooms)" % [n, int(level.floor_area()), level.rooms.size()])
+		if n >= 2 and level.floor_count() < 2:
+			flat.append(str(n))
+		var kinds := {}
+		for id: String in level.events:
+			kinds[str(level.events[id].get("do", ""))] = true
+		if not (kinds.has("lights") and kinds.has("slam") and kinds.has("glimpse")):
+			quiet.append("%d %s" % [n, kinds.keys()])
+
+	_check(small.is_empty() and (game.levels[32] as LmLevel).floor_area() > 7000.0,
+		"every level is big: 14 + n rooms, over 2,000 m2, level 32 over 7,000", ", ".join(small))
+	_check(flat.is_empty(), "every level from 2 has an upstairs", ", ".join(flat))
+	_check(quiet.is_empty(), "and every level has its events: lights that die, a door that slams, her down a corridor", ", ".join(quiet))
+
+	# A witch on her walk is on the floor where she is, up a stairwell's ramp as well.
+	var floating := PackedStringArray()
+	var on_stairs := 0
+
+	for n: int in game.levels:
+		var level: LmLevel = game.levels[n]
+		for i in level.witches.size():
+			var loop: Dictionary = level.witches[i]
+			var seconds_round := float(loop["total"]) / float(loop["speed"])
+			for k in 200:
+				var at: Vector3 = level.witch_pose(i, seconds_round * float(k) / 200.0)["at"]
+				var room := level.room_at(at)
+				if room == "":
+					continue
+				if str(level.rooms[room]["kind"]) == "stair":
+					on_stairs += 1
+				if absf(at.y - level.floor_at(room, at)) > 0.05:
+					floating.append("%d/%d %s" % [n, i, at])
+					break
+
+	_check(floating.is_empty() and on_stairs > 0, "a witch walks on the floor, up the stairs as well (%d poses on a ramp)" % on_stairs, ", ".join(floating.slice(0, 4)))
 	var lobby: Rect2 = (game.levels[1] as LmLevel).rooms[(game.levels[1] as LmLevel).spawn_room()]["rect"]
 	var biggest := true
 
@@ -118,10 +165,12 @@ func _test_every_level_finishes() -> void:
 				for id: String in (level.items if kind == "item" else (level.stations if kind == "station" else level.doors)):
 					var at: Vector3 = (level.items[id]["at"] if kind == "item" else (level.stations[id]["at"] if kind == "station" else level.doors[id]["centre"])) as Vector3
 					var lift := 0.9 if kind == "item" else (0.8 if kind == "station" else 1.2)
-					var before := solver.holds.size() + solver.opened.size() + solver.used.size() + solver.taken.size()
+					# What it has done, events included: a slam shuts a door it opened, and the
+					# events only ever add up, so a pass that only reopened one still counts.
+					var before := solver.holds.size() + solver.opened.size() + solver.used.size() + solver.taken.size() + solver.fired.size()
 					_stand_before(solver, level, at + Vector3(0, lift, 0))
 					var _said := game.interact(&"solver")
-					if solver.holds.size() + solver.opened.size() + solver.used.size() + solver.taken.size() > before:
+					if solver.holds.size() + solver.opened.size() + solver.used.size() + solver.taken.size() + solver.fired.size() > before:
 						progress = true
 
 		if not solver.opened.has("exit"):
@@ -341,6 +390,79 @@ func _test_shared() -> void:
 		"what one does, everybody on the level has", "%s / %s" % [a.describe(), c.describe()])
 	game.config.shared_progress = false
 	_finished_section()
+
+
+## What the house does to a player on the way, the server's half: each event fires once a go,
+## when its condition comes true for that player alone.
+func _test_events() -> void:
+	_section("what the house does on the way")
+	var p: LmPlayer = game.players[&"a"]
+	var level: LmLevel = game.levels[8]
+	var of_kind := {}
+	for id: String in level.events:
+		var kind := str(level.events[id].get("do", ""))
+		if not of_kind.has(kind):
+			of_kind[kind] = level.events[id]
+	var heard: Array = []
+	var listen := func(key: StringName, id: String) -> void:
+		if key == &"a":
+			heard.append(id)
+	game.event_fired.connect(listen)
+
+	# The lights: taking what was in the room puts them out.
+	game.send_to(p, 8)
+	var lights: Dictionary = of_kind["lights"]
+	var item_id := str(lights["when"]["holds"])
+	_stand_before(p, level, (level.items[item_id]["at"] as Vector3) + Vector3(0, 0.9, 0))
+	var _took := game.interact(&"a")
+	_check(p.fired.has(str(lights["id"])) and heard.has(str(lights["id"])), "taking what was in a lit room puts its lights out", str(p.fired.keys()))
+
+	# The slam: into the room past the door, and once clear of the doorway it shuts.
+	game.send_to(p, 8)
+	var slam: Dictionary = of_kind["slam"]
+	var door_id := str(slam["door"])
+	var door: Dictionary = level.doors[door_id]
+	var lock := str(door["doc"].get("lock", ""))
+	if lock != "":
+		p.holds.append(lock)
+	_unlock(p, door_id)
+	p.place_at(level.position + (door["centre"] as Vector3) + (door["normal"] as Vector3) * 1.0 + Vector3(0, 0.1, 0), 0.0)
+	game.fire_events(p)
+	var waited := p.opened.has(door_id) and not p.fired.has(str(slam["id"]))
+	p.place_at(level.position + _furthest_from(level, str(door["doc"]["b"]), door["centre"]) + Vector3(0, 0.1, 0), 0.0)
+	game.fire_events(p)
+	_check(waited and not p.opened.has(door_id) and p.fired.has(str(slam["id"])),
+		"a door slams behind you, once you are clear of the doorway", "waited %s, %s" % [waited, p.describe()])
+	_stand_before(p, level, (door["centre"] as Vector3) + Vector3(0, 1.2, 0))
+	var _reopened := game.interact(&"a")
+	_check(p.opened.has(door_id), "and opens again, with what opened it the first time")
+
+	# Her, at the end of a long corridor.
+	game.send_to(p, 8)
+	var glimpse: Dictionary = of_kind["glimpse"]
+	p.place_at(level.position + level.room_centre(str(glimpse["room"])) + Vector3(0, 0.1, 0), 0.0)
+	game.fire_events(p)
+	_check(p.fired.has(str(glimpse["id"])), "walking into a long corridor is when she stands at the end of it")
+	var count := heard.size()
+	game.fire_events(p)
+	_check(heard.size() == count, "each happens once")
+	game.send_to(p, 8)
+	_check(p.fired.is_empty() and p.slams_waiting.is_empty(), "and again on the next go at the level")
+	game.event_fired.disconnect(listen)
+	_finished_section()
+
+
+## The point in [param room_id] furthest from [param from] (level-local), on its floor.
+func _furthest_from(level: LmLevel, room_id: String, from: Vector3) -> Vector3:
+	var best := Vector3.ZERO
+	var far := -1.0
+	for fx in [0.15, 0.5, 0.85]:
+		for fz in [0.15, 0.5, 0.85]:
+			var at := level._room_point(room_id, [fx, fz])
+			if at.distance_to(from) > far:
+				far = at.distance_to(from)
+				best = at
+	return best
 
 
 func _test_houses() -> void:
@@ -709,22 +831,28 @@ func _test_the_mouse_turns_the_view() -> void:
 func _test_the_witch_and_the_house() -> void:
 	_section("the witch shows herself, and the house is heard")
 	var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://levels/lm_01.json"))
-	var walks: Array = doc["witches"][0]["path"]
 	var spawn := ""
 	for room: Dictionary in doc["rooms"]:
 		if bool(room["spawn"]):
 			spawn = str(room["id"])
-	var rooms := {}
-	for point: Array in walks:
-		if str(point[0]) == "room":
-			rooms[str(point[1])] = true
-	var red_key_room := ""
-	for item: Dictionary in doc["items"]:
-		if str(item["id"]).begins_with("key_red"):
-			red_key_room = str(item["room"])
-	_check(rooms.size() >= 2 and not rooms.has(spawn) and rooms.has(red_key_room),
-		"level 1's witch walks between rooms, through the one the red key is in, never the lobby",
-		"%s, key in %s" % [rooms.keys(), red_key_room])
+	var needed := {}
+	for thing: Dictionary in (doc["items"] as Array) + (doc["stations"] as Array):
+		if thing.has("room"):
+			needed[str(thing["room"])] = true
+	var walking := true
+	var meets := false
+	var walked := []
+	for witch: Dictionary in doc["witches"]:
+		var rooms := {}
+		for point: Array in witch["path"]:
+			if str(point[0]) == "room":
+				rooms[str(point[1])] = true
+		walking = walking and rooms.size() >= 2 and not rooms.has(spawn)
+		meets = meets or rooms.keys().any(func(r: String) -> bool: return needed.has(r))
+		walked.append(rooms.keys())
+	_check(walking and meets,
+		"level 1's witches walk between rooms, never the lobby, and through a room with something the level needs in it",
+		"%s, needed in %s" % [walked, needed.keys()])
 
 	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
 	client.set("start_level", 8)
@@ -790,6 +918,127 @@ func _test_the_witch_and_the_house() -> void:
 	client.free()
 	await get_tree().process_frame
 	_finished_section()
+
+
+## The events as a player meets them, in a real client: the lamps flicker and go out with a
+## buzz, a slam is heard where the door is, and she is drawn at the far end of the corridor.
+func _test_the_events_seen_and_heard() -> void:
+	_section("the house's events, seen and heard")
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	client.set("start_level", 8)
+	add_child(client)
+	for i in 6:
+		await get_tree().process_frame
+	var game: LmGame = client.get("game")
+	# Nobody is caught by accident in the middle of this.
+	game.config.witch_sight_scale = 0.0
+	var me: LmPlayer = client.get("player")
+	var level := game.level_of(me)
+	var sink := client.get("audio").get("manager").get("sink") as DotAudioSinkNull
+	var of_kind := {}
+	for id: String in level.events:
+		var kind := str(level.events[id].get("do", ""))
+		if not of_kind.has(kind):
+			of_kind[kind] = level.events[id]
+
+	var lights: Dictionary = of_kind["lights"]
+	var room_id := str(lights["rooms"][0])
+	var lamps: Array = level.lamps.get(room_id, [])
+	var lit_before := lamps.size() > 0 and lamps.all(func(l: Dictionary) -> bool: return (l["light"] as OmniLight3D).light_energy > 0.0)
+	var item_id := str(lights["when"]["holds"])
+	_stand_before(me, level, (level.items[item_id]["at"] as Vector3) + Vector3(0, 0.9, 0))
+	var _took := game.interact(me.player_key)
+	await get_tree().create_timer(1.6).timeout
+	var dark := lamps.all(func(l: Dictionary) -> bool: return is_zero_approx((l["light"] as OmniLight3D).light_energy) and not (l["bulb"] as Node3D).visible)
+	_check(lit_before and dark and sink.count_of(&"lights_out") == 1,
+		"the lamps of the room go out, with a buzz", "lit %s, dark %s, %d lamps, buzzes %d" % [lit_before, dark, lamps.size(), sink.count_of(&"lights_out")])
+
+	var slam: Dictionary = of_kind["slam"]
+	var door: Dictionary = level.doors[str(slam["door"])]
+	me.opened[str(slam["door"])] = true
+	game._apply_doors(me)
+	me.place_at(level.position + _furthest_from(level, str(door["doc"]["b"]), door["centre"]) + Vector3(0, 0.1, 0), 0.0)
+	for i in 10:
+		await get_tree().physics_frame
+	await _drawn()
+	_check(sink.count_of(&"slam") == 1 and not me.opened.has(str(slam["door"])), "a slam is heard, and the door is shut", str(sink.count_of(&"slam")))
+
+	var glimpse: Dictionary = of_kind["glimpse"]
+	var corridor := str(glimpse["room"])
+	var into: Dictionary = {}
+	for id: String in level.doors:
+		if str(level.doors[id]["doc"].get("b", "")) == corridor:
+			into = level.doors[id]
+	me.opened[str(into["doc"]["id"])] = true
+	game._apply_doors(me)
+	var stingers := sink.count_of(&"stinger")
+	me.place_at(level.position + (into["centre"] as Vector3) + (into["normal"] as Vector3) * 1.0 + Vector3(0, 0.1, 0), 0.0)
+	for i in 4:
+		await get_tree().physics_frame
+	await _drawn()
+	var her: Node3D = client.get("_glimpse")
+	_check(her != null and her.visible and her.global_position.distance_to(me.global_position) > 6.0 and sink.count_of(&"stinger") > stingers,
+		"she stands at the far end of the corridor, and you hear it", "%s, %s" % [her.visible if her != null else "none", her.global_position.distance_to(me.global_position) if her != null else -1.0])
+	await get_tree().create_timer(float(glimpse.get("seconds", 2.5)) + 0.3).timeout
+	_check(her != null and not her.visible, "and then she is gone")
+
+	game.send_to(me, 8)
+	await _drawn()
+	_check(lamps.all(func(l: Dictionary) -> bool: return (l["light"] as OmniLight3D).light_energy > 0.0), "a new go at the level lights the lamps again")
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
+	_finished_section()
+
+
+## A player walks up a stairwell to the floor above, and back down, through the controller.
+func _test_upstairs() -> void:
+	_section("upstairs, by the stairs")
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	client.set("start_level", 2)
+	add_child(client)
+	for i in 6:
+		await get_tree().process_frame
+	var game: LmGame = client.get("game")
+	game.config.witch_sight_scale = 0.0
+	var me: LmPlayer = client.get("player")
+	var level := game.level_of(me)
+	var stair := ""
+	for id: String in level.rooms:
+		if str(level.rooms[id]["kind"]) == "stair":
+			stair = id
+			break
+	var up := str(level.rooms[stair]["doc"]["up"])
+	var dir: Vector3 = {"e": Vector3(1, 0, 0), "w": Vector3(-1, 0, 0), "s": Vector3(0, 0, 1), "n": Vector3(0, 0, -1)}[up]
+	var cell := float(level.doc["cell"])
+	var foot := level.stair_point(stair, false) - dir * cell * 0.5
+	var yaw := rad_to_deg(atan2(-dir.x, -dir.z))
+	me.place_at(level.position + foot + Vector3(0, 0.1, 0), yaw)
+	me.controller.state.yaw = yaw
+	await get_tree().physics_frame
+	Input.action_press(&"dot_fps_forward")
+	for i in 300:
+		await get_tree().physics_frame
+	Input.action_release(&"dot_fps_forward")
+	var top := me.global_position - level.position
+	var upstairs := level.room_at(top)
+	_check(top.y > level.storey() - 0.2 and upstairs == stair and _along(level, stair, top) > level._stair_length(level.rooms[stair]) - cell,
+		"a player walks up the stairs to the landing at the head, a floor up", "%s in %s" % [top, upstairs])
+	me.place_at(me.global_position, yaw + 180.0)
+	Input.action_press(&"dot_fps_forward")
+	for i in 300:
+		await get_tree().physics_frame
+	Input.action_release(&"dot_fps_forward")
+	var bottom := me.global_position - level.position
+	_check(bottom.y < 0.3 and level.room_at(bottom) == stair, "and back down again", str(bottom))
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
+	_finished_section()
+
+
+func _along(level: LmLevel, stair: String, at: Vector3) -> float:
+	return level._along_stair(level.rooms[stair], at)
 
 
 ## The HUD at the window sizes a player has: the step wraps rather than runs off the edge

@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
 const SECTIONS := 8
-const CHECKS := 28
+const CHECKS := 30
 const LmAvatars := preload("res://game/lm_avatars.gd")
 const LmEvent := preload("res://game/net/lm_event.gd")
 const LmEvents := preload("res://game/net/lm_events.gd")
@@ -280,6 +280,29 @@ func _test_a_door_for_one() -> void:
 	_check(past > 1.0, "the server walks it through", "%.2f m" % past)
 	var gap := mine.controller.state.position.distance_to(server_player.controller.state.position)
 	_check(gap < 0.3, "and the client was predicting the same walk, not a wall", "%.3f m" % gap)
+
+	# A door that slams behind the player (an event, the server's) is shut in the client's own
+	# prediction too: progress carries the events, and the doors with them.
+	var slam: Dictionary = {}
+	for id: String in level.events:
+		if str(level.events[id].get("do", "")) == "slam":
+			slam = level.events[id]
+	var slammed := str(slam.get("door", ""))
+	var shut: Dictionary = level.doors[slammed]
+	_server_game._unlock(server_player, slammed)
+	var room := str(shut["doc"]["b"])
+	# The corner of the room past it furthest from the doorway: clear of it, so it slams.
+	var far := level._room_point(room, [0.5, 0.5])
+	for f in [[0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85]]:
+		var corner := level._room_point(room, f)
+		if corner.distance_to(shut["centre"]) > far.distance_to(shut["centre"]):
+			far = corner
+	server_player.place_at(level.position + far + Vector3(0, 0.1, 0), 0.0)
+	_server_game.fire_events(server_player)
+	_exchange()
+	await _steps(4)
+	_check(mine.fired.has(str(slam["id"])) and not mine.opened.has(slammed), "a door that slams behind the player is shut for its client too", str(mine.describe()))
+	_check(not mine.controller.body.exclude.has(_client_game.levels[1].door_rid(slammed)), "and its own controller no longer walks through it")
 	_finished_section()
 
 

@@ -20,8 +20,15 @@ const LmPaths := preload("lm_paths.gd")
 const CHANNEL := "lookatme.game"
 const SERVICE := &"lookatme.game"
 
-## Metres between levels laid side by side.
-const LEVEL_GAP := 60.0
+## Metres between levels laid side by side, and how many to a row: 32 levels in one line ran
+## to 5 km once they were three times the size, and the further from the origin the coarser a
+## float's metre.
+const LEVEL_GAP := 40.0
+const LEVELS_PER_ROW := 8
+
+## Metres from a door a player must be before it slams behind them: never shut on somebody
+## standing in the doorway.
+const SLAM_CLEAR := 3.0
 
 ## The physics layer walls and doors are on, and the one players are on.
 const LAYER_WORLD := 1
@@ -38,6 +45,8 @@ signal took(key: StringName, item_id: String)
 signal opened_door(key: StringName, door_id: String)
 signal caught(key: StringName)
 signal level_done(key: StringName, number: int)
+## One of the level's events happened to [param key] (a slam when the door actually shuts).
+signal event_fired(key: StringName, event_id: String)
 signal won(key: StringName)
 signal player_joined(key: StringName)
 signal player_left(key: StringName)
@@ -236,7 +245,8 @@ func load_directory(directory: String) -> int:
 	return documents.size()
 
 
-## Builds every level, laid side by side along +X.
+## Builds every level, laid side by side along +X in rows of [constant LEVELS_PER_ROW], each
+## row along +Z after the deepest level of the one before.
 func build_levels() -> void:
 	# Out of the tree now, not at the end of the frame: a house change builds the new levels
 	# under the same names in the same places, and two Level_01s for a frame is two sets of
@@ -249,6 +259,9 @@ func build_levels() -> void:
 	var numbers: Array = documents.keys()
 	numbers.sort()
 	var next_x := 0.0
+	var row_z := 0.0
+	var row_depth := 0.0
+	var in_row := 0
 
 	for n: int in numbers:
 		var level := LmLevel.new()
@@ -261,16 +274,24 @@ func build_levels() -> void:
 			level.queue_free()
 			continue
 
-		var lo := INF
-		var hi := -INF
+		var bounds := Rect2()
+		var first := true
 
 		for room_id: String in level.rooms:
 			var rect: Rect2 = level.rooms[room_id]["rect"]
-			lo = minf(lo, rect.position.x)
-			hi = maxf(hi, rect.end.x)
+			bounds = rect if first else bounds.merge(rect)
+			first = false
 
-		level.position = Vector3(next_x - lo, 0.0, 0.0)
-		next_x += (hi - lo) + LEVEL_GAP
+		if in_row == LEVELS_PER_ROW:
+			row_z += row_depth + LEVEL_GAP
+			next_x = 0.0
+			row_depth = 0.0
+			in_row = 0
+
+		level.position = Vector3(next_x - bounds.position.x, 0.0, row_z - bounds.position.y)
+		next_x += bounds.size.x + LEVEL_GAP
+		row_depth = maxf(row_depth, bounds.size.y)
+		in_row += 1
 		levels[n] = level
 
 
@@ -443,6 +464,7 @@ func interact(key: StringName) -> String:
 	if text != "":
 		said.emit(key, text)
 
+	fire_events(player)
 	return text
 
 
@@ -525,6 +547,9 @@ func _name_of(level: LmLevel, item_id: String) -> String:
 
 	for station: Dictionary in level.doc.get("stations", []):
 		if str(station.get("gives", "")) == item_id:
+			# A chest says what is in it: "you need the red key", not "something from a chest".
+			if station.has("gives_name"):
+				return "the %s" % str(station["gives_name"]).to_lower()
 			return "something from the %s" % str(station["name"]).to_lower()
 
 	return "something"
@@ -538,18 +563,96 @@ func step_of(player: LmPlayer) -> String:
 		return ""
 
 	for step: Dictionary in level.doc.get("steps", []):
-		var when: Dictionary = step.get("when", {})
-
-		if when.has("holds") and (player.holds.has(str(when["holds"])) or player.taken.has(str(when["holds"]))):
-			continue
-		if when.has("opened") and player.opened.has(str(when["opened"])):
-			continue
-		if when.has("used") and player.used.has(str(when["used"])):
+		if _done(player, level, step.get("when", {}), ""):
 			continue
 
 		return str(step["text"])
 
 	return "Get out"
+
+
+## Whether a step's or an event's condition holds for [param player]: holds an item (or ever
+## had it: taken it, or used what gives it, so a fuse fitted or water poured is still a step
+## done), opened a door, used a station, or is in a room ([param room], where they are now).
+func _done(player: LmPlayer, level: LmLevel, when: Dictionary, room: String) -> bool:
+	if when.has("holds"):
+		var item := str(when["holds"])
+		if not (player.holds.has(item) or player.taken.has(item) or _given(player, level, item)):
+			return false
+	if when.has("opened") and not player.opened.has(str(when["opened"])):
+		return false
+	if when.has("used") and not player.used.has(str(when["used"])):
+		return false
+	if when.has("entered") and str(when["entered"]) != room:
+		return false
+	return not when.is_empty()
+
+
+func _given(player: LmPlayer, level: LmLevel, item: String) -> bool:
+	for station_id: String in player.used:
+		var station: Dictionary = level.stations.get(station_id, {}).get("doc", {})
+		if str(station.get("gives", "")) == item:
+			return true
+	return false
+
+
+# --- Events ----------------------------------------------------------------------
+
+## What the house does to [param player] now: every event of their level whose condition has
+## come true and that has not happened to them on this go. Called every tick and after every
+## E. "lights" and "glimpse" are the player's own client's to show; "slam" shuts the door
+## for them (they open it again to go back), once they are clear of the doorway.
+func fire_events(player: LmPlayer) -> void:
+	var level := level_of(player)
+
+	if level == null or level.events.is_empty() or player.caught_left > 0.0:
+		return
+
+	var local := player.global_position - level.position
+	var room := level.room_at(local)
+
+	for event_id: String in level.events:
+		if player.fired.has(event_id) or player.slams_waiting.has(event_id):
+			continue
+
+		var event: Dictionary = level.events[event_id]
+
+		if not _done(player, level, event.get("when", {}), room):
+			continue
+
+		if str(event.get("do", "")) == "slam":
+			player.slams_waiting.append(event_id)
+			continue
+
+		_fire(player, event_id)
+
+	for event_id: String in player.slams_waiting.duplicate():
+		var door_id := str(level.events[event_id].get("door", ""))
+		var door: Dictionary = level.doors.get(door_id, {})
+
+		if not door.is_empty():
+			var centre: Vector3 = door["centre"]
+			if Vector2(local.x - centre.x, local.z - centre.z).length() < SLAM_CLEAR and absf(local.y - centre.y) < 2.0:
+				continue
+
+		player.slams_waiting.erase(event_id)
+
+		if player.opened.has(door_id):
+			player.opened.erase(door_id)
+			_apply_doors(player)
+
+		_fire(player, event_id)
+
+
+func _fire(player: LmPlayer, event_id: String) -> void:
+	player.fired[event_id] = true
+	var level := level_of(player)
+	var text := str(level.events[event_id].get("text", "")) if level != null else ""
+	DotLog.debug(CHANNEL, "an event", {"player": String(player.player_key), "level": player.level, "event": event_id})
+	event_fired.emit(player.player_key, event_id)
+
+	if text != "":
+		said.emit(player.player_key, text)
 
 
 ## A typed command: /r (back to the lobby), /l N (a level you have reached). Returns the reply.
@@ -619,6 +722,7 @@ func step(delta: float) -> void:
 
 		player.simulate(tick, delta)
 		_watch(player, seconds, delta)
+		fire_events(player)
 		_check_exit(player)
 
 
@@ -726,6 +830,7 @@ func _put_back(player: LmPlayer) -> void:
 	var keep_opened := player.opened.duplicate()
 	var keep_used := player.used.duplicate()
 	var keep_taken := player.taken.duplicate()
+	var keep_fired := player.fired.duplicate()
 	send_to(player, player.level)
 
 	if config.caught_penalty == 0:
@@ -733,6 +838,7 @@ func _put_back(player: LmPlayer) -> void:
 		player.opened = keep_opened
 		player.used = keep_used
 		player.taken = keep_taken
+		player.fired = keep_fired
 		_apply_doors(player)
 
 

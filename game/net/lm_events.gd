@@ -20,7 +20,7 @@ enum Kind {
 	JOIN,
 	## A player left.
 	LEAVE,
-	## Your progress: level, best, holds, opened, used, taken. To the owner only.
+	## Your progress: level, best, holds, opened, used, taken, the events that have happened to you. To the owner only.
 	PROGRESS,
 	## A line for the middle of your screen. To one player.
 	SAY,

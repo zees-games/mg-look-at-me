@@ -32,6 +32,13 @@ var opened: Dictionary = {}
 var used: Dictionary = {}
 var taken: Dictionary = {}
 
+## The level's events that have happened to this player on this go (event id -> true): progress
+## like the rest, sent to the owner, so their client puts out the lights, slams the door and
+## shows her. A slam waits in [member slams_waiting] until the player is clear of the doorway
+## (the server's alone).
+var fired: Dictionary = {}
+var slams_waiting: Array[String] = []
+
 var flashlight: bool = true
 
 ## 0 to 1. Full is caught.
@@ -150,6 +157,8 @@ func reset_level() -> void:
 	opened.clear()
 	used.clear()
 	taken.clear()
+	fired.clear()
+	slams_waiting.clear()
 	meter = 0.0
 	unseen_for = 0.0
 	caught_left = 0.0
@@ -207,5 +216,5 @@ func present_body(own_view: bool, simulated_here: bool = false) -> void:
 func describe() -> Dictionary:
 	return {
 		"key": String(player_key), "level": level, "best": best, "won": won,
-		"holds": holds, "opened": opened.keys(), "meter": "%.2f" % meter, "flashlight": flashlight,
+		"holds": holds, "opened": opened.keys(), "fired": fired.keys(), "meter": "%.2f" % meter, "flashlight": flashlight,
 	}

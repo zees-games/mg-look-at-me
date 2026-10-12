@@ -2,6 +2,15 @@
 
 Bug stories worth keeping. Each one's rule is in `CLAUDE.md` or a topic doc.
 
+## 2026-10-12: the levels three times the size, and what rendering found
+
+Christian: "The maps definitely need to be bigger and longer with more to do though." The builder went to a 4 m grid, 14 + n rooms, corridors, stairwells and an upstairs, chests, and events. Every suite passed long before the house was right.
+
+- **Stairwells led nowhere.** The first upstairs had no rooms: a room upstairs must stand on rooms below, and a stairwell that climbed straight away from its door put its head over empty ground. Stairwells now mostly climb alongside the wall they are entered through, are kept only with a room off their head, and the ground floor is grown before upstairs. Found by counting rooms per floor, not by any suite.
+- **She stood unlit at the end of her corridor.** The glimpse was drawn, the event fired, the suite said so, and the render showed two red dots: every level is built at once, the compatibility renderer draws a capped number of lights, and the lamps of other levels in view pushed out the light on her. The client now draws only the player's level, with a 90 m far plane.
+- **A fitted fuse sent the step back.** "Find a fuse" was done while the fuse was held or taken from the floor; a fuse from a chest, fitted, was neither, and the step line went back to it (the bucket's water always had). A step about an item is now done once anything that gives it has been used.
+- **A sound for an event was refused** when the player had just been moved: the listener follows the camera after the events are shown, so a sound placed from the new spot was out of earshot of the old one. The client moves the listener first.
+
 ## 2026-10-12: the horror pass, and what rendering and recording found
 
 Christian's first play test saw no witch, heard near silence, and read room names hanging in mid-air. Every suite passed throughout.

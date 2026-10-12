@@ -49,10 +49,14 @@ const CLICK := &"click"
 const STINGER := &"stinger"
 ## She has you.
 const SCREAM := &"scream"
+## A door slamming shut behind you (an event), where the door is.
+const SLAM := &"slam"
+## The lights of a room dying (an event): the buzz stutters with the lamps, then a pop.
+const LIGHTS_OUT := &"lights_out"
 
-## The most witches a level has (tools/build_levels.py: 1 + (n-1)/4, up to 6), and two spare
+## The most witches a level has (tools/build_levels.py: 2 + (n-1)/3, up to 12), and two spare
 ## for an owner's house that has more. Past that, the furthest ones go unheard.
-const MAX_DRONES := 8
+const MAX_DRONES := 14
 
 ## The heartbeat: silent below this meter...
 const HEART_FROM := 0.2
@@ -91,7 +95,7 @@ var _drones: Dictionary = {}
 
 
 static func ids() -> Array[StringName]:
-	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, STINGER, SCREAM]
+	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, STINGER, SCREAM, SLAM, LIGHTS_OUT]
 
 
 static func sound_catalogue() -> DotAudioCatalogue:
@@ -161,6 +165,20 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	var scream := _def(SCREAM, 1, 100)
 	scream.gain_db = -9.0
 	c.add(scream)
+
+	var slam := _def(SLAM, 1, 80)
+	slam.kind = DotAudioDef.Kind.POSITIONAL_3D
+	slam.unit_size = 6.0
+	slam.max_distance = 40.0
+	slam.gain_db = -5.0
+	c.add(slam)
+
+	var lights := _def(LIGHTS_OUT, 1, 70)
+	lights.kind = DotAudioDef.Kind.POSITIONAL_3D
+	lights.unit_size = 5.0
+	lights.max_distance = 30.0
+	lights.gain_db = -10.0
+	c.add(lights)
 	return c
 
 
@@ -305,6 +323,16 @@ func witch_step(at: Vector3) -> bool:
 ## A witch has just started seeing you.
 func stinger() -> bool:
 	return manager != null and manager.play(STINGER) != 0
+
+
+## A door slamming at [param at].
+func slam(at: Vector3) -> bool:
+	return manager != null and manager.play_at(SLAM, at) != 0
+
+
+## A room's lights dying, from its middle at [param at].
+func lights_out(at: Vector3) -> bool:
+	return manager != null and manager.play_at(LIGHTS_OUT, at) != 0
 
 
 ## She has you.
