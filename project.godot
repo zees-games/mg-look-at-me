@@ -12,16 +12,18 @@ config_version=5
 
 config/name="mg-look-at-me"
 config/description="A dark house, thirty-two levels deep, with witches walking its rooms. Find what opens the next door before one of them looks at you."
-config/features=PackedStringArray("4.7")
 run/main_scene="res://game/lm.tscn"
+config/features=PackedStringArray("4.7")
 
 [audio]
 
 driver/enable_input=true
 
-[physics]
+[importer_defaults]
 
-common/physics_ticks_per_second=60
+texture={
+"detect_3d/compress_to": 0
+}
 
 [rendering]
 
