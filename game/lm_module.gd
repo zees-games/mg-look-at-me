@@ -92,6 +92,16 @@ func _game_load() -> DotResult:
 	if world == null:
 		return DotResult.fail(DotError.CODE_STATE, "The registered game is not the house.")
 
+	# dot-player-controller's mp_forceview (0 the player's choice, 1 first person only, 2 third
+	# only; the config's allow_third_person false starts it at 1) and mp_solidplayers.
+	# REPLICATED: each client places its own camera and predicts its own player under them.
+	var _views := world.view_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	var _bodies := world.body_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
 	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
 	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")

@@ -25,7 +25,8 @@ static func make() -> DotMenuBindings:
 	keys.add_movement("Movement", "Ctrl", "Crouch (a witch sees you more slowly)")
 	keys.add(USE, &"bind_use", "Take, open, use", "E", "Hands")
 	keys.add(FLASHLIGHT, &"bind_flashlight", "Flashlight (and a witch sees you sooner)", "F", "Hands")
-	keys.add(VIEW, &"bind_view", "First or third person, where the server allows it", "C", "General")
+	# F5, the family's view key in every game (it was C here).
+	keys.add(VIEW, &"bind_view", "First or third person, where the server allows it", "F5", "General")
 	keys.add(COMMAND, &"bind_command", "A command: /r to the lobby, /l3 to a level you reached (Enter too)", "Slash", "General")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "General")
 	return keys

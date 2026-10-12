@@ -51,6 +51,12 @@ signal house_changed(id: StringName)
 
 var config: LmConfig = null
 
+## dot-player-controller's `mp_forceview` (may a player switch to third person; the config's
+## `allow_third_person` false is `1`, first person only) and `mp_solidplayers` (players block
+## each other). Bound by the module (REPLICATED) and followed by a client through its link.
+var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
+var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+
 ## level number -> LmLevel, and the documents by number.
 var levels: Dictionary = {}
 var documents: Dictionary = {}
@@ -79,9 +85,26 @@ func _init() -> void:
 	config = LmConfig.new()
 
 
+## A player's motor mask under `mp_solidplayers`: the walls, and the other players when they
+## are solid. Their capsule is already on LAYER_PLAYERS, so the mask is the whole change.
+func _apply_body_mask(player: LmPlayer) -> void:
+	if player != null and player.controller != null:
+		body_rules.apply_to(player.controller, LAYER_WORLD, LAYER_PLAYERS)
+
+
+func _on_body_rules_changed() -> void:
+	for key in players:
+		_apply_body_mask(players[key] as LmPlayer)
+
+
 func _ready() -> void:
 	var _loaded := config.load_layered("user://cfg/lookatme.json")
 	tick_rate = Engine.physics_ticks_per_second
+	# The config's old switch is the server rule's first value until a cvar says otherwise.
+	if not config.allow_third_person:
+		view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
+	if not body_rules.changed.is_connected(_on_body_rules_changed):
+		body_rules.changed.connect(_on_body_rules_changed)
 
 	if authoritative:
 		_find_houses()
@@ -275,6 +298,7 @@ func join(key: StringName, name_text: String, avatar: DotAvatar = null) -> LmPla
 	player.tick_rate = tick_rate
 	add_child(player)
 	players[key] = player
+	_apply_body_mask(player)
 	player.won = winners.has(String(key))
 	send_to(player, 1)
 	player_joined.emit(key)

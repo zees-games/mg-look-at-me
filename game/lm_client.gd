@@ -45,6 +45,10 @@ var camera: Camera3D = null
 var flashlight: SpotLight3D = null
 var third_person: bool = false
 
+var _probe: DotCameraProbe = null
+var _fade: DotCameraFade = null
+var _focus: Marker3D = null
+
 var _env: Environment = null
 var _witch_views: Dictionary = {}
 var _hud: Control = null
@@ -311,6 +315,10 @@ func _build_netcode() -> DotResult:
 		return attached
 
 	bridge.open_link(link)
+	# The server's mp_forceview and mp_solidplayers: this end places its own camera and
+	# predicts its own player.
+	var _view := game.view_rules.follow_cvars(link)
+	var _solid := game.body_rules.follow_cvars(link)
 	net.messages.seal()
 	game.player_joined.connect(func(key: StringName) -> void:
 		if key == bridge.local_key:
@@ -383,7 +391,7 @@ func _refresh_key_line() -> void:
 		var text := DotInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
 		return fallback if text == DotInputBinding.UNBOUND else text
 	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command (/r lobby, /l2 a level)   %s house   %s help" % [
-		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "C"),
+		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "F5"),
 		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"dot_menu_maps", "M"),
 		k.call(DotMenuBindings.HELP_ACTION, "H")]
 
@@ -558,8 +566,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key.is_action(LmBindings.FLASHLIGHT):
 		_act("flashlight")
 	elif key.is_action(LmBindings.VIEW):
-		if game.config.allow_third_person:
-			third_person = not third_person
+		var wanted := game.view_rules.toggled(third_person)
+		if wanted == third_person and game.view_rules.refusal() != "":
+			_say(game.view_rules.refusal())
+		third_person = wanted
 	elif key.is_action(LmBindings.COMMAND) or key.keycode == KEY_ENTER:
 		_command.visible = true
 		# Typing is not walking: the sampler is detached until the line is sent.
@@ -784,15 +794,50 @@ func _hold_names(level: LmLevel) -> PackedStringArray:
 	return out
 
 
+## The camera on the drawn eye, or swept back from it in third person.
+##
+## [b]Swept, not set.[/b] Set 3.2 m back, the camera spent every corridor of the house inside
+## a wall; dot-core's [DotCameraProbe] sweeps a sphere from the eye and eases in ahead of the
+## wall. The server's `mp_forceview` is applied here every frame, so a change to it lands on
+## the next frame whatever the view key last did.
 func _place_camera() -> void:
+	third_person = game.view_rules.resolve(third_person)
 	var eye := player.drawn_eye_position()
 	var basis := Basis.from_euler(Vector3(deg_to_rad(player.controller.state.pitch), deg_to_rad(player.controller.state.yaw), 0.0))
 
+	if _fade == null:
+		_fade = DotCameraFade.new()
+		_fade.name = "Fade"
+		_fade.bodies_fn = _other_players
+		camera.add_child(_fade)
+
 	if third_person:
+		if _probe == null:
+			_probe = DotCameraProbe.new(camera.get_world_3d(), LmGame.LAYER_WORLD)
 		var back := basis.z * 3.2 + Vector3(0, 0.6, 0)
-		camera.global_transform = Transform3D(basis, eye + back)
+		camera.global_transform = Transform3D(basis, _probe.resolve(eye, eye + back, get_process_delta_time()))
+		if _focus == null or _focus.get_parent() != player:
+			_focus = Marker3D.new()
+			_focus.name = "CameraFocus"
+			_focus.position = Vector3(0.0, 1.5, 0.0)
+			player.add_child(_focus)
+		_fade.focus = _focus
 	else:
+		if _probe != null:
+			_probe.reset()
 		camera.global_transform = Transform3D(basis, eye)
+		_fade.focus = null
+
+
+## Everybody else in the house, for the camera fade: hidden at the lens, faded between the
+## third-person camera and you.
+func _other_players() -> Array:
+	var out: Array = []
+	for key in game.players:
+		var other: Node3D = game.players[key]
+		if other != player and is_instance_valid(other):
+			out.append(other)
+	return out
 
 
 ## Each witch where the clock puts her, with her sight drawn faintly on the floor.

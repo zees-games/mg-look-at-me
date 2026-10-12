@@ -546,6 +546,12 @@ func _on_event(message: DotNetMessage) -> void:
 				if setting in game.config:
 					game.config.set(setting, settings[setting])
 
+			# A server older than mp_forceview says only this; a newer one's cvar arrives
+			# through the link and outranks it.
+			if settings.has("allow_third_person") and not bool(settings["allow_third_person"]) \
+					and game.view_rules.force_view == DotPlayerViewRules.ANY:
+				game.view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
+
 			if _levels_expected == 0:
 				hello_received.emit(local_key)
 		LmEvents.Kind.LEVEL:

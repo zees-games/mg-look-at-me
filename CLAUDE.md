@@ -90,6 +90,8 @@ The red screen while caught is the meter's vignette and stays the HUD's. The mom
 
 **The mouse reaches the look through `LmClient._input`**, which hands each `InputEventMouseMotion` to the sampler in use (the player's offline, the client's connected) while the pointer is captured: a `DotFpsSampler` reads the keys itself but is only handed mouse motion, and until 2026-10-11 nothing handed it any, so the view turned only as the player walked. `headless_run`'s "the mouse turns the view" sends real motion through `Input.parse_input_event`; a check that sets yaw directly cannot catch this.
 
+**Cameras and bodies** (the first play test, family-wide): F5 is the view key under the server's `mp_forceview` (dot-player-controller's `DotPlayerViewRules`, bound REPLICATED by the module and followed through the link; the config's `allow_third_person` false starts it at 1, and an older server's HELLO saying so still holds); `_place_camera` applies it every frame. The third-person camera is swept from the eye by a dot-core `DotCameraProbe` against `LAYER_WORLD`, and a `DotCameraFade` on the camera is handed the other players. `mp_solidplayers` (1) puts `LAYER_PLAYERS` in every player's motor mask through `DotPlayerBodyRules.apply_to`, which also lets two players placed on one spot walk apart (`headless_run`'s door check is that case).
+
 ## Validating
 
 ```bash
@@ -101,6 +103,7 @@ godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 26 ch
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 21 checks
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
+tools/camera_check.sh [--render]   # third person round every room and door (armed), mp_forceview, mp_solidplayers both ways
 xvfb-run -a godot --path . res://tools/audio_probe.tscn       # does the house make a noise
 ```
 
