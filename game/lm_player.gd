@@ -181,6 +181,9 @@ func present_body(own_view: bool, simulated_here: bool = false) -> void:
 		"on_floor": controller.state.mode == DotFpsState.Mode.GROUND,
 		"vertical": controller.state.velocity.y,
 		"crouched": controller.state.crouch_fraction > 0.5,
+		# The view's pitch: the upper body and the head follow it, which in a game about who is
+		# looking at whom is the point.
+		"aim": deg_to_rad(controller.state.pitch),
 	})
 	figure.pose(at, deg_to_rad(controller.state.yaw), horizontal_speed())
 	var crown: Label3D = get_node_or_null("Crown")
