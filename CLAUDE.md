@@ -23,7 +23,8 @@ game/
   lm_settings.gd the player's settings and the screen Escape opens
   lm_audio.gd    the sounds as a dot-audio catalogue (heartbeat, witch_drone, click) with synthesised stand-ins; the lub-dub's timing; a drone per witch in earshot
   net/           lm_events (JSON kinds), lm_event/lm_request, lm_net_link, lm_net_command (the move), lm_player_net (movement + level/flashlight/won, meter/caught to the owner), lm_net_bridge
-  lm_figure.gd, lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (Kenney blocky characters, the avatar schema, mount paths)
+  lm_figure.gd   a player drawn as one of the family's animated people (dot-player-char's DotHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
+  lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn

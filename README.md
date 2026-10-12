@@ -120,7 +120,7 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
 
 ## Credits
-The characters are Kenney's Blocky Characters and the furniture is Kenney's Furniture Kit ([kenney.nl](https://kenney.nl), CC0), in `assets/kenney/` with their licences. Everything else is drawn in code.
+The players are the family's animated people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by Kenney's Blocky Characters' skins; the furniture is Kenney's Furniture Kit ([kenney.nl](https://kenney.nl), CC0), in `assets/kenney/` with their licences. Everything else is drawn in code.
 
 ## License
 MIT. See [LICENSE](LICENSE). The Kenney art is CC0, which is public domain.

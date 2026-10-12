@@ -164,7 +164,7 @@ func set_avatar(next: DotAvatar) -> void:
 		figure = null
 
 
-## What somebody else sees: a Kenney figure in this player's avatar, and a crown over a winner.
+## What somebody else sees: one of the family's people in this player's avatar, and a crown over a winner.
 ## [param simulated_here] draws the body between ticks, as the camera is (see
 ## [method drawn_eye_position]); only for this machine's own player.
 func present_body(own_view: bool, simulated_here: bool = false) -> void:
@@ -177,6 +177,11 @@ func present_body(own_view: bool, simulated_here: bool = false) -> void:
 
 	figure.visible = not own_view
 	var at := controller.render_state().position if simulated_here else global_position
+	figure.set_motion({
+		"on_floor": controller.state.mode == DotFpsState.Mode.GROUND,
+		"vertical": controller.state.velocity.y,
+		"crouched": controller.state.crouch_fraction > 0.5,
+	})
 	figure.pose(at, deg_to_rad(controller.state.yaw), horizontal_speed())
 	var crown: Label3D = get_node_or_null("Crown")
 
