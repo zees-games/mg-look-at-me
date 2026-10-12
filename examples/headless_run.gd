@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
 const SECTIONS := 12
-const CHECKS := 64
+const CHECKS := 66
 
 var _passed := 0
 var _failed := 0
@@ -441,6 +441,17 @@ func _test_the_client_settings() -> void:
 		"the prompt, the chat box and a ballot do not meet",
 		"prompt %s, chat %s, ballot %s" % [prompt_rect, chat_rect, ballot_rect]
 	)
+
+	# Christian's first play test: a darker HUD by default, restyled live by the menu's theme.
+	var plate := prompt.colour(&"plate")
+	_check(plate.get_luminance() < 0.1 and plate.a >= 0.7 and prompt.colour(&"highlight") == LmClientScript.get("LAMP_COLOUR"),
+		"the HUD is dark by default, in the menu's theme, with the lamp's amber as its accent", str(plate))
+	var _t: Variant = settings.settings.set_value(&"ui_theme", &"contrast")
+	var step_label: Label = client.get("_step")
+	_check(prompt.colour(&"plate") == menu.palette().hud_plate and step_label.get_theme_color(&"font_color") == menu.palette().hud_text
+		and prompt.colour(&"highlight") == LmClientScript.get("LAMP_COLOUR"),
+		"a theme picked in the menu reaches the prompt and the HUD's lines at once, the accent kept")
+	_t = settings.settings.set_value(&"ui_theme", &"midnight")
 
 	# M, the family's rule since the first play test: the house list, and solo a choice
 	# changes it now. The server's half (the owner's flag, the vote) is in `dedicated`.

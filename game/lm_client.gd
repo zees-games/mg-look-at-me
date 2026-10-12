@@ -207,6 +207,11 @@ func _build_settings() -> void:
 		# the server's console when one runs in this process. One of the menu's overlays, so
 		# opening it stops the player and frees the pointer exactly as the menu does.
 		console = DotConsoleKit.build(self, settings.settings, settings.menu)
+		# The HUD in the menu's theme and at the player's HUD size, live (dot-menu's
+		# `follow_hud`, by name for a client shell older than it): Christian's first play test
+		# asked for a darker HUD a player can restyle in the menu.
+		if _hud != null and settings.menu.has_method(&"follow_hud"):
+			settings.menu.call(&"follow_hud", _hud, piece_theme())
 		_wire_board()
 		_wire_maps()
 	_refresh_key_line()
@@ -433,8 +438,8 @@ func _build_hud() -> void:
 	_meter_bar.add_theme_stylebox_override("fill", fill)
 	_hud.add_child(_meter_bar)
 
-	# Under the crosshair: what the use key does right now. Its colours are [method
-	# piece_theme]'s, set on the piece so the Labels here keep their own.
+	# Under the crosshair: what the use key does right now. Its colours are the menu's theme
+	# (set on the HUD's root, see [method _build_settings]) with [method piece_theme]'s accent.
 	prompt = DotKeyPrompt.new()
 	prompt.name = "Prompt"
 	prompt.theme = piece_theme()
@@ -479,16 +484,15 @@ static func use_key() -> String:
 	return DotInputBinding.ensure_action(USE_ACTION, USE_DEFAULT)
 
 
-## The glance pieces' colours in this house's palette: a near-black plate warm enough to sit
-## in lamplight, pale text, the lamp's amber as highlight. Static so a render tool can use it.
+## This house's accent over whichever theme the player picked in the menu: the lamp's amber
+## as the glance pieces' highlight and their plates' edge. The plates, the words, the key cap
+## and the outline are the theme's (dark by default), so a light or high-contrast theme can
+## change them. Static so a render tool can use it.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
 	var type := DotHudPiece.THEME_TYPE
-	t.set_color(&"plate", type, Color(0.05, 0.04, 0.035, 0.66))
 	t.set_color(&"plate_edge", type, Color(LAMP_COLOUR, 0.28))
 	t.set_color(&"highlight", type, LAMP_COLOUR)
-	t.set_color(&"keycap", type, Color(0.96, 0.92, 0.84, 0.95))
-	t.set_color(&"low", type, Color(1.0, 0.3, 0.26))
 	return t
 
 
