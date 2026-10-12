@@ -12,7 +12,7 @@ const LmProgress := preload("res://game/lm_progress.gd")
 const LmSettings := preload("res://game/lm_settings.gd")
 
 const SECTIONS := 17
-const CHECKS := 99
+const CHECKS := 100
 
 var _passed := 0
 var _failed := 0
@@ -91,6 +91,7 @@ func _test_levels() -> void:
 	# three times the floor of the first, which ran from 960 m2 and 4 rooms to 2,300 m2 and 20.
 	var small := PackedStringArray()
 	var flat := PackedStringArray()
+	var low := []
 	var quiet := PackedStringArray()
 
 	for n: int in game.levels:
@@ -99,6 +100,13 @@ func _test_levels() -> void:
 			small.append("%d (%d m2, %d rooms)" % [n, int(level.floor_area()), level.rooms.size()])
 		if n >= 2 and level.floor_count() < 2:
 			flat.append(str(n))
+		# A third floor from level 16: three rooms at least, up a stairwell from the first.
+		var top := 0
+		for id: String in level.rooms:
+			if int(level.rooms[id]["floor"]) == 2 and str(level.rooms[id]["kind"]) != "stair":
+				top += 1
+		if n >= 16 and top < 3:
+			low.append("%d (%d rooms on floor 2)" % [n, top])
 		var kinds := {}
 		for id: String in level.events:
 			kinds[str(level.events[id].get("do", ""))] = true
@@ -108,6 +116,7 @@ func _test_levels() -> void:
 	_check(small.is_empty() and (game.levels[32] as LmLevel).floor_area() > 7000.0,
 		"every level is big: 14 + n rooms, over 2,000 m2, level 32 over 7,000", ", ".join(small))
 	_check(flat.is_empty(), "every level from 2 has an upstairs", ", ".join(flat))
+	_check(low.is_empty(), "and every level from 16 a third floor of three rooms or more", ", ".join(low))
 	_check(quiet.is_empty(), "and every level has its events: lights that die, a door that slams, her down a corridor", ", ".join(quiet))
 
 	# A witch on her walk is on the floor where she is, up a stairwell's ramp as well.

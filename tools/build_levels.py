@@ -101,8 +101,9 @@ def plan(n):
     """How big level n is and what it may have: rooms, floors, witches, events."""
     return {
         "rooms": min(14 + n, 46),
-        # Upstairs from level 2: the lobby's level is one floor, to learn the house on.
-        "floors": 1 if n < 2 else 2,
+        # Upstairs from level 2: the lobby's level is one floor, to learn the house on. A third
+        # floor from level 16, up a stairwell from the first floor.
+        "floors": 1 if n < 2 else (2 if n < 16 else 3),
         "witches": min(2 + (n - 1) // 3, 12),
         "lights": 1 + n // 10,
         "slams": 1 + n // 6,
@@ -290,6 +291,9 @@ def grow(rng, n, lobby_name, names, corridor_names, stair_names):
     def pick_kind(parent):
         return "corridor" if parent["kind"] != "corridor" and rng.random() < 0.3 else "room"
 
+    if p["floors"] > 2:
+        return grow_floors(g, rng, p, name_for, grow_from, pick_kind)
+
     # The ground floor first, then upstairs: a third of the house, over the ground floor, up
     # one stairwell or more. Grown in that order the tree goes up the stairs late, so a level is
     # the ground floor searched, then upstairs, then back down to the way out on the ground.
@@ -323,6 +327,73 @@ def grow(rng, n, lobby_name, names, corridor_names, stair_names):
     return g
 
 
+def grow_floors(g, rng, p, name_for, grow_from, pick_kind):
+    """The house on three floors or more: the ground floor, then each floor in turn over the one
+    below, each up its own stairwell from the floor under it.
+
+    A stairwell up from floor 1 needs ground under all eight of its cells (nothing hangs in the
+    air) and two free storeys over them, beside a room on floor 1 it is entered from. Grown the
+    two-floor way (a third of the house upstairs, stairwells tried at random throughout), floor
+    1 had covered nearly all the ground by the time one was tried, and almost none fitted. So
+    here a floor is finished before the one above it is started, floor 1 is only a quarter of
+    the house (ground with nothing over it is left round its edges for the next stairwell), and
+    a stairwell to floor f is tried from a room on floor f-1 or from the head of a stairwell up
+    to f-1: off a head, the next one can run back alongside the first, over the room the first
+    was entered from (a stair tower). Two-floor levels keep the old order (grow()), so their
+    houses are what they were.
+
+    Floor 1 is a quarter of the house and each floor above an eighth, at least three rooms;
+    level() refuses a top floor with fewer than three."""
+    floors = p["floors"]
+    targets = {f: (p["rooms"] // 4 if f == 1 else max(3, p["rooms"] // 8)) for f in range(1, floors)}
+    ground_target = p["rooms"] - sum(targets.values())
+
+    tries = 0
+    while len(g.rooms) < ground_target and tries < 20000:
+        tries += 1
+        recent = g.rooms[max(0, len(g.rooms) - 5):]
+        parent = rng.choice(recent) if rng.random() < 0.6 else rng.choice(g.rooms)
+        grow_from(parent, pick_kind(parent))
+
+    for f in range(1, floors):
+        def on_floor():
+            # The rooms of floor f and the stairwells up to it (their heads are on it).
+            return [r for r in g.rooms if (r["kind"] == "stair" and r["floor"] == f - 1)
+                    or (r["kind"] != "stair" and r["floor"] == f)]
+
+        def below():
+            return [r for r in g.rooms if (r["kind"] == "stair" and r["floor"] == f - 2)
+                    or (r["kind"] != "stair" and r["floor"] == f - 1)]
+
+        tries = 0
+        while tries < 20000:
+            tries += 1
+            here = on_floor()
+            if len([r for r in here if r["kind"] != "stair"]) >= targets[f]:
+                break
+            stairs = [r for r in here if r["kind"] == "stair"]
+            if not stairs or (len(stairs) < 2 and rng.random() < 0.03):
+                grow_from(rng.choice(below()), "stair")
+            elif tries < 15000:
+                rooms_here = [r for r in here if r["kind"] != "stair"] or stairs
+                recent = rooms_here[max(0, len(rooms_here) - 4):]
+                parent = rng.choice(recent) if rng.random() < 0.6 else rng.choice(here)
+                # Only rooms on this floor grow here: a stairwell up from it waits for the next.
+                kind = pick_kind(parent)
+                grow_from(parent, kind)
+            else:
+                break
+
+    # Whatever is left grows on the ground floor.
+    tries = 0
+    while len(g.rooms) < p["rooms"] and tries < 20000:
+        tries += 1
+        ground = [r for r in g.rooms if r["floor"] == 0 and r["kind"] != "stair"]
+        parent = rng.choice(ground)
+        grow_from(parent, pick_kind(parent))
+    return g
+
+
 def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_names, stair_names):
     p = plan(n)
     # A level is grown until it has what its plan asks for: a stairwell where it has floors to
@@ -335,6 +406,10 @@ def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_
             continue
         if p["floors"] > 1 and not any(r["kind"] == "stair" for r in g.rooms):
             continue
+        # Every floor the plan asks for is there, and the top one is somewhere to search: three
+        # rooms at least, not one attic at the head of a stairwell.
+        if top_floor(g) < p["floors"] - 1 or (p["floors"] > 2 and rooms_on(g, p["floors"] - 1) < 3):
+            continue
         if not glimpse_corridors(g):
             continue
         if exit_of(g) is None:
@@ -343,6 +418,16 @@ def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_
         if solve(doc) and len(compact(doc)) <= MAX_BYTES:
             return doc
     raise SystemExit("level %d of %s: no house grew that fits its plan" % (n, prefix))
+
+
+def top_floor(g):
+    """The highest floor with a room on it."""
+    return max(r["floor"] for r in g.rooms if r["kind"] != "stair")
+
+
+def rooms_on(g, floor):
+    """How many rooms (not stairwells) are on [floor]."""
+    return sum(1 for r in g.rooms if r["kind"] != "stair" and r["floor"] == floor)
 
 
 def glimpse_corridors(g):

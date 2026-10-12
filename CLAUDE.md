@@ -1,6 +1,6 @@
 # mg-look-at-me
 
-A dark house, thirty-two levels deep and two floors high, with witches walking its rooms: a small horror game. Find what opens the next door before one of them looks at you.
+A dark house, thirty-two levels deep and up to three floors high, with witches walking its rooms: a small horror game. Find what opens the next door before one of them looks at you.
 
 Read the family-wide conventions in [`../../CLAUDE.md`](../../CLAUDE.md) first, and dot-player-controller's `CLAUDE.md` before touching movement. This file is only about what this game decides.
 
@@ -31,7 +31,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (17 sections, 99 checks), headless_net (8, 34), headless_lossy (5, 30), dedicated (7, 25)
+examples/        headless_run (17 sections, 100 checks), headless_net (8, 34), headless_lossy (5, 30), dedicated (7, 25)
 tools/           build_levels.py (--check, --stats); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -50,7 +50,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **A witch's walk is a pure function of time** (`LmLevel.witch_pose`); never send her. Draw her at the interpolated time and animate her from her loop's speed, never a measured one. [design](docs/design.md#decision-2-a-witchs-walk-is-a-pure-function-of-time), [horror](docs/horror.md#the-witch)
 - **Being seen is a meter**, out of her fan she cannot see you; the client asks `LmGame.exposure` for the local player only to draw and play it. [design](docs/design.md#decision-3-being-seen-is-a-meter)
 - **Levels are generated and proven** by `tools/build_levels.py` (`--check`); a witch starts in a room with somewhere to walk. [design](docs/design.md#decision-4-levels-are-generated-and-proven)
-- **A level is 14 + n rooms on a 4 m grid, on two floors from level 2**; a stairwell is the only way up and is placed only with a room off its head; a room upstairs stands over rooms below. [levels](docs/levels.md#size)
+- **A level is 14 + n rooms on a 4 m grid, on two floors from level 2 and three from level 16**; a stairwell is the only way up and is placed only with a room off its head; a room upstairs stands over rooms below. Three-floor levels grow a floor at a time (`grow_floors`); two-floor ones keep `grow()`'s order so their houses do not change. [levels](docs/levels.md#size)
 - **Every placed thing goes through `LmLevel.floor_at` / `room_at` with a height**: a point at y 0 is the ground floor, not "the room". [levels](docs/levels.md#size)
 - **Events fire once per go, per player** (`LmPlayer.fired`, in PROGRESS); lights and the glimpse are the client's to show, a slam is the server's and waits until the player is 3 m clear of the doorway. A slam only ever shuts a door that opens again. [levels](docs/levels.md#events)
 - **The client draws only the player's level, with a 90 m far plane**: the compatibility renderer caps lights, and other levels' lamps pushed out the near ones. [history](docs/history.md)
@@ -72,7 +72,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 17 sections, 99 checks: the solver plays all 32 levels, events, stairs
+godot --headless --path . res://examples/headless_run.tscn   # 17 sections, 100 checks: the solver plays all 32 levels, events, stairs, the third floor
 godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 34 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
 godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks
@@ -92,4 +92,3 @@ In the order they are worth doing.
 
 1. **A browser look**, then publishing: the pack is `tmc/lookatme` (dot-server-deploy `content/lookatme/`), and the release order is the family's.
 2. **The GitHub repository** is the owner's to create.
-3. **A third floor**: the builder makes two; a stairwell from upstairs rarely found ground to stand on, so it is capped at two (queue item `lookatme-third-floor`).
