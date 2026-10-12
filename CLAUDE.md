@@ -4,7 +4,7 @@ A dark house, thirty-two levels deep and two floors high, with witches walking i
 
 Read the family-wide conventions in [`../../CLAUDE.md`](../../CLAUDE.md) first, and dot-player-controller's `CLAUDE.md` before touching movement. This file is only about what this game decides.
 
-**Built 2026-10-06, in one session**: offline first (the house, the 32 levels, the witches, the meter, per-player doors, the commands, winning, a playable client), then networked the same day — a module, a bridge with predicted players, a mirroring client, chat and voice — and joined by a real client over a real socket in a delivered pack (dot-server-deploy's `examples/lookatme_client`, 17 checks). Not seen in a browser yet and not published. Remote set (`gamemann/mg-look-at-me`), nothing pushed.
+**Built 2026-10-06, in one session**: offline first (the house, the 32 levels, the witches, the meter, per-player doors, the commands, winning, a playable client), then networked the same day — a module, a bridge with predicted players, a mirroring client, chat and voice — and joined by a real client over a real socket in a delivered pack (dot-server-deploy's `examples/lookatme_client`, 22 checks, a second client over a throttled WebSocket among them). Not seen in a browser yet and not published. Remote set (`gamemann/mg-look-at-me`), nothing pushed.
 
 ## Layout
 
