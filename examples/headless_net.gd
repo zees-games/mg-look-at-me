@@ -11,8 +11,11 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
 const SECTIONS := 8
-const CHECKS := 26
+const CHECKS := 28
 const LmAvatars := preload("res://game/lm_avatars.gd")
+const LmEvent := preload("res://game/net/lm_event.gd")
+const LmEvents := preload("res://game/net/lm_events.gd")
+const LmRequest := preload("res://game/net/lm_request.gd")
 const CLIENT_PEER := 7
 const SESSION := 42
 const INPUT_LEAD := 2
@@ -136,6 +139,14 @@ func _build() -> bool:
 	_client_bridge.rtt_source = func() -> float: return 40.0
 	var _s := _server_net.start()
 	var _c := _client_net.start()
+
+	# A kind goes out in a fixed field the writer masks without a word, so one past it aliases a
+	# smaller kind: game-zombie-zone sent HURT and AMMO as HELLO and MAP that way.
+	_check(LmEvent.fits(), "every event kind fits the event's kind field",
+		"%d kinds in %d bits" % [LmEvents.Kind.size(), LmEvent.KIND_BITS])
+	_check(LmRequest.fits(), "every request kind fits the request's kind field",
+		"%d kinds in %d bits" % [LmEvents.Ask.size(), LmRequest.KIND_BITS])
+
 	_finished_section()
 	return _failed == 0
 

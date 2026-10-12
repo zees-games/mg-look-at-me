@@ -27,7 +27,7 @@ game/
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
-examples/        headless_run (11 sections, 51 checks), headless_net (8, 26), dedicated (7, 21)
+examples/        headless_run (11 sections, 51 checks), headless_net (8, 28), dedicated (7, 21)
 tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
