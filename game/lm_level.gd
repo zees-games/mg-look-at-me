@@ -363,7 +363,18 @@ func _build_room(room_id: String) -> void:
 		sign.modulate = Color(0.85, 0.8, 0.7, 0.6)
 		sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		sign.position = Vector3(centre.x, height - 0.5, centre.y)
+		_fade_up_close(sign, 3.0)
 		root.add_child(sign)
+
+
+## A label in the world fades out as the eye comes within [param near] metres of it. At eye
+## height a painted "Door" a player walks up to filled the screen (Christian's first play test),
+## and within reach the HUD's prompt says what it is anyway; a room's name hung overhead did
+## the same to anyone crossing the room's centre.
+static func _fade_up_close(label: Label3D, near: float) -> void:
+	label.visibility_range_begin = near
+	label.visibility_range_begin_margin = near * 0.4
+	label.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 
 ## Furniture along one wall: something to hide behind, as solid to a witch's sight as the
@@ -546,6 +557,7 @@ func _build_door(door_id: String) -> void:
 			label.modulate = Color(0.95, 0.9, 0.8)
 			label.position = normal * face * (WALL + 0.02) + Vector3(0, 0.5, 0)
 			label.rotation.y = atan2(normal.x, normal.z) + (PI if face < 0.0 else 0.0)
+			_fade_up_close(label, 1.4)
 			body.add_child(label)
 
 

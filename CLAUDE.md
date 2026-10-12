@@ -28,7 +28,7 @@ levels/          The House: lm_01 .. lm_32 and house.json, written by tools/buil
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
 examples/        headless_run (12 sections, 56 checks), headless_net (8, 28), dedicated (7, 21)
-tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
+tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, door --near=m, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
 ## Decision 1: doors are per player, and that is an exclusion list

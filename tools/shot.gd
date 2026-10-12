@@ -34,6 +34,15 @@ func _ready() -> void:
 		player.place_at(eye - Vector3(0, player.EYE_HEIGHT, 0), 0.0)
 		player.controller.state.pitch = rad_to_deg(asin(clampf((item_at - eye).normalized().y, -1.0, 1.0)))
 		player.controller.state.yaw = 0.0
+	elif view == "door" and not level.doors.is_empty():
+		# --view=door --near=0.6: that far from the level's first door, eyes level, facing it,
+		# so its painted label can be looked at up close.
+		var door: Dictionary = level.doors[level.doors.keys()[0]]
+		var normal: Vector3 = door["normal"]
+		var centre: Vector3 = door["centre"]
+		var side := 1.0 if level.room_at(centre + normal) == level.spawn_room() else -1.0
+		var from: Vector3 = level.position + centre + normal * side * float(_args.get("near", "0.6"))
+		player.place_at(from + Vector3(0, 0.1, 0), rad_to_deg(atan2(normal.x * side, normal.z * side)))
 	elif view == "witch" and not level.witches.is_empty():
 		var pose: Dictionary = level.witch_pose(0, client.game.seconds_now())
 		var at: Vector3 = level.position + (pose["at"] as Vector3)
