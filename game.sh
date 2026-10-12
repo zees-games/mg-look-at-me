@@ -32,7 +32,7 @@
 GAME_NAME="Look At Me"
 PACK="lookatme"
 EXTRA_PACKS=""
-SUITES="headless_run headless_net dedicated"
+SUITES="headless_run headless_net headless_lossy dedicated"
 # --------------------------------------------------------------------------------
 
 set -uo pipefail

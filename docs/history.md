@@ -2,6 +2,10 @@
 
 Bug stories worth keeping. Each one's rule is in `CLAUDE.md` or a topic doc.
 
+## 2026-10-12: over ENet, the house throttled everything else to a trickle
+
+A delivered client on ENet through dot-net's lossy relay (dot-server-deploy's `lookatme_client`, a temporary hack) was sent the house and then could not walk: of 921-1019 commands the server received 16-104, and of about 500 snapshots the client received 11-57, at 0% loss with a steady 60 ms, with or without the A2S demux. The relay delivered 95% of what it was given. game-arena's `headless_lossy` passed on the same relay. The cause was ENet's own packet throttle, which drops unreliable packets at the sender: it falls on every reliable acknowledgement later than the last interval's lowest round trip plus twice its variance, a steady path has almost no variance, and the house is the largest burst of reliable data any game here sends, acknowledged across frames spent building it. Arena sends no such burst. Fixed in dot-core (`DotTransportENet.packet_throttle_deceleration` 0, so every game has it). `examples/headless_lossy` holds it here: a dual-stack server and a client on ENet through the relay, the house changed twice while the client walks; `-- --stock-throttle` puts ENet's throttle back and fails (the server's throttle at 0-24 of 32, 38-64% of snapshots in a window, three runs of three).
+
 ## 2026-10-12: the levels three times the size, and what rendering found
 
 Christian: "The maps definitely need to be bigger and longer with more to do though." The builder went to a 4 m grid, 14 + n rooms, corridors, stairwells and an upstairs, chests, and events. Every suite passed long before the house was right.
