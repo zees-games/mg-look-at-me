@@ -29,4 +29,6 @@ static func make() -> DotMenuBindings:
 	keys.add(VIEW, &"bind_view", "First or third person, where the server allows it", "F5", "General")
 	keys.add(COMMAND, &"bind_command", "A command: /r to the lobby, /l3 to a level you reached (Enter too)", "Slash", "General")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "General")
-	return keys
+	# The view's default moved from C under saved documents: a player who never touched it
+	# follows to F5, a key they chose stays.
+	return keys.renamed(&"bind_view", ["C"])

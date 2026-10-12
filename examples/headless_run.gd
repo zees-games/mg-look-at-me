@@ -9,9 +9,10 @@ const LmGame := preload("res://game/lm_game.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
+const LmSettings := preload("res://game/lm_settings.gd")
 
 const SECTIONS := 14
-const CHECKS := 80
+const CHECKS := 82
 
 var _passed := 0
 var _failed := 0
@@ -543,6 +544,21 @@ func _test_the_client_settings() -> void:
 
 	remove_child(client)
 	client.free()
+	await get_tree().process_frame
+
+	# A document saved when the view was on C: it follows to F5, and a key the player chose
+	# stays where they put it.
+	var old_doc := DotSettingsStoreMemory.new()
+	var _saved_old := old_doc.save_document(LmSettings.APP_NAMESPACE, &"local", {"version": 1, "values": {
+		"bind_view": "C", "bind_flashlight": "J",
+	}})
+	var returning := LmSettings.new()
+	add_child(returning)
+	var _set_up := returning.setup(old_doc, false)
+	var rk: DotMenuBindings = returning.bindings
+	_check(rk.key_for(&"lm_view") == "F5", "an old settings file with the view on C: it moves to F5", rk.key_for(&"lm_view"))
+	_check(rk.key_for(&"lm_flashlight") == "J", "and a key the player chose is kept", rk.key_for(&"lm_flashlight"))
+	returning.queue_free()
 	await get_tree().process_frame
 	_finished_section()
 
