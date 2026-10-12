@@ -48,7 +48,7 @@ The lights and the glimpse are the owner's client's to show (`LmClient._show_eve
 
 ## The house laid out
 
-Every level is built at once, side by side in rows of eight (`LmGame.LEVELS_PER_ROW`, 40 m apart): 32 levels three times the size in one line ran to 5 km. A level is sent to a client as one LEVEL message, so the builder refuses a document over 48,000 bytes compact (a browser's WebSocket buffer is 64 KiB); level 32 is about 25 KB.
+Every level is built at once, side by side in rows of eight (`LmGame.LEVELS_PER_ROW`, 40 m apart): 32 levels three times the size in one line ran to 5 km. A level is sent to a client as one LEVEL message (deflated, and paced so a browser's 64 KiB inbound buffer never overflows: [design](design.md#the-house-on-the-wire)), so the builder refuses a document over 48,000 bytes compact, which a client with nothing outstanding must still be able to take whole; level 32 is about 25 KB.
 
 ## Looking at one
 

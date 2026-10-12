@@ -38,6 +38,12 @@ const ACK_BYTES := 4
 ## one copy and 99-100% with three to five.
 const INPUT_COPIES := 5
 
+## The most LEVEL bytes a client may have been sent and not yet acknowledged (LmEvents.Ask.LEVELS).
+## Half a browser's 64 KiB inbound WebSocket buffer, which the page fills between two frames and
+## the engine empties once a frame, dropping what does not fit: snapshots, chat and a frame
+## spent building the house need the other half. A level larger than this still goes, alone.
+const LEVEL_WINDOW := 32768
+
 signal hello_received(key: StringName)
 signal progress_received(data: Dictionary)
 signal said(text: String)
@@ -73,6 +79,18 @@ var _game_ticked_for: int = -1
 var _client_ticked_for: int = -1
 var _levels_expected: int = -1
 var _levels_got: Array = []
+
+## Server: per peer, the house it is being sent: {serial, wires, sent, acked, held}. While a peer
+## is here everything else told to it is held and follows the last LEVEL, so a client hears
+## nothing about a house it has not been given yet, exactly as when the levels went at once.
+var _house_out: Dictionary = {}
+var _house_serial: int = 0
+## Server: each level of the current house as a LEVEL body, deflated once, not once a joiner.
+var _level_wires: Dictionary = {}
+
+## Client: the HELLO the LEVELs arriving belong to, and whether this frame's ack is queued.
+var _hello_serial: int = 0
+var _ack_queued := false
 
 
 func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
@@ -112,6 +130,8 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 		game.player_left.connect(func(key: StringName) -> void: _broadcast(LmEvents.Kind.LEAVE, {"key": String(key)}))
 		# A new house: every client is sent it, as a joiner is, and their progress after.
 		game.house_changed.connect(func(_id: StringName) -> void:
+			_level_wires.clear()
+
 			for peer_id in _ready_peers.keys():
 				_send_house(int(peer_id))
 				_send_progress(key_of_peer(int(peer_id))))
@@ -166,6 +186,7 @@ func remove_peer(peer_id: int) -> void:
 	var key: StringName = _key_of_peer.get(peer_id, &"")
 	_key_of_peer.erase(peer_id)
 	_ready_peers.erase(peer_id)
+	_house_out.erase(peer_id)
 
 	if key == &"":
 		return
@@ -262,12 +283,18 @@ func _admit(peer_id: int) -> void:
 	_send_progress(key)
 
 
-## The house to one peer: a HELLO saying how many levels follow, then one LEVEL each.
+## The house to one peer: a HELLO saying how many levels follow, then one LEVEL each, paced by
+## the peer's acks ([constant LEVEL_WINDOW]). Anything else told to the peer meanwhile is held
+## until the last LEVEL has gone. A second house before the first finished replaces it; what was
+## held for the first still follows.
 func _send_house(peer_id: int) -> void:
 	var key: StringName = _key_of_peer.get(peer_id, &"")
 	var numbers: Array = game.levels.keys()
 	numbers.sort()
-	_tell(peer_id, LmEvents.Kind.HELLO, {
+	var held: Array = _house_out.get(peer_id, {}).get("held", [])
+	_house_out.erase(peer_id)
+	_house_serial += 1
+	_tell(peer_id, LmEvents.Kind.HELLO, {"serial": _house_serial,
 		"you": String(key), "tick_rate": game.tick_rate, "tick": net.clock.tick, "levels": numbers.size(),
 		"house": String(game.house_id), "house_name": game.house_name(),
 		"config": {"allow_third_person": game.config.allow_third_person, "witch_speed_scale": game.config.witch_speed_scale,
@@ -276,8 +303,75 @@ func _send_house(peer_id: int) -> void:
 			"flashlight_range": game.config.flashlight_range, "flashlight_angle": game.config.flashlight_angle},
 	})
 
+	var wires: Array = []
+
 	for n: int in numbers:
-		_tell(peer_id, LmEvents.Kind.LEVEL, game.documents[n])
+		if not _level_wires.has(n):
+			_level_wires[n] = LmEvents.write_level(game.documents[n])
+
+		wires.append(_level_wires[n])
+
+	_house_out[peer_id] = {"serial": _house_serial, "wires": wires, "sent": 0, "acked": 0, "held": held}
+	_pump_house(peer_id)
+
+
+## Sends the peer's next LEVELs while what it has not acknowledged stays under
+## [constant LEVEL_WINDOW] (one always goes when nothing is outstanding); after the last, what
+## was held.
+func _pump_house(peer_id: int) -> void:
+	var out: Dictionary = _house_out.get(peer_id, {})
+
+	if out.is_empty():
+		return
+
+	var wires: Array = out["wires"]
+	var outstanding := 0
+
+	for i in range(int(out["acked"]), int(out["sent"])):
+		outstanding += (wires[i] as PackedByteArray).size()
+
+	while int(out["sent"]) < wires.size():
+		var wire: PackedByteArray = wires[int(out["sent"])]
+
+		if int(out["sent"]) > int(out["acked"]) and outstanding + wire.size() > LEVEL_WINDOW:
+			return
+
+		_emit(peer_id, LmEvent.new(LmEvents.Kind.LEVEL, wire))
+		outstanding += wire.size()
+		out["sent"] = int(out["sent"]) + 1
+
+	_house_out.erase(peer_id)
+
+	for told: Array in out["held"]:
+		_tell(peer_id, int(told[0]), told[1])
+
+
+## A client's LEVELS ack: how many of the HELLO numbered `serial` it holds. An ack for an older
+## house, or a count it was never sent, moves nothing.
+func _on_levels_ack(peer_id: int, args: Dictionary) -> void:
+	var out: Dictionary = _house_out.get(peer_id, {})
+
+	if out.is_empty() or int(args.get("serial", -1)) != int(out["serial"]):
+		return
+
+	out["acked"] = clampi(int(args.get("got", 0)), int(out["acked"]), int(out["sent"]))
+	_pump_house(peer_id)
+
+
+## How a peer's house is going, for describe(): {} when none is in flight.
+func house_progress(peer_id: int) -> Dictionary:
+	var out: Dictionary = _house_out.get(peer_id, {})
+
+	if out.is_empty():
+		return {}
+
+	var outstanding := 0
+
+	for i in range(int(out["acked"]), int(out["sent"])):
+		outstanding += (out["wires"][i] as PackedByteArray).size()
+
+	return {"levels": (out["wires"] as Array).size(), "sent": out["sent"], "acked": out["acked"],
+		"outstanding": outstanding, "held": (out["held"] as Array).size()}
 
 
 func _join_body(key: StringName) -> Dictionary:
@@ -412,6 +506,8 @@ func _on_request(message: DotNetMessage) -> void:
 	match ask.kind:
 		LmEvents.Ask.READY:
 			_admit(peer_id)
+		LmEvents.Ask.LEVELS:
+			_on_levels_ack(peer_id, LmEvents.read_json(ask.reader()))
 		LmEvents.Ask.ACT:
 			var key: StringName = _key_of_peer.get(peer_id, &"")
 
@@ -460,7 +556,15 @@ func _tell(peer_id: int, kind: int, data: Dictionary) -> void:
 	if peer_id <= 0 or net == null:
 		return
 
-	net.send(LmEvent.new(kind, LmEvents.write_json(data)), peer_id)
+	if _house_out.has(peer_id) and kind != LmEvents.Kind.HELLO:
+		(_house_out[peer_id]["held"] as Array).append([kind, data])
+		return
+
+	_emit(peer_id, LmEvent.new(kind, LmEvents.write_json(data)))
+
+
+func _emit(peer_id: int, event: LmEvent) -> void:
+	net.send(event, peer_id)
 
 
 # --- Client ------------------------------------------------------------------------
@@ -477,6 +581,12 @@ func ask_act(action: String, args: Dictionary = {}) -> void:
 
 func ask_say(channel_id: StringName, text: String) -> void:
 	ask_act("say", {"channel": String(channel_id), "text": text})
+
+
+## One LEVELS ack a frame however many arrived in it: the server's next ones wait on it.
+func _ack_levels() -> void:
+	_ack_queued = false
+	_ask(LmEvents.Ask.LEVELS, {"serial": _hello_serial, "got": _levels_got.size()})
 
 
 func _ask(kind: int, data: Dictionary) -> void:
@@ -532,12 +642,14 @@ func _on_event(message: DotNetMessage) -> void:
 	if event == null or game == null or net == null or net.is_server:
 		return
 
-	var data := LmEvents.read_json(event.reader())
+	var data := LmEvents.read_level(event.reader()) if event.kind == LmEvents.Kind.LEVEL \
+		else LmEvents.read_json(event.reader())
 
 	match event.kind:
 		LmEvents.Kind.HELLO:
 			local_key = StringName(str(data.get("you", "")))
 			_levels_expected = int(data.get("levels", 0))
+			_hello_serial = int(data.get("serial", 0))
 			game.house_id = StringName(str(data.get("house", "house")))
 			game.houses[game.house_id] = {"name": str(data.get("house_name", "")), "directory": ""}
 			_levels_got = []
@@ -556,7 +668,15 @@ func _on_event(message: DotNetMessage) -> void:
 			if _levels_expected == 0:
 				hello_received.emit(local_key)
 		LmEvents.Kind.LEVEL:
+			if data.is_empty():
+				DotLog.error(CHANNEL, "a level arrived that could not be read", {"bytes": event.body.size()})
+				return
+
 			_levels_got.append(data)
+
+			if not _ack_queued:
+				_ack_queued = true
+				_ack_levels.call_deferred()
 
 			if _levels_got.size() == _levels_expected:
 				game.documents.clear()
@@ -679,7 +799,8 @@ func send_voice_up(payload: PackedByteArray) -> void:
 
 
 func describe() -> Dictionary:
-	return {"server": net != null and net.is_server, "players": _behaviours.size(), "peers": _ready_peers.size(), "local": String(local_key)}
+	return {"server": net != null and net.is_server, "players": _behaviours.size(), "peers": _ready_peers.size(), "local": String(local_key),
+		"houses_sending": _house_out.size()}
 
 
 func describe_lines() -> PackedStringArray:

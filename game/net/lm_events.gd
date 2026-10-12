@@ -12,9 +12,11 @@ extends RefCounted
 enum Kind {
 	## You, the clock, how many levels follow, the settings a client needs.
 	HELLO,
-	## One level document. One per message, never all in the HELLO: the 32 together are 210 KB,
-	## and a WebSocket's outbound buffer is 64 KiB by default, so a browser client would never
-	## be told the house it is standing in.
+	## One level document, deflated ([method write_level]); never all in the HELLO. The 32 are
+	## 490 KB of JSON and about 90 KB deflated, and they are paced by the client's LEVELS acks
+	## (LmNetBridge.LEVEL_WINDOW), because a browser's WebSocket peer drops whatever arrives
+	## past its 64 KiB inbound buffer between two frames: a burst of the 32 lost 5 of them in
+	## Chromium. See docs/design.md, "The house on the wire".
 	LEVEL,
 	## A player is here, or has a new name or face: key, name, net id, the avatar document.
 	JOIN,
@@ -36,6 +38,9 @@ enum Ask {
 	READY,
 	## {"action": use | flashlight | command | say, ...}.
 	ACT,
+	## {"serial", "got"}: the client holds the first `got` LEVELs of the HELLO numbered `serial`;
+	## the server sends more while what is unacknowledged stays under LEVEL_WINDOW.
+	LEVELS,
 }
 
 
@@ -63,4 +68,32 @@ static func read_json(reader: DotNetReader) -> Dictionary:
 		return {}
 
 	var parsed: Variant = JSON.parse_string(text)
+	return parsed if parsed is Dictionary else {}
+
+
+## A level document as a LEVEL body: its compact JSON's length, then the JSON deflated. A level
+## is about 15 KB of JSON and 3 KB deflated: the house's 490 KB goes as 90 KB.
+static func write_level(doc: Dictionary) -> PackedByteArray:
+	var raw := JSON.stringify(doc).to_utf8_buffer()
+	var writer := DotNetWriter.new()
+	writer.write_varint(raw.size())
+	writer.write_bytes(raw.compress(FileAccess.COMPRESSION_DEFLATE))
+	return writer.to_bytes()
+
+
+## The document out of a LEVEL body, or {} for anything that is not one. The stated length is
+## capped at [constant MAX_TEXT] before anything is inflated, so a body cannot ask for more.
+static func read_level(reader: DotNetReader) -> Dictionary:
+	var size := reader.read_varint()
+	var packed := reader.read_bytes(MAX_TEXT)
+
+	if not reader.ok() or size <= 0 or size > MAX_TEXT:
+		return {}
+
+	var raw := packed.decompress(size, FileAccess.COMPRESSION_DEFLATE)
+
+	if raw.size() != size:
+		return {}
+
+	var parsed: Variant = JSON.parse_string(raw.get_string_from_utf8())
 	return parsed if parsed is Dictionary else {}

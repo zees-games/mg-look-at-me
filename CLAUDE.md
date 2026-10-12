@@ -31,7 +31,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (17 sections, 99 checks), headless_net (8, 30), dedicated (7, 25)
+examples/        headless_run (17 sections, 99 checks), headless_net (8, 33), dedicated (7, 25)
 tools/           build_levels.py (--check, --stats); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -55,6 +55,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **Events fire once per go, per player** (`LmPlayer.fired`, in PROGRESS); lights and the glimpse are the client's to show, a slam is the server's and waits until the player is 3 m clear of the doorway. A slam only ever shuts a door that opens again. [levels](docs/levels.md#events)
 - **The client draws only the player's level, with a 90 m far plane**: the compatibility renderer caps lights, and other levels' lamps pushed out the near ones. [history](docs/history.md)
 - **A level document stays under 48,000 bytes compact** (one LEVEL message each; the builder refuses more). [levels](docs/levels.md#the-house-laid-out)
+- **The house goes deflated and a window at a time** (`LEVEL_WINDOW`, acked by `Ask.LEVELS`), and everything else to that peer is held behind the last LEVEL: a browser drops what overflows its 64 KiB inbound buffer between frames. Never send a client a burst. [design](docs/design.md#the-house-on-the-wire)
 - **Movement and doors are predicted**; progress goes to its owner alone. [design](docs/design.md#decision-5-movement-is-predicted-and-so-are-the-doors)
 - **A house is a map**, voted between. [design](docs/design.md#decision-6-a-house-is-a-map-and-the-players-vote-between-them)
 - **A TMC account is its site avatar.** [design](docs/design.md#decision-7-a-tmc-account-walks-the-house-as-its-site-avatar)
@@ -70,7 +71,7 @@ godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
 godot --headless --path . res://examples/headless_run.tscn   # 17 sections, 99 checks: the solver plays all 32 levels, events, stairs
-godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 30 checks: predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
+godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 33 checks: the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
@@ -88,5 +89,4 @@ In the order they are worth doing.
 
 1. **A browser look**, then publishing: the pack is `tmc/lookatme` (dot-server-deploy `content/lookatme/`), and the release order is the family's.
 2. **The GitHub repository** is the owner's to create.
-3. **The bigger house over a real socket**: the levels are about 490 KB compact now (were 210 KB), sent one LEVEL message each; `headless_net` is a loopback, and dot-server-deploy's `lookatme_client` has not been run against this house (queue item `lookatme-bigger-levels-socket`).
-4. **A third floor**: the builder makes two; a stairwell from upstairs rarely found ground to stand on, so it is capped at two (queue item `lookatme-third-floor`).
+3. **A third floor**: the builder makes two; a stairwell from upstairs rarely found ground to stand on, so it is capped at two (queue item `lookatme-third-floor`).

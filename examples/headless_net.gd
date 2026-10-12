@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
 const SECTIONS := 8
-const CHECKS := 30
+const CHECKS := 33
 const LmAvatars := preload("res://game/lm_avatars.gd")
 const LmEvent := preload("res://game/net/lm_event.gd")
 const LmEvents := preload("res://game/net/lm_events.gd")
@@ -162,10 +162,31 @@ func _test_joining() -> void:
 	_section("a client joins")
 	var seated := _server_bridge.add_player(CLIENT_PEER, SESSION, "Ada")
 	_key = seated.value if seated.ok else &""
+	# What the client had built when its first PROGRESS came: held behind the last LEVEL, it is 32.
+	var built_at_progress := [-1]
+	_client_bridge.progress_received.connect(func(_data: Dictionary) -> void:
+		if built_at_progress[0] < 0:
+			built_at_progress[0] = _client_game.levels.size(), CONNECT_ONE_SHOT)
 	_client_bridge.ask_ready()
+	_flush()
+	# The READY has reached the server, which has sent the HELLO and its first window.
+	var first := _server_bridge.house_progress(CLIENT_PEER)
+	_check(int(first.get("sent", 0)) > 0 and int(first.get("sent", 0)) < 32
+		and int(first.get("outstanding", 0)) <= LmNetBridge.LEVEL_WINDOW,
+		"the house goes a window at a time, not all 32 at once (a browser drops what overflows its buffer)", str(first))
+	var raw := 0
+	var wire := 0
+
+	for n: int in _server_game.documents:
+		raw += JSON.stringify(_server_game.documents[n]).to_utf8_buffer().size()
+		wire += LmEvents.write_level(_server_game.documents[n]).size()
+
+	_check(wire * 3 < raw, "and deflated", "%d bytes of JSON as %d" % [raw, wire])
 	_exchange()
 	await _steps(30)
 	_check(_client_bridge.local_key == _key and _client_game.levels.size() == 32, "it is told who it is, and builds all 32 levels from the documents")
+	_check(built_at_progress[0] == 32 and _server_bridge.house_progress(CLIENT_PEER).is_empty(),
+		"and hears its progress only after the last level", "built %d" % built_at_progress[0])
 	var mine: LmPlayer = _client_game.players.get(_key, null)
 	var identity: DotNetIdentity = mine.get_node_or_null("Identity") if mine != null else null
 	_check(identity != null and identity.is_predicted(), "and predicts its own player")

@@ -21,3 +21,7 @@ Christian's first play test saw no witch, heard near silence, and read room name
 - **The witch flickered between walking and idle** in the suite: posed only when the clock ticked, a frame between ticks measured her speed as nothing. She is now animated from her loop's speed and drawn at the interpolated time.
 - **The mix peaked at 0.0 dBFS** in the first recording, at the catch. Gains came down and a -1 dB limiter went on master; the file peaks themselves were at -1 and decoded to 0, so they are -2 now.
 - **The first witch was one of the players' people**, and looked like a cheerful girl in a crop top. The kit's zombie on the same rig is the witch now.
+
+## 2026-10-12: the house was a burst a browser could not hold
+
+The levels went to a joining client as 32 LEVEL messages in one tick, 490 KB once the levels tripled (210 KB before). Every suite passed: `headless_net` is a loopback, and dot-server-deploy's `lookatme_client` joins a native client, which reads its socket only when polled. A minimal web export joined to a server sending the house's real message sizes received 27 of 32 in Chromium, with five "Buffer payload full! Dropping data." errors (the 210 KB house before it: 26 of 32, so this was never the bigger levels' bug alone): the web WebSocket peer copies each arriving message into its 64 KiB inbound buffer as the page receives it and drains it once a frame. With a 40 KB acknowledged window it received all 32 in 25 frames. The house now goes deflated (90 KB) and paced ([design](design.md#the-house-on-the-wire)).
