@@ -7,6 +7,7 @@ extends Node3D
 ## [b]Offline today, built to be a mirror later[/b], as mg-dangerous-delivery's was: everything
 ## the player does goes through [method _act]; everything they see comes from [member game].
 
+const LmBindings := preload("lm_bindings.gd")
 const LmGame := preload("lm_game.gd")
 const LmSettings := preload("lm_settings.gd")
 const LmPlayer := preload("lm_player.gd")
@@ -23,11 +24,14 @@ const CHANNEL := "lookatme.client"
 ## The use key's action, and what it is bound to when nothing else has bound it. The prompt
 ## and the key line draw the action's binding, never a letter written here, so a project or a
 ## player that binds it elsewhere is told the key that works.
-const USE_ACTION := &"lm_use"
+const USE_ACTION := LmBindings.USE
 const USE_DEFAULT := "E"
 
 ## The lamp's amber, which is also the glance pieces' highlight.
 const LAMP_COLOUR := Color(1.0, 0.80, 0.48)
+
+## The key line along the bottom ([method _refresh_key_line]).
+var _key_line: Label = null
 
 @export var local_key: StringName = &"you"
 @export var local_name: String = "You"
@@ -188,6 +192,9 @@ func _build_settings() -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			elif not DotPlatform.is_web() and not _command.visible:
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			# A key may have moved on the Controls page.
+			if not any_open:
+				_refresh_key_line()
 		)
 		# The command line has the keyboard while it is open: its Escape is its own.
 		settings.menu.busy = func() -> bool:
@@ -197,6 +204,7 @@ func _build_settings() -> void:
 		# opening it stops the player and frees the pointer exactly as the menu does.
 		console = DotConsoleKit.build(self, settings.settings, settings.menu)
 		_wire_board()
+	_refresh_key_line()
 
 
 ## The Tab board: everybody in the house, the level they are on, the furthest they have got
@@ -350,6 +358,19 @@ func _build_environment() -> void:
 	add_child(world)
 
 
+## The key line along the bottom, from [LmBindings] as bound now (the defaults until the
+## settings have loaded), with H for help.
+func _refresh_key_line() -> void:
+	if _key_line == null:
+		return
+	var k := func(action: StringName, fallback: String) -> String:
+		var text := DotInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
+		return fallback if text == DotInputBinding.UNBOUND else text
+	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command (/r lobby, /l2 a level)   %s help" % [
+		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "C"),
+		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(DotMenuBindings.HELP_ACTION, "H")]
+
+
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -408,12 +429,13 @@ func _build_hud() -> void:
 	_message.offset_right = 400
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-	var keys := _label(use_key() + " use   F flashlight   C camera   Ctrl crouch   / command (/r lobby, /l2 a level)", 13, Vector2.ZERO)
-	keys.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	keys.offset_top = -26
-	keys.offset_left = 16
-	keys.offset_right = 900
-	keys.modulate = Color(1, 1, 1, 0.5)
+	_key_line = _label("", 13, Vector2.ZERO)
+	_key_line.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_key_line.offset_top = -26
+	_key_line.offset_left = 16
+	_key_line.offset_right = 900
+	_key_line.modulate = Color(1, 1, 1, 0.5)
+	_refresh_key_line()
 
 	_command = LineEdit.new()
 	_command.placeholder_text = "/r  /l3"
@@ -500,7 +522,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 
 	# The Tab board, held: shown while the key is down, released when it comes up.
-	if key != null and key.physical_keycode == KEY_TAB and not key.echo and not _command.visible:
+	if key != null and key.is_action(LmBindings.SCOREBOARD) and not key.echo and not _command.visible:
 		_show_board(key.pressed)
 		return
 
@@ -514,28 +536,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		_act("use")
 		return
 
-	match key.keycode:
-		KEY_F:
-			_act("flashlight")
-		KEY_C:
-			if game.config.allow_third_person:
-				third_person = not third_person
-		KEY_SLASH, KEY_ENTER:
-			_command.visible = true
-			# Typing is not walking: the sampler is detached until the line is sent.
-			_held_sampler = player.sampler
-			player.sampler = null
-			_command.text = "/"
-			_command.grab_focus()
-			_command.caret_column = 1
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		KEY_ESCAPE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			# And the settings: a released pointer with nothing to click was half a key. The
-			# menu sits deeper in the tree and normally hears Escape first; this is for an
-			# Escape it left alone.
-			if settings != null:
-				settings.open()
+	# Each a row of [LmBindings], matched by its action so a key moved on the Controls page
+	# moves what it does here. Enter is the command line's fixed second key; Escape no row holds.
+	if key.is_action(LmBindings.FLASHLIGHT):
+		_act("flashlight")
+	elif key.is_action(LmBindings.VIEW):
+		if game.config.allow_third_person:
+			third_person = not third_person
+	elif key.is_action(LmBindings.COMMAND) or key.keycode == KEY_ENTER:
+		_command.visible = true
+		# Typing is not walking: the sampler is detached until the line is sent.
+		_held_sampler = player.sampler
+		player.sampler = null
+		_command.text = "/"
+		_command.grab_focus()
+		_command.caret_column = 1
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif key.keycode == KEY_ESCAPE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		# And the settings: a released pointer with nothing to click was half a key. The
+		# menu sits deeper in the tree and normally hears Escape first; this is for an
+		# Escape it left alone.
+		if settings != null:
+			settings.open()
 
 
 func _on_command(text: String) -> void:

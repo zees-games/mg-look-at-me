@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
 const SECTIONS := 12
-const CHECKS := 56
+const CHECKS := 61
 
 var _passed := 0
 var _failed := 0
@@ -377,6 +377,30 @@ func _test_the_client_settings() -> void:
 	tab.pressed = false
 	client.call("_unhandled_input", tab)
 	_check(board != null and not board.is_open(), "and letting go puts it away")
+
+	# The family's rule since the first play test: H opens help, nothing else in the table is
+	# on H, the Escape menu has Help and Leave, and the flashlight is read through its row.
+	var keys: DotMenuBindings = settings.bindings
+	var menu: DotMenu = settings.menu
+	_check(keys.key_for(DotMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1,
+		"help is on H, and nothing else in the table is")
+	var h := InputEventKey.new()
+	h.physical_keycode = KEY_H
+	h.keycode = KEY_H
+	h.pressed = true
+	_check(menu.handle_event(h) and menu.help.is_open(), "H opens the help screen")
+	_check(menu.help.about != "" and menu.help.heading() == "How to play Look at Me",
+		"which says what the game is before the keys")
+	menu.help.close()
+	settings.open()
+	var leave := menu.screen.find_child("Action_leave", true, false) as Button
+	_check(menu.screen.find_child("Action_help", true, false) != null and leave != null and leave.visible,
+		"the Escape menu has Help & commands and Leave")
+	settings.close()
+	var f := InputEventKey.new()
+	f.physical_keycode = KEY_F
+	_check(f.is_action(&"lm_flashlight") and not f.is_action(DotMenuBindings.HELP_ACTION),
+		"the flashlight is its table row's action, on F")
 
 	# Something in reach: dot-ui's DotKeyPrompt says what, with the use action's binding drawn
 	# as the key, and that key does it.

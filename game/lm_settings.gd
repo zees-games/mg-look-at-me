@@ -1,5 +1,7 @@
 extends DotMenuSettings
 
+const LmBindings := preload("lm_bindings.gd")
+
 ## A player's own settings and the menu that changes them: how fast the view turns, how wide
 ## it is, how loud things are, the window, and the look of the menu itself.
 ##
@@ -49,9 +51,12 @@ func _init() -> void:
 	schema = schema_for()
 	config = DotMenuConfig.new()
 	config.brand_name = "Look at Me"
-	# Nothing to leave to and no keys table to help with; Escape and Resume close the menu.
-	config.show_help = false
-	config.show_leave = false
+	# Help and Leave are dot-menu's stock: H opens help, Leave leaves the server or quits a
+	# solo game. Every game in the family has both (the first play test found this one with
+	# neither). The keys are a table now ([LmBindings]), so the help screen lists them.
+	bindings = LmBindings.make()
+	# The HUD's key line says H (`LmClient._refresh_key_line`); a corner plate would say it twice.
+	config.help_hint = &"off"
 	var _layered := config.load_layered()
 
 
@@ -64,3 +69,10 @@ static func schema_for() -> DotSettingsSchema:
 		DotSettingsDef.Scope.SERVER_CLAMPED
 	))
 	return DotMenuStock.declare(s, DotMenuStock.DEFAULT_GROUPS, null, NOT_APPLIED)
+
+
+## The help screen's goal and rules; the keys come from [LmBindings].
+func _fill_help(help: DotMenuHelp) -> void:
+	help.about = "A dark house, thirty-two levels deep, with witches walking its rooms. Find what opens the next door (a key, a lever, something to carry) before one of them looks at you."
+	help.add_text("Being seen", "A witch's look fills a meter. Keep out of her sight and it drains. A lit flashlight makes you easier to see from further off; crouching and standing still make you harder. If the meter fills, she has you: back to the level's start, and on the default rules what you found there is lost.")
+	help.add_text("Levels", "Everybody plays every level for themselves. Type /r to go back to the lobby, or /l3 to go to a level you have already reached.")

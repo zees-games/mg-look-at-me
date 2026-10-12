@@ -37,6 +37,8 @@ There are two **houses**: The House (32 levels) and The Asylum (16). A server pl
 | **F** | Flashlight |
 | **C** | First or third person |
 | **/** | A command: `/r` goes back to the lobby, `/l3` (or `/l 3`) goes to a level you have reached |
+| **H** | Help: the rules and every key as you have it bound |
+| **Esc** | Menu: settings (every key above can be rebound), help, and leave |
 
 ## Getting started
 You need [Godot 4.7](https://godotengine.org/download). The game is built from many Dot addons, each in its own repository, so the easiest way to get everything is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap). It clones every project and links the addons into each one:

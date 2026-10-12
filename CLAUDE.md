@@ -84,6 +84,8 @@ The red screen while caught is the meter's vignette and stays the HUD's. The mom
 
 `LmSettings` is dot-menu's `DotMenuSettings` with this game's schema: sensitivity (ACCOUNT, bound to the controller's tunables, which both samplers read), field of view (SERVER_CLAMPED, default 75), master and effects volume (bound to `LmAudio`'s mixer), shake and flashes (bound to the client's `DotFxManager`). Escape opens the screen; walking is suspended while it is up. `headless_run`'s "the client's settings are read" boots a real client and presses Escape.
 
+**Every key is an `LmBindings` row read through its action** (Enter opens the command line as a fixed second key), and the HUD's key line is drawn from the table. H is help (dot-menu's stock key; `LmSettings._fill_help` writes the rules), so no row may default to H, and the menu has dot-menu's stock Help and Leave; the same `headless_run` section checks them.
+
 **The mouse reaches the look through `LmClient._input`**, which hands each `InputEventMouseMotion` to the sampler in use (the player's offline, the client's connected) while the pointer is captured: a `DotFpsSampler` reads the keys itself but is only handed mouse motion, and until 2026-10-11 nothing handed it any, so the view turned only as the player walked. `headless_run`'s "the mouse turns the view" sends real motion through `Input.parse_input_event`; a check that sets yaw directly cannot catch this.
 
 ## Validating
