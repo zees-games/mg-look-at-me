@@ -21,7 +21,14 @@ The top left of the screen always says what to do next. The gold key opens the w
 
 **Everybody plays every level for themselves.** What you pick up, open and use is yours: a door you unlocked is open for you and still locked for the player behind you. So people can arrive and leave at any time.
 
-**The witches** walk the rooms in the dark, and their line of sight is drawn as a faint red fan on the floor. While one can see you, the meter at the bottom of the screen fills: faster the closer she is, and much faster with your flashlight on. Crouching and standing still help, and furniture hides you as well as a wall does. Out of sight, the meter drains after a moment. If it fills, you're caught and go back to the start of the level. Level 1 has one witch; the last levels have six, faster and sharper-eyed.
+**The witches** walk the same rounds through the rooms, over and over, and you hear them before you see them: a low hum and slow, heavy footsteps through the walls. Where a witch looks is drawn as a red fan on the floor, turning as her head turns. The rules are simple:
+
+- **Out of her fan, she cannot see you**, however close you are. Behind her is safe; so is anywhere a wall or a piece of furniture is between you.
+- **In her fan, the meter at the bottom fills**: faster the closer she is, much faster with your flashlight on, slower if you crouch or keep still. The moment she sees you, you hear it, her eyes blaze and her arms come up, and your heart starts to pound.
+- **Get out of her fan and the meter drains** after a moment.
+- **If it fills, she has you**, and you're back at the start of the level.
+
+The start room of every level is safe: no witch ever walks into it. Level 1 has one witch, walking the rooms the red key is in; the last levels have six, faster and sharper-eyed.
 
 Finish all thirty-two and you get a crown everybody else can see.
 
@@ -35,10 +42,12 @@ There are two **houses**: The House (32 levels) and The Asylum (16). A server pl
 | **Ctrl** | Crouch |
 | **E** | Take, open, use |
 | **F** | Flashlight |
-| **C** | First or third person |
+| **F5** | First or third person, where the server allows it |
 | **/** | A command: `/r` goes back to the lobby, `/l3` (or `/l 3`) goes to a level you have reached |
 | **H** | Help: the rules and every key as you have it bound |
-| **Esc** | Menu: settings (every key above can be rebound), help, and leave |
+| **M** | The list of houses |
+| **Tab** | Who is playing (hold) |
+| **Esc** | Menu: settings (every key above can be rebound on the Controls page), help, and leave |
 
 ## Getting started
 You need [Godot 4.7](https://godotengine.org/download). The game is built from many Dot addons, each in its own repository, so the easiest way to get everything is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap). It clones every project and links the addons into each one:
@@ -120,7 +129,7 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
 
 ## Credits
-The players are the family's animated people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by Kenney's Blocky Characters' skins; the furniture is Kenney's Furniture Kit ([kenney.nl](https://kenney.nl), CC0), in `assets/kenney/` with their licences. Everything else is drawn in code.
+The players are the family's animated people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by Kenney's Blocky Characters' skins. The witch is the same kit's basic zombie (Quaternius, CC0 1.0), recoloured and dressed in code (`assets/witch/`, made by `tools/make_witch.py`). The furniture is Kenney's Furniture Kit ([kenney.nl](https://kenney.nl), CC0), in `assets/kenney/` with their licences. The footsteps, creaks, doors and latch are Kenney's Impact Sounds and RPG Audio (CC0); the ambience, the witch's hum, the stinger, the shriek and the heartbeat are synthesised for this game by `tools/make_sounds.py` (CC0). `audio/CREDITS.md` lists every file. Everything else is drawn in code.
 
 ## License
-MIT. See [LICENSE](LICENSE). The Kenney art is CC0, which is public domain.
+MIT. See [LICENSE](LICENSE). The Kenney and Quaternius art and sounds are CC0, which is public domain.

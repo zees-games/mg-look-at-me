@@ -1,6 +1,6 @@
 # mg-look-at-me
 
-A dark house, thirty-two levels deep, with witches walking its rooms. Find what opens the next door before one of them looks at you.
+A dark house, thirty-two levels deep, with witches walking its rooms: a small horror game. Find what opens the next door before one of them looks at you.
 
 Read the family-wide conventions in [`../../CLAUDE.md`](../../CLAUDE.md) first, and dot-player-controller's `CLAUDE.md` before touching movement. This file is only about what this game decides.
 
@@ -21,77 +21,41 @@ game/
   lm_vote.gd     the house vote over dot-vote: a time limit, rock the vote, applied at once
   lm_progress.gd dot-stats (levels, deepest, catches, wins) and four achievements, "Out" the brief's; reported to the backbone
   lm_settings.gd the player's settings and the screen Escape opens
-  lm_audio.gd    the sounds as a dot-audio catalogue (heartbeat, witch_drone, click) with synthesised stand-ins; the lub-dub's timing; a drone per witch in earshot
+  lm_audio.gd    the sounds as a dot-audio catalogue of audio/ files: ambience, creaks, steps, a witch's hum and steps, door, latch, stinger, shriek, heartbeat; a -1 dB limiter on master
+  lm_witch.gd    a witch drawn: the kit's zombie recoloured, skirt, hat, glowing eyes, head turned with her sight, the floor fan; flares while she sees you
   net/           lm_events (JSON kinds), lm_event/lm_request, lm_net_link, lm_net_command (the move), lm_player_net (movement + level/flashlight/won, meter/caught to the owner), lm_net_bridge
   lm_figure.gd   a player drawn as one of the family's animated people (dot-player-char's DotHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
   lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
-examples/        headless_run (12 sections, 56 checks), headless_net (8, 28), dedicated (7, 21)
-tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, door --near=m, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
+audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
+assets/witch/   her body and atlas (tools/make_witch.py)
+examples/        headless_run (14 sections, 80 checks), headless_net (8, 28), dedicated (7, 25)
+tools/           build_levels.py; make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
-## Decision 1: doors are per player, and that is an exclusion list
+## How it is built
 
-The brief: everybody does every level themselves, which is what makes a server that never ends. So a door is one solid `StaticBody3D` in the world, and a player who has opened it has its RID in their controller's collision exclusions (`DotFpsController.body.exclude`, rebuilt by `LmGame._apply_doors`). It is open for them and shut for everybody else, and nothing about the level changes. A witch's line of sight to a player ignores the doors THAT player opened (`_clear_between`), because for them it is open. `shared_progress` (off) copies every take, open and use to everybody on the level. `headless_run` walks two players at one door: the one who opened it is 6 m through, the other stops at it.
+One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1 to 8, the HUD, the settings, the cameras) and [docs/horror.md](docs/horror.md) (the witch, the sound, the light, the signs).
 
-## Decision 2: a witch's walk is a pure function of time
+| Read | Before |
+| --- | --- |
+| [docs/design.md](docs/design.md) | Touching doors, witches, the meter, levels, netcode, houses, avatars, the HUD's prompt, settings or cameras |
+| [docs/horror.md](docs/horror.md) | Touching the witch's model or behaviour, any sound, the light, the room signs or the HUD's layout |
+| [docs/history.md](docs/history.md) | Believing a render or a suite: what each found that the other missed |
 
-mg-wipeout's idea again: a witch walks a loop of points (room centres, doorways, points in a room) at a speed, and `LmLevel.witch_pose(index, seconds)` is where she is and which way she and her head face. Every machine poses every witch from the clock, so nothing about her will ever need sending, and the server's "can she see you" and the client's picture of her cannot disagree. She does not chase; she sees. Witches never walk into a start room: start rooms are safe, and the lobby is level 1's.
-
-## Decision 3: being seen is a meter
-
-Each tick, every witch on a player's level asks: in range (`sight`, × `flashlight_sight` with the light on), inside her cone (`cone`, turning with her head), nothing solid between. The rate is `exposure_rate` × nearness, × `flashlight_exposure`, × `crouch_exposure`, × `still_exposure`; a second witch adds 35%. Out of sight for `decay_delay` it drains at `decay_rate`. Full is caught: `caught_seconds` of a red screen, then the level's start room, with the level lost under `caught_penalty` 1 (the default) or kept under 0. Her sight is drawn on the floor as a faint red fan, because a meter a careful player cannot see coming is a lottery.
-
-## Decision 4: levels are generated, and proven
-
-`tools/build_levels.py` grows each level's rooms as a tree on a grid, from a start room (the lobby is 3×3 cells, the biggest room in the game), and locks every door into a new room behind a puzzle whose parts it puts in rooms already reachable: so every level is finishable by construction, and `solve()` plays the logic and refuses to write one that is not. Later levels have more rooms (4 + n/2, up to 20), put the parts in older rooms (further from their doors), and send more witches (1 + (n-1)/4, up to 6), faster (1.5 + 0.05n m/s), sharper (8 + 0.35n m, cone 70 + 1.2n°). `headless_run`'s solver then plays all 32 in the ENGINE — standing in front of each thing and pressing E through `LmGame.interact` — so a document the game reads differently from the builder fails there.
-
-## Decision 5: movement is predicted, and so are the doors
-
-Movement is mg-deathrun's: an `LmNetCommand` a tick into dot-net's input buffer, each packet carrying the last five (`INPUT_COPIES`, so a lost packet costs no tick), the owner predicting with the same controller the server simulates. Everything else is mg-dangerous-delivery's: a few JSON events and requests. **The doors are why this game's prediction is its own.** A door open only for one player must be open in that player's PREDICTING controller too, or the client predicts a wall the server walks them through and every snapshot drags them back; so PROGRESS (the owner's holds, opened, used, taken) goes to the owner alone and is applied to the client's own controller before its next predicted tick. `headless_net` walks a client through a door open only for it and ends 5 mm from the server. The levels go one per LEVEL message after the HELLO: all 32 are 210 KB, past a WebSocket's 64 KiB outbound buffer, and a browser client sent them in one would never learn the house it was standing in. Witches are never sent (Decision 2); `headless_net` checks both ends pose all of them alike from the clock. A chat line beginning with a command the house knows (`/r`, `/l3`) is answered by the house (`LmModule._on_say_requested`), the rest goes to the chat router.
-
-**Furniture** (Kenney's Furniture Kit, 21 models, ×2.3) lines the walls, themed by room name (`LmLevel.FURNITURE`, `ROOM_THEMES`), placed from `LmHash.unit` of level, room, wall and slot so every machine furnishes alike, never within 1.9 m of a door and never deeper than 1.4 m (items are always further in than that, so nothing a level needs is ever behind a sofa). Every piece is a solid StaticBody3D on the world layer, built on a server too: it blocks movement and a witch's sight like a wall, which is what makes it something to hide behind.
-
-## Decision 6: a house is a map, and the players vote between them
-
-The brief: the base game is a map an owner can replace, with a time limit, through dot-map and dot-vote. A **house** is a directory of level documents with a `house.json` ({kind, id, name}); the built-in one is `levels/` ("The House", 32 levels), `houses/<id>/` holds the others (the Asylum, 16, written by the same builder with its own seed and names), and an owner's own goes in `houses/` or `user://lookatme_houses/`. `LmGame.change_house` replaces every level and puts everybody in the new lobby with their reach reset; the bridge sends each client the house again (HELLO, then one LEVEL each), and the client drops the old house's witches. `LmVote` (mg-deathrun's course vote, re-aimed) puts every house on a dot-vote ballot when `house_minutes` (45) is nearly up, the current one and an extension included, applied at once since there are no rounds; `!rtv` any time; 0 minutes is rock-the-vote only. `lm_house <id>` for an operator. **Winners are per house**: the winners file is `{house: {key: when}}`, a crown is the current house's (getting out of 16 levels is not getting out of 32), and a flat file from before houses is read as the built-in house's. dot-server-deploy's `lookatme_client` checks the delivered server found the Asylum inside its mount.
-
-## Decision 7: a TMC account walks the house as its site avatar
-
-`LmModule._make_identity` is dot-platform's `DotPlatformIdentity` over mg-deathrun's one-slot schema (`LmAvatars`: the site avatar's top picks one of the Kenney people, `from_site`). The bridge seats a player with `avatar_fn` (the platform module's `player_for(session).avatar`, else the stock person for the key), and JOIN carries the avatar DOCUMENT, capped at 1 KB, not the skin it picks, so a slot added later needs no new wire. Admission finishes after the seat, so `player_admitted`, `player_avatar_changed` and `player_renamed` all end in `LmNetBridge.refresh_player`, which sends the same JOIN again; a client that already has the player takes the new name and face (`LmPlayer.set_avatar` rebuilds the figure on the next draw) rather than seating a second one. `headless_net` checks both.
-
-## The HUD's prompt is dot-ui's
-
-"Take the red key" is a `DotKeyPrompt` under the crosshair (`LmClient.prompt`, in the menu's theme: the client hands the HUD's root to dot-menu's `follow_hud`, by name, with `LmClient.piece_theme()` as the accent, the lamp's amber and nothing else, so a theme picked in the menu restyles the prompt and the HUD's lines live and the default is dark; `headless_run` checks it), with the key the `lm_use` action is bound to drawn as a key: `use_key()` binds E only if nothing has bound the action, and the key line at the bottom reads the same binding. It was a Label writing `[E]` with the letter fixed. The pack therefore needs a client shell with dot-ui API level 4; `headless_run` checks the derived requires.json, the prompt and its key, and that the prompt, the full chat log and a ballot do not meet at 1280x720. Look at it with `tools/shot.sh --view=prompt` (`--houses=asylum,house` after a house change and back). A suite reads the HUD only after the client has drawn a frame (`headless_run`'s `_drawn`, two `process_frame`s): one, after a `physics_frame` wait, resumes before the client's `_process` and reads the frame before, which once looked like the prompt vanishing after a house change. A Controls page where a player rebinds it is not built yet (queue item `lookatme-controls-page-1`).
-
-## What running and rendering found
-
-- **dot-player-controller needs dot_player and dot_net linked**; without them `DotFpsController` does not parse and every script that names it fails with it.
-- **Level 1 had no witch**: its rooms each hang off the lobby, so there was no loop that avoided a start room. A witch with nowhere to go walks the corners of one room.
-- **Sound is only provable under xvfb** (`xvfb-run -a godot --path . res://tools/audio_probe.tscn`: ALSA, a real pool player sounding the heartbeat at a 0.9 meter, the click, a drone on each witch in earshot); `--headless` has the Dummy driver, so dot-audio runs its null sink and plays nothing.
-- **The lobby was as dark as the house** with one lamp in the middle of a 24 m room. Lit rooms get a lamp every cell and a half.
-
-## Decision 8: sound is a dot-audio catalogue, the catch is a dot-fx flash
-
-`LmAudio` is the family's shape (mg-prop-hunt's `PhAudio`): ids (`heartbeat`, `witch_drone`, `click`) in a `DotAudioCatalogue` naming `audio/<id>.ogg`, all on the SFX bus, played through a `DotAudioManager` the settings' master and effects volumes are bound to. No stock `DotAudioSynth` voice is a heartbeat or a sustained hum, so `stand_ins()` bakes the game's own into the sink's bank (as mg-deathrun's machinery does): the 70 to 40 Hz thud and the 880 Hz click through `DotAudioSynth.bake`, the two-sine beating drone by hand. A real `.ogg` in `audio/` wins over the stand-in, one id at a time. The lub-dub's timing stays in `LmAudio._process` (it is the meter, heard). **A drone is asked for every frame** (`LmAudio.witch`), because the manager refuses a sound beyond `max_distance` (18 m) at its start and a drone asked for once from across the level would never sound; drones of a level the player is not on are stopped (they used to hum on from a hidden node).
-
-**Connected, a sound the server decides comes as a SOUND event (an `LmAudio` id, appended to `LmEvents.Kind`) and `LmClient._listen_for_sounds` plays it**: the click of E is the server's, since only it knows E landed; never a sound played only in the offline branch of `_act`. `headless_net` checks the client plays it.
-
-The red screen while caught is the meter's vignette and stays the HUD's. The moment of being caught is a dot-fx `caught` SCREEN flash (red, 0.55, 700 ms) and a `caught_jolt` shake, built in `LmClient._build_effects` and bound to the settings, so "allow flashes", the three-a-second limit and the shake slider apply. `headless_run`'s last section checks every id the client plays is in the catalogue, that the volume settings reach the mixer, and that a catch flashes unless flashes are off.
-
-## Settings, and Escape opens them
-
-`LmSettings` is dot-menu's `DotMenuSettings` with this game's schema: sensitivity (ACCOUNT, bound to the controller's tunables, which both samplers read), field of view (SERVER_CLAMPED, default 75), master and effects volume (bound to `LmAudio`'s mixer), shake and flashes (bound to the client's `DotFxManager`). Escape opens the screen; walking is suspended while it is up. `headless_run`'s "the client's settings are read" boots a real client and presses Escape.
-
-**Every key is an `LmBindings` row read through its action** (Enter opens the command line as a fixed second key), and the HUD's key line is drawn from the table. H is help (dot-menu's stock key; `LmSettings._fill_help` writes the rules), so no row may default to H, and the menu has dot-menu's stock Help and Leave; the same `headless_run` section checks them.
-
-**M is the house list** (dot-menu's map menu): `LmGame.house_rows()` and `change_house()` serve both solo and the server, where dot-vote's map menu lets the owner's `sv_map_menu_flag` open a house now and gives anybody else a vote. No row may default to M; `headless_run` and `dedicated` check it.
-
-**The mouse reaches the look through `LmClient._input`**, which hands each `InputEventMouseMotion` to the sampler in use (the player's offline, the client's connected) while the pointer is captured: a `DotFpsSampler` reads the keys itself but is only handed mouse motion, and until 2026-10-11 nothing handed it any, so the view turned only as the player walked. `headless_run`'s "the mouse turns the view" sends real motion through `Input.parse_input_event`; a check that sets yaw directly cannot catch this.
-
-**Cameras and bodies** (the first play test, family-wide): F5 is the view key under the server's `mp_forceview` (dot-player-controller's `DotPlayerViewRules`, bound REPLICATED by the module and followed through the link; the config's `allow_third_person` false starts it at 1, and an older server's HELLO saying so still holds); `_place_camera` applies it every frame. The third-person camera is swept from the eye by a dot-core `DotCameraProbe` against `LAYER_WORLD`, and a `DotCameraFade` on the camera is handed the other players. `mp_solidplayers` (1) puts `LAYER_PLAYERS` in every player's motor mask through `DotPlayerBodyRules.apply_to`, which also lets two players placed on one spot walk apart (`headless_run`'s door check is that case).
+- **Doors are per player**: one solid body, opened by an exclusion in that player's controller; the opener's client swings its drawing open (`LmClient._swing_doors`). [design](docs/design.md#decision-1-doors-are-per-player-and-that-is-an-exclusion-list)
+- **A witch's walk is a pure function of time** (`LmLevel.witch_pose`); never send her. Draw her at the interpolated time and animate her from her loop's speed, never a measured one. [design](docs/design.md#decision-2-a-witchs-walk-is-a-pure-function-of-time), [horror](docs/horror.md#the-witch)
+- **Being seen is a meter**, out of her fan she cannot see you; the client asks `LmGame.exposure` for the local player only to draw and play it. [design](docs/design.md#decision-3-being-seen-is-a-meter)
+- **Levels are generated and proven** by `tools/build_levels.py` (`--check`); a witch starts in a room with somewhere to walk. [design](docs/design.md#decision-4-levels-are-generated-and-proven)
+- **Movement and doors are predicted**; progress goes to its owner alone. [design](docs/design.md#decision-5-movement-is-predicted-and-so-are-the-doors)
+- **A house is a map**, voted between. [design](docs/design.md#decision-6-a-house-is-a-map-and-the-players-vote-between-them)
+- **A TMC account is its site avatar.** [design](docs/design.md#decision-7-a-tmc-account-walks-the-house-as-its-site-avatar)
+- **Sound is a dot-audio catalogue of files** (`audio/`, written by `tools/make_sounds.py`, every file at a -2 dBFS peak); loudness is each def's `gain_db`, measured in the recorded mix, with a -1 dB hard limiter on master. [horror](docs/horror.md#sound)
+- **Every key is an `LmBindings` row** on the menu's Controls page; nothing is matched by keycode but Enter and Escape. [design](docs/design.md#settings-and-escape-opens-them)
+- **The HUD wraps inside the window** (`LmClient.hud_fits`, checked at 640x360 to 1280x720). [horror](docs/horror.md#signs-and-the-hud)
+- **A room's name is a plaque over each door into it**, in front of the wall's face (each room's wall is a whole `WALL` deep inside its edge). [horror](docs/horror.md#signs-and-the-hud)
 
 ## Validating
 
@@ -99,13 +63,15 @@ The red screen while caught is the meter's vignette and stays the HUD's. The mom
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 12 sections, 56 checks
-godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 26 checks: predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
-godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 21 checks
+godot --headless --path . res://examples/headless_run.tscn   # 14 sections, 80 checks
+godot --headless --path . res://examples/headless_net.tscn   # 8 sections, 28 checks: predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click
+godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
 tools/camera_check.sh [--render]   # third person round every room and door (armed), mp_forceview, mp_solidplayers both ways
 xvfb-run -a godot --path . res://tools/audio_probe.tscn       # does the house make a noise
+tools/playthrough.sh --sheet                                  # look at the eight frames; the mix must peak under -1 dBFS
+xvfb-run -a godot --path . --resolution 1600x500 res://tools/witch_shot.tscn -- --seeing
 ```
 
 ## Still to do
