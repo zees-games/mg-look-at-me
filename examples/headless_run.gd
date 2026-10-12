@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
 const SECTIONS := 11
-const CHECKS := 47
+const CHECKS := 51
 
 var _passed := 0
 var _failed := 0
@@ -376,6 +376,54 @@ func _test_the_client_settings() -> void:
 	tab.pressed = false
 	client.call("_unhandled_input", tab)
 	_check(board != null and not board.is_open(), "and letting go puts it away")
+
+	# Something in reach: dot-ui's DotKeyPrompt says what, with the use action's binding drawn
+	# as the key, and that key does it.
+	var LmClientScript: GDScript = load("res://game/lm_client.gd")
+	var me: LmPlayer = client.get("player")
+	var here: LmLevel = client.get("game").level_of(me)
+	var item_id: String = here.items.keys()[0]
+	_stand_before(me, here, (here.items[item_id]["at"] as Vector3) + Vector3(0, 0.9, 0))
+	await get_tree().process_frame
+	var prompt: DotKeyPrompt = client.get("prompt")
+	var use_key := DotInputBinding.describe_action(LmClientScript.get("USE_ACTION"))
+	_check(
+		prompt != null and prompt.visible and prompt.words.begins_with("Take the ") and use_key != "" and prompt.key == use_key,
+		"an item in reach is a DotKeyPrompt with the use action's binding as its key",
+		str(prompt.describe()) if prompt != null else "no prompt"
+	)
+	var use := InputEventKey.new()
+	use.physical_keycode = OS.find_keycode_from_string(use_key) as Key
+	use.pressed = true
+	client.call("_unhandled_input", use)
+	_check(me.holds.size() + me.taken.size() > 0, "and that key takes it", "%s %s" % [me.holds, me.taken])
+
+	# At 1280 x 720: the prompt under the crosshair, the chat box's full log bottom left and a
+	# ballot where the client shell draws one (a column down the right from 110 px) never meet.
+	var box: DotGameChatClient = LmClientScript.call("new_chat")
+	add_child(box)
+	var w: DotChatWindow = box.window
+	var log_top := w.margin_bottom + w.entry_height + float(w.max_lines) * (w.line_height + w.line_gap)
+	var chat_rect := Rect2(w.margin_left, 720.0 - log_top, w.width, log_top - w.margin_bottom)
+	box.queue_free()
+	prompt.show_prompt("Take the brass candlestick from the mantelpiece", use_key)
+	var shown := prompt.footprint()
+	var prompt_rect := Rect2(Vector2(640.0 + prompt.offset_left, 360.0 + prompt.offset_top) + shown.position, shown.size)
+	var ballot_rect := Rect2(904.0, 110.0, 360.0, 250.0)
+	_check(
+		not chat_rect.intersects(prompt_rect) and not chat_rect.intersects(ballot_rect) and not prompt_rect.intersects(ballot_rect),
+		"the prompt, the chat box and a ballot do not meet",
+		"prompt %s, chat %s, ballot %s" % [prompt_rect, chat_rect, ballot_rect]
+	)
+
+	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so the
+	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
+	var asks := DotAddonApi.derive()
+	_check(
+		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + DotAddonApi.FLOOR_FILE),
+		"the pack asks a shell for dot-ui level 4, the glance pieces",
+		str(asks.get("dot_ui"))
+	)
 
 	remove_child(client)
 	client.free()

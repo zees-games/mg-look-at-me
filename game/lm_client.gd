@@ -20,6 +20,15 @@ const LINK_SERVICE := &"dot_client_link"
 
 const CHANNEL := "lookatme.client"
 
+## The use key's action, and what it is bound to when nothing else has bound it. The prompt
+## and the key line draw the action's binding, never a letter written here, so a project or a
+## player that binds it elsewhere is told the key that works.
+const USE_ACTION := &"lm_use"
+const USE_DEFAULT := "E"
+
+## The lamp's amber, which is also the glance pieces' highlight.
+const LAMP_COLOUR := Color(1.0, 0.80, 0.48)
+
 @export var local_key: StringName = &"you"
 @export var local_name: String = "You"
 
@@ -37,7 +46,10 @@ var _witch_views: Dictionary = {}
 var _hud: Control = null
 var _step: Label = null
 var _holds: Label = null
-var _prompt: Label = null
+## "Take the red key" with the use key drawn as a key, while something is in reach. dot-ui's
+## [DotKeyPrompt]; it was a Label writing "[E] …" with the letter fixed. Decided 2026-10-11
+## (hud-pieces).
+var prompt: DotKeyPrompt = null
 var _message: Label = null
 var _meter_bar: ProgressBar = null
 var _vignette: ColorRect = null
@@ -375,12 +387,19 @@ func _build_hud() -> void:
 	_meter_bar.add_theme_stylebox_override("fill", fill)
 	_hud.add_child(_meter_bar)
 
-	_prompt = _label("", 20, Vector2.ZERO)
-	_prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_prompt.offset_top = 40
-	_prompt.offset_left = -300
-	_prompt.offset_right = 300
-	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Under the crosshair: what the use key does right now. Its colours are [method
+	# piece_theme]'s, set on the piece so the Labels here keep their own.
+	prompt = DotKeyPrompt.new()
+	prompt.name = "Prompt"
+	prompt.theme = piece_theme()
+	prompt.font_size = 19
+	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	prompt.offset_left = -300.0
+	prompt.offset_right = 300.0
+	prompt.offset_top = 32.0
+	prompt.offset_bottom = 68.0
+	prompt.visible = false
+	_hud.add_child(prompt)
 
 	_message = _label("", 34, Vector2.ZERO)
 	_message.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -389,7 +408,7 @@ func _build_hud() -> void:
 	_message.offset_right = 400
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-	var keys := _label("E use   F flashlight   C camera   Ctrl crouch   / command (/r lobby, /l2 a level)", 13, Vector2.ZERO)
+	var keys := _label(use_key() + " use   F flashlight   C camera   Ctrl crouch   / command (/r lobby, /l2 a level)", 13, Vector2.ZERO)
 	keys.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	keys.offset_top = -26
 	keys.offset_left = 16
@@ -406,6 +425,24 @@ func _build_hud() -> void:
 	_command.visible = false
 	_command.text_submitted.connect(_on_command)
 	_hud.add_child(_command)
+
+
+## The key the use action is on now, as its name ("E"). Binds the default first if nothing has.
+static func use_key() -> String:
+	return DotInputBinding.ensure_action(USE_ACTION, USE_DEFAULT)
+
+
+## The glance pieces' colours in this house's palette: a near-black plate warm enough to sit
+## in lamplight, pale text, the lamp's amber as highlight. Static so a render tool can use it.
+static func piece_theme() -> Theme:
+	var t := Theme.new()
+	var type := DotHudPiece.THEME_TYPE
+	t.set_color(&"plate", type, Color(0.05, 0.04, 0.035, 0.66))
+	t.set_color(&"plate_edge", type, Color(LAMP_COLOUR, 0.28))
+	t.set_color(&"highlight", type, LAMP_COLOUR)
+	t.set_color(&"keycap", type, Color(0.96, 0.92, 0.84, 0.95))
+	t.set_color(&"low", type, Color(1.0, 0.3, 0.26))
+	return t
 
 
 func _label(text: String, size: int, at: Vector2) -> Label:
@@ -443,9 +480,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if chat != null and chat.is_typing():
 		return
 
+	if key.is_action_pressed(USE_ACTION):
+		_act("use")
+		return
+
 	match key.keycode:
-		KEY_E:
-			_act("use")
 		KEY_F:
 			_act("flashlight")
 		KEY_C:
@@ -630,7 +669,10 @@ func _process(delta: float) -> void:
 	_step.text = "Level %d of %d — %s" % [player.level, game.last_level(), game.step_of(player)]
 	_holds.text = "Holding: %s" % (", ".join(_hold_names(level)) if not player.holds.is_empty() else "nothing")
 	var target := game.target_of(player.player_key)
-	_prompt.text = ("[E] %s" % target["text"]) if not target.is_empty() else ""
+	if target.is_empty():
+		prompt.clear()
+	else:
+		prompt.show_prompt(str(target["text"]), DotInputBinding.describe_action(USE_ACTION))
 	_meter_bar.value = player.meter
 	_present(delta)
 	_meter_bar.visible = player.meter > 0.01

@@ -26,6 +26,14 @@ func _ready() -> void:
 
 	if room != "" and level.rooms.has(room):
 		player.place_at(level.position + level.room_centre(room) + Vector3(0, 0.1, 0), float(_args.get("yaw", "0")))
+	elif view == "prompt" and not level.items.is_empty():
+		# --view=prompt: 1.2 m from the level's first item, looking at it, so the HUD's
+		# "Take the …" prompt is up with the use key drawn as a key.
+		var item_at: Vector3 = level.position + (level.items[level.items.keys()[0]]["at"] as Vector3) + Vector3(0, 0.9, 0)
+		var eye := item_at + Vector3(0, 0, 1.2)
+		player.place_at(eye - Vector3(0, player.EYE_HEIGHT, 0), 0.0)
+		player.controller.state.pitch = rad_to_deg(asin(clampf((item_at - eye).normalized().y, -1.0, 1.0)))
+		player.controller.state.yaw = 0.0
 	elif view == "witch" and not level.witches.is_empty():
 		var pose: Dictionary = level.witch_pose(0, client.game.seconds_now())
 		var at: Vector3 = level.position + (pose["at"] as Vector3)

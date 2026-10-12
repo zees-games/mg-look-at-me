@@ -27,8 +27,8 @@ game/
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
-examples/        headless_run (11 sections, 47 checks), headless_net (8, 26), dedicated (7, 21)
-tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
+examples/        headless_run (11 sections, 51 checks), headless_net (8, 26), dedicated (7, 21)
+tools/           build_levels.py; shot.sh/.gd (render: eyes, third, witch, above, prompt, --caught=1); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
 ## Decision 1: doors are per player, and that is an exclusion list
@@ -60,6 +60,10 @@ The brief: the base game is a map an owner can replace, with a time limit, throu
 ## Decision 7: a TMC account walks the house as its site avatar
 
 `LmModule._make_identity` is dot-platform's `DotPlatformIdentity` over mg-deathrun's one-slot schema (`LmAvatars`: the site avatar's top picks one of the Kenney people, `from_site`). The bridge seats a player with `avatar_fn` (the platform module's `player_for(session).avatar`, else the stock person for the key), and JOIN carries the avatar DOCUMENT, capped at 1 KB, not the skin it picks, so a slot added later needs no new wire. Admission finishes after the seat, so `player_admitted`, `player_avatar_changed` and `player_renamed` all end in `LmNetBridge.refresh_player`, which sends the same JOIN again; a client that already has the player takes the new name and face (`LmPlayer.set_avatar` rebuilds the figure on the next draw) rather than seating a second one. `headless_net` checks both.
+
+## The HUD's prompt is dot-ui's
+
+"Take the red key" is a `DotKeyPrompt` under the crosshair (`LmClient.prompt`, colours from `LmClient.piece_theme()`), with the key the `lm_use` action is bound to drawn as a key: `use_key()` binds E only if nothing has bound the action, and the key line at the bottom reads the same binding. It was a Label writing `[E]` with the letter fixed. The pack therefore needs a client shell with dot-ui API level 4; `headless_run` checks the derived requires.json, the prompt and its key, and that the prompt, the full chat log and a ballot do not meet at 1280x720. Look at it with `tools/shot.sh --view=prompt`. A Controls page where a player rebinds it is not built yet (queue item `lookatme-controls-page-1`).
 
 ## What running and rendering found
 
