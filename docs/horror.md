@@ -30,7 +30,7 @@ The client asks `LmGame.exposure` for the local player only, from the same clock
 
 - **Every file peaks at -2 dBFS.** A Vorbis file decodes up to a decibel over its source, so normalising to -1 came back at 0.
 - **Loudness is the catalogue's `gain_db`**, set against the recorded mix, not file by file. The worst moment is a catch (shriek, stinger, racing heart at once); a -1 dB `AudioEffectHardLimiter` on the master bus (`LmAudio._limit_master`) keeps it off the rail whatever the sliders say.
-- **Measured** with `tools/playthrough.sh`: a scripted minute of level 1 recorded off the master bus after the limiter. 2026-10-12: peak -2.3 dBFS, -17.7 LUFS integrated, 9.9 LU range. The first recording, before the gains were set, peaked at 0.0 dBFS.
+- **Measured** with `tools/playthrough.sh`: a scripted minute of level 1 recorded off the master bus after the limiter. 2026-10-12: peak -2.3 dBFS, -17.7 LUFS integrated, 9.9 LU range. The first recording, before the gains were set, peaked at 0.0 dBFS. Later that day the (now 20 s) playthrough read -18.9 and -19.8, under the family's band; `LmAudio` sets `loudness_trim_db` to +3, which reads -17.3 and -17.4 with the range (17 LU) unchanged and the catch at -1.9 dBTP.
 - **The ambience and the creaks are the house's own** (`house_sounds`), a 40 s loop and a creak every 6 to 16 s somewhere 5 to 13 m away. A looping sound plays a copy of its stream, which has no path, so the probe asks the manager by handle.
 
 ## Light

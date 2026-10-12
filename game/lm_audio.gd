@@ -211,6 +211,11 @@ func setup() -> DotResult:
 	manager.register_as_service = false
 	# Six drones and their steps, a heart, a creak and a stinger is the busiest the house gets.
 	manager.voices = 24
+	# The whole house a little up, the quiet and the catches together (the range is the design
+	# and a trim keeps it): tools/playthrough.sh read -18.9 and -19.8 LUFS on 2026-10-12, under
+	# the family's -18..-16 band, with the catch held by the limiter. At +3: -17.3 and -17.4,
+	# range 17 LU, true peak -1.9 dBTP.
+	manager.loudness_trim_db = 3.0
 	add_child(manager)
 
 	var ready_now := manager.setup()
