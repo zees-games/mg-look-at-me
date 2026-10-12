@@ -222,6 +222,13 @@ func _build_vote(world: LmGame) -> void:
 		return
 
 	DotLog.result(CHANNEL, "the house vote's commands", vote.install_commands(self))
+	# The map menu (M), dot-vote's: a player holding the owner's `sv_map_menu_flag` opens a house
+	# now, and sees the same rows a solo player does. Read by name, because a server on a
+	# dot-vote older than the menu has no `map_menu` and runs without it.
+	var menu_half: Variant = vote.commands.get(&"map_menu") if vote.commands != null else null
+	if menu_half is Object:
+		(menu_half as Object).set(&"change_fn", world.change_house)
+		(menu_half as Object).set(&"rows_fn", func(_rows: Array) -> Array: return world.house_rows())
 	vote.note_house(world.house_id)
 	world.house_changed.connect(func(id: StringName) -> void:
 		if vote != null:

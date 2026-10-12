@@ -204,12 +204,28 @@ func _build_settings() -> void:
 		# opening it stops the player and frees the pointer exactly as the menu does.
 		console = DotConsoleKit.build(self, settings.settings, settings.menu)
 		_wire_board()
+		_wire_maps()
 	_refresh_key_line()
 
 
 ## The Tab board: everybody in the house, the level they are on, the furthest they have got
 ## and whether they got out, beside how long they have been on and their ping. Online the
 ## levels are the server's (see [LmModule]'s `_game_board_fields`); offline, this world's.
+## M: the house list (dot-menu's map menu). Solo a choice opens that house here at once;
+## connected the server decides, by the owner's `sv_map_menu_flag`, and anybody without it
+## gets a vote instead (dot-vote's map menu, wired in [LmModule]). By name, so a client shell
+## older than the map menu still runs the game without it.
+func _wire_maps() -> void:
+	if not settings.has_method(&"use_maps"):
+		return
+	var maps: Variant = settings.call(&"use_maps",
+		func() -> Array: return game.house_rows() if game != null else [],
+		func(id: StringName) -> DotResult: return game.change_house(id))
+	if maps is Object:
+		(maps as Object).set(&"title", "Change house")
+		(maps as Object).set(&"noun", "houses")
+
+
 func _wire_board() -> void:
 	board = settings.menu.scoreboard
 	board.title_text = "Look at Me"
@@ -366,9 +382,10 @@ func _refresh_key_line() -> void:
 	var k := func(action: StringName, fallback: String) -> String:
 		var text := DotInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
 		return fallback if text == DotInputBinding.UNBOUND else text
-	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command (/r lobby, /l2 a level)   %s help" % [
+	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command (/r lobby, /l2 a level)   %s house   %s help" % [
 		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "C"),
-		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(DotMenuBindings.HELP_ACTION, "H")]
+		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"dot_menu_maps", "M"),
+		k.call(DotMenuBindings.HELP_ACTION, "H")]
 
 
 func _build_hud() -> void:

@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
 const SECTIONS := 12
-const CHECKS := 61
+const CHECKS := 64
 
 var _passed := 0
 var _failed := 0
@@ -396,6 +396,7 @@ func _test_the_client_settings() -> void:
 	var leave := menu.screen.find_child("Action_leave", true, false) as Button
 	_check(menu.screen.find_child("Action_help", true, false) != null and leave != null and leave.visible,
 		"the Escape menu has Help & commands and Leave")
+
 	settings.close()
 	var f := InputEventKey.new()
 	f.physical_keycode = KEY_F
@@ -440,6 +441,43 @@ func _test_the_client_settings() -> void:
 		"the prompt, the chat box and a ballot do not meet",
 		"prompt %s, chat %s, ballot %s" % [prompt_rect, chat_rect, ballot_rect]
 	)
+
+	# M, the family's rule since the first play test: the house list, and solo a choice
+	# changes it now. The server's half (the owner's flag, the vote) is in `dedicated`.
+	_check(keys.key_for(DotMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
+		"the map menu is on M, and nothing else in the table is",
+		str(keys.defaults_on("M").map(func(r: Dictionary) -> String: return str(r["label"]))))
+	# Closed right before the key: an offline client with no captured pointer (headless) may
+	# have put its menu back up, and while anything is open every key is the menu's.
+	menu.close_all()
+	var map_before: StringName = (client.get("game") as LmGame).house_id
+	var m_key := InputEventKey.new()
+	m_key.physical_keycode = KEY_M
+	m_key.keycode = KEY_M
+	m_key.pressed = true
+	_check(menu.handle_event(m_key) and menu.picker.is_open() and menu.picker.items.size() > 1,
+		"M opens the house list, more than one to choose", str(menu.picker.items.size()))
+	var wanted_map: StringName = &""
+	var map_key := KEY_NONE
+	for row in range(1, DotMenuPicker.PAGE_SIZE + 1):
+		var it: Variant = menu.picker.at_row(row)
+		if it is Dictionary and not bool((it as Dictionary)["current"]):
+			wanted_map = StringName(str((it as Dictionary)["id"]))
+			map_key = KEY_0 + row
+			break
+	var digit_key := InputEventKey.new()
+	digit_key.physical_keycode = map_key
+	digit_key.keycode = map_key
+	digit_key.pressed = true
+	var _picked := menu.handle_event(digit_key)
+	for _i in 4:
+		await get_tree().physics_frame
+	_check(wanted_map != &"" and (client.get("game") as LmGame).house_id == wanted_map and not menu.picker.is_open(),
+		"choosing one changes the house now", "%s, now %s" % [wanted_map, (client.get("game") as LmGame).house_id])
+	# Back where it was, for the checks after this one.
+	var _back: Variant = await menu.maps.change_fn.call(map_before)
+	for _i in 4:
+		await get_tree().physics_frame
 
 	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so the
 	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.

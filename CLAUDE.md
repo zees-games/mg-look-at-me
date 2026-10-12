@@ -86,6 +86,8 @@ The red screen while caught is the meter's vignette and stays the HUD's. The mom
 
 **Every key is an `LmBindings` row read through its action** (Enter opens the command line as a fixed second key), and the HUD's key line is drawn from the table. H is help (dot-menu's stock key; `LmSettings._fill_help` writes the rules), so no row may default to H, and the menu has dot-menu's stock Help and Leave; the same `headless_run` section checks them.
 
+**M is the house list** (dot-menu's map menu): `LmGame.house_rows()` and `change_house()` serve both solo and the server, where dot-vote's map menu lets the owner's `sv_map_menu_flag` open a house now and gives anybody else a vote. No row may default to M; `headless_run` and `dedicated` check it.
+
 **The mouse reaches the look through `LmClient._input`**, which hands each `InputEventMouseMotion` to the sampler in use (the player's offline, the client's connected) while the pointer is captured: a `DotFpsSampler` reads the keys itself but is only handed mouse motion, and until 2026-10-11 nothing handed it any, so the view turned only as the player walked. `headless_run`'s "the mouse turns the view" sends real motion through `Input.parse_input_event`; a check that sets yaw directly cannot catch this.
 
 ## Validating

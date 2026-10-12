@@ -8,7 +8,7 @@ extends Node
 const LmGame := preload("../game/lm_game.gd")
 
 const SECTIONS := 7
-const CHECKS := 22
+const CHECKS := 25
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -156,6 +156,30 @@ func _test_the_console() -> void:
 	_check(_said(_run_command("lm_winners"), "winners (0)"), "lm_winners lists nobody yet")
 	_check(_said(_run_command("lm_send nobody 3"), "Nobody called"), "lm_send refuses somebody who is not here")
 	_check(_module().get("vote") != null and _said(_run_command("lm_house"), "asylum"), "the house vote is built, and lm_house lists the houses")
+
+	# The map menu's server half (M): the owner's flag changes the house now, anybody else
+	# gets a nomination and a rock-the-vote. Contexts as dot-server makes them for a chat line.
+	var menu_half: Object = _module().get("vote").get("commands").get("map_menu")
+	_check(menu_half != null and server.console.find_command("mapmenu") != null
+		and server.console.find_cvar("sv_map_menu_flag").get_string() == "generic"
+		and (menu_half.get("change_fn") as Callable).is_valid(),
+		"the map menu is there, staff-only by default, changing the house now")
+	var staff := DotCmdContext.new()
+	staff.source = DotCmdContext.Source.CHAT
+	staff.permissions = PackedStringArray(["generic"])
+	var player := DotCmdContext.new()
+	player.source = DotCmdContext.Source.CHAT
+	var offered: Dictionary = menu_half.call("offer", player)
+	_check((offered["maps"] as Array).size() > 1 and not bool(offered["allowed"]) and bool(offered["vote"]),
+		"a player is offered every house, as a vote")
+	var target: StringName = &""
+	for row: Dictionary in offered["maps"]:
+		if not bool(row["current"]):
+			target = StringName(str(row["id"]))
+			break
+	var changed: Dictionary = await menu_half.call("choose", staff, target)
+	_check(bool(changed["ok"]) and game.house_id == target, "staff choosing one changes the house on the spot",
+		"%s: %s" % [target, changed.get("text", "")])
 	var _a := _run_command("lm_house asylum")
 	_check(game.house_id == &"asylum" and game.levels.size() == 16, "lm_house asylum opens it")
 	var _h := _run_command("lm_house house")

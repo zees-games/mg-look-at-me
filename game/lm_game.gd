@@ -168,6 +168,25 @@ func change_house(id: StringName) -> DotResult:
 	return DotResult.success(id)
 
 
+## Every house, as the map menu (M) lists them: `{id, name, detail, current}`, how many levels
+## under the name. Solo the client's list, online the server's (the module hands it to
+## dot-vote's map menu), so both say the same.
+func house_rows() -> Array:
+	var out: Array = []
+	var ids := houses.keys()
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
+	for id: StringName in ids:
+		var levels_in := 0
+		var dir := DirAccess.open(str(houses[id]["directory"]))
+		if dir != null:
+			for f in dir.get_files():
+				if f.ends_with(".json") and f != "house.json":
+					levels_in += 1
+		out.append({"id": String(id), "name": str(houses[id]["name"]), "current": id == house_id,
+			"detail": "%d levels" % levels_in if levels_in > 0 else ""})
+	return out
+
+
 func house_name() -> String:
 	return str(houses.get(house_id, {}).get("name", house_id))
 
