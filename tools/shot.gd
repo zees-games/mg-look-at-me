@@ -19,6 +19,12 @@ func _ready() -> void:
 	client.third_person = view == "third"
 	await get_tree().physics_frame
 
+	# --houses=asylum,house: change house through each, solo, before looking (the map menu's
+	# path), to see what a house change leaves on screen.
+	for id in str(_args.get("houses", "")).split(",", false):
+		var _changed = client.game.change_house(StringName(id))
+		await get_tree().physics_frame
+
 	# Somewhere worth looking: facing the nearest witch, a few metres away, or a room by id.
 	var player = client.player
 	var level = client.game.level_of(player)

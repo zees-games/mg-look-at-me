@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
 const SECTIONS := 12
-const CHECKS := 66
+const CHECKS := 67
 
 var _passed := 0
 var _failed := 0
@@ -130,6 +130,15 @@ func _test_every_level_finishes() -> void:
 
 
 ## Puts [param player] 1.2 m back from [param at] (level-local), looking straight at it.
+## Until the client has drawn a frame after now. One `process_frame` is not that when the
+## last wait was a `physics_frame`: it resumes in the same frame, before the client's
+## `_process`, and a prompt read there is the frame before the player moved. That read as
+## "the prompt is gone after a house change" (2026-10-12), which it never was.
+func _drawn() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func _stand_before(player: LmPlayer, level: LmLevel, at: Vector3) -> void:
 	var world_at := level.position + at
 	var back := Vector3(0, 0, 1.2)
@@ -410,7 +419,7 @@ func _test_the_client_settings() -> void:
 	var here: LmLevel = client.get("game").level_of(me)
 	var item_id: String = here.items.keys()[0]
 	_stand_before(me, here, (here.items[item_id]["at"] as Vector3) + Vector3(0, 0.9, 0))
-	await get_tree().process_frame
+	await _drawn()
 	var prompt: DotKeyPrompt = client.get("prompt")
 	var use_key := DotInputBinding.describe_action(LmClientScript.get("USE_ACTION"))
 	_check(
@@ -489,6 +498,13 @@ func _test_the_client_settings() -> void:
 	var _back: Variant = await menu.maps.change_fn.call(map_before)
 	for _i in 4:
 		await get_tree().physics_frame
+	# And the prompt still says what is in reach in the house it came back to.
+	var home: LmLevel = client.get("game").level_of(me)
+	var home_item: String = home.items.keys()[0]
+	_stand_before(me, home, (home.items[home_item]["at"] as Vector3) + Vector3(0, 0.9, 0))
+	await _drawn()
+	_check(prompt.visible and prompt.words.begins_with("Take the "),
+		"after a house change and back, an item in reach is still prompted", str(prompt.describe()))
 
 	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so the
 	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
