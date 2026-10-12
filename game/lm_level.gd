@@ -355,25 +355,21 @@ func _build_room(room_id: String) -> void:
 				root.add_child(lamp)
 				_box(root, Vector3(0.3, 0.2, 0.3), lamp.position + Vector3(0, 0.25, 0), _material("bulb", Color(1.0, 0.85, 0.6), 2.0), false)
 
-	if draws:
-		var sign := Label3D.new()
-		sign.text = str(rooms[room_id]["doc"].get("name", room_id))
-		sign.font_size = 48
-		sign.pixel_size = 0.006
-		sign.modulate = Color(0.85, 0.8, 0.7, 0.6)
-		sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		sign.position = Vector3(centre.x, height - 0.5, centre.y)
-		_fade_up_close(sign, 3.0)
-		root.add_child(sign)
+	# A room's name is on the wall over each of its doors, seen from the room you are leaving
+	# ([method _build_door]): it used to hang in mid-air in the middle of the room, a billboard
+	# turning to follow you (the first play test).
 
 
-## A label in the world fades out as the eye comes within [param near] metres of it. At eye
-## height a painted "Door" a player walks up to filled the screen (Christian's first play test),
-## and within reach the HUD's prompt says what it is anyway; a room's name hung overhead did
-## the same to anyone crossing the room's centre.
-static func _fade_up_close(label: Label3D, near: float) -> void:
+## A label in the world fades out as the eye comes within [param near] metres of it, and
+## beyond [param far]. At eye height a painted "Door" a player walks up to filled the screen
+## (Christian's first play test), and within reach the HUD's prompt says what it is anyway; a
+## sign read from across a level is a sign nobody needs.
+static func _fade_up_close(label: Label3D, near: float, far: float = 0.0) -> void:
 	label.visibility_range_begin = near
 	label.visibility_range_begin_margin = near * 0.4
+	if far > 0.0:
+		label.visibility_range_end = far
+		label.visibility_range_end_margin = far * 0.3
 	label.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 
@@ -548,17 +544,52 @@ func _build_door(door_id: String) -> void:
 	body.name = "Door_%s" % door_id
 	door["body"] = body
 
-	if draws:
-		for face in [-1.0, 1.0]:
+	if not draws:
+		return
+
+	var exit := bool(door["doc"].get("exit", false)) or str(door["doc"].get("b", "")) == ""
+
+	for face in [-1.0, 1.0]:
+		var turned := atan2(normal.x, normal.z) + (PI if face < 0.0 else 0.0)
+		# What the door is, painted small on it: only a locked door's says anything ("Red
+		# door", "The way out"); a plain one is a door.
+		var what := str(door["doc"].get("label", "Door"))
+		if what != "Door":
 			var label := Label3D.new()
-			label.text = str(door["doc"].get("label", "Door"))
-			label.font_size = 40
-			label.pixel_size = 0.005
-			label.modulate = Color(0.95, 0.9, 0.8)
-			label.position = normal * face * (WALL + 0.02) + Vector3(0, 0.5, 0)
-			label.rotation.y = atan2(normal.x, normal.z) + (PI if face < 0.0 else 0.0)
-			_fade_up_close(label, 1.4)
+			label.text = what
+			label.font_size = 32
+			label.pixel_size = 0.0035
+			label.modulate = Color(0.95, 0.9, 0.8, 0.9)
+			label.outline_size = 6
+			label.position = normal * face * (WALL + 0.02) + Vector3(0, 0.35, 0)
+			label.rotation.y = turned
+			_fade_up_close(label, 1.2, 9.0)
 			body.add_child(label)
+
+		# Over the door, on the wall, a plaque with the name of the room it leads into, as
+		# seen from the room you are in. In front of the wall's face: each room builds its own
+		# wall inside its edge, a whole WALL deep.
+		if exit and face > 0.0:
+			continue
+		var into := str(door["doc"].get("a", "")) if face > 0.0 else str(door["doc"].get("b", ""))
+		var named := "Out" if exit else str(rooms.get(into, {}).get("doc", {}).get("name", ""))
+		if named == "":
+			continue
+		var plaque_at: Vector3 = (door["centre"] as Vector3) + normal * face * (WALL + 0.02) + Vector3(0, DOOR_HEIGHT + 0.32, 0)
+		var plaque := _box(self, Vector3(DOOR_WIDTH * 0.8, 0.24, 0.02) if absf(normal.z) > 0.5 else Vector3(0.02, 0.24, DOOR_WIDTH * 0.8),
+			plaque_at, _material("plaque", Color(0.12, 0.09, 0.07)), false)
+		plaque.name = "Plaque_%s_%s" % [door_id, "b" if face > 0.0 else "a"]
+		var sign := Label3D.new()
+		sign.name = "Name"
+		sign.text = named
+		sign.font_size = 56
+		sign.pixel_size = 0.0022
+		sign.modulate = Color(0.86, 0.78, 0.6, 0.85)
+		sign.outline_size = 0
+		sign.position = normal * face * 0.015
+		sign.rotation.y = turned
+		_fade_up_close(sign, 0.0, 11.0)
+		plaque.add_child(sign)
 
 
 ## The door's body, for a player's exclusion list.

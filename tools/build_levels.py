@@ -255,7 +255,11 @@ def patrol(rng, rooms, doors):
     candidates = [r["id"] for r in rooms if not r["spawn"]]
     if len(candidates) < 2:
         return []
-    here = rng.choice(candidates)
+    # Start where there is somewhere to walk to: a witch circling the corners of one dead-end
+    # room is a witch nobody meets (level 1's sat in the Larder behind the red door, and the
+    # first play test saw no witch in 36 s). Now she walks between the rooms you search.
+    walkable = [c for c in candidates if any(not by_id[b]["spawn"] for (b, _d) in links.get(c, []))]
+    here = rng.choice(walkable or candidates)
     route = [here]
     seen = {here}
     for _ in range(rng.randint(2, 5)):

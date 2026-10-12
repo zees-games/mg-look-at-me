@@ -15,6 +15,7 @@ const LmLevel := preload("lm_level.gd")
 const LmNetBridge := preload("net/lm_net_bridge.gd")
 const LmServices := preload("lm_services.gd")
 const LmAudio := preload("lm_audio.gd")
+const LmWitch := preload("lm_witch.gd")
 
 ## Where dot-server's client publishes its link before the game scene loads.
 const LINK_SERVICE := &"dot_client_link"
@@ -53,6 +54,7 @@ var _env: Environment = null
 var _witch_views: Dictionary = {}
 var _hud: Control = null
 var _step: Label = null
+var _objective: VBoxContainer = null
 var _holds: Label = null
 ## "Take the red key" with the use key drawn as a key, while something is in reach. dot-ui's
 ## [DotKeyPrompt]; it was a Label writing "[E] …" with the letter fixed. Decided 2026-10-11
@@ -86,6 +88,21 @@ var effects: DotFxManager = null
 var _flash_rect: ColorRect = null
 ## The catch already shown, so a catch is flashed once and not every frame it lasts.
 var _was_caught := false
+## Whether any witch saw the local player last frame, for the stinger on the first sight.
+var _was_seen := false
+## How long the witch that has you is in your face.
+const SCARE_SECONDS := 0.9
+## The witch that lunges at a caught player: in front of the camera for the first moment of a
+## catch. See [method _scare_at].
+var _scare: Node3D = null
+var _scare_left := 0.0
+## Metres the local player has walked since their last footfall, and where they were.
+var _stride := 0.0
+var _stride_from := Vector3.INF
+## Doors the local player had open last frame, to hear the ones they open (offline and
+## connected alike: the owner's progress is theirs either way).
+var _doors_heard: Dictionary = {}
+var _doors_level := -1
 
 ## The player's own settings and the screen Escape opens. See [LmSettings].
 var settings: LmSettings = null
@@ -122,15 +139,33 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 
+	# The flashlight: a hard bright middle with a soft edge, so it reads as a torch in a dark
+	# house and not a flat disc pasted on the wall (the first play test's "flat circular
+	# flashlight"). It is also what a witch sees you by, which is the game's trade.
 	flashlight = SpotLight3D.new()
 	flashlight.name = "Flashlight"
-	flashlight.spot_range = 18.0
-	flashlight.spot_angle = 32.0
-	flashlight.light_energy = 2.2
-	flashlight.light_color = Color(1.0, 0.95, 0.85)
+	flashlight.spot_range = 20.0
+	flashlight.spot_angle = 36.0
+	# Under 1 the light falls away from the middle at once: a hot centre fading out, where 1
+	# and over is an even disc with a hard rim.
+	flashlight.spot_angle_attenuation = 0.55
+	flashlight.spot_attenuation = 0.6
+	flashlight.light_energy = 3.2
+	flashlight.light_color = Color(1.0, 0.93, 0.8)
 	flashlight.shadow_enabled = true
+	flashlight.light_volumetric_fog_energy = 0.0
 	camera.add_child(flashlight)
 	flashlight.position = Vector3(0.2, -0.15, 0.0)
+	# The spill round the beam: your hands and the floor at your feet, never the far wall, so
+	# with the light off you can still step through a room you cannot see across.
+	var spill := OmniLight3D.new()
+	spill.name = "Spill"
+	spill.omni_range = 3.2
+	spill.omni_attenuation = 1.4
+	spill.light_energy = 0.22
+	spill.light_color = Color(0.75, 0.8, 1.0)
+	spill.shadow_enabled = false
+	camera.add_child(spill)
 
 	_build_hud()
 	_build_audio()
@@ -376,12 +411,21 @@ func _build_environment() -> void:
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = Color(0.0, 0.0, 0.0)
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_color = Color(0.5, 0.55, 0.7)
-	_env.ambient_light_energy = 0.04
+	_env.ambient_light_color = Color(0.45, 0.5, 0.68)
+	_env.ambient_light_energy = 0.05
 	_env.fog_enabled = true
-	_env.fog_light_color = Color(0.02, 0.02, 0.03)
-	_env.fog_density = 0.04
+	_env.fog_light_color = Color(0.015, 0.015, 0.025)
+	_env.fog_density = 0.05
 	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	_env.tonemap_exposure = 1.1
+	# A little glow, so a lamp, a fire and a witch's eyes bloom out of the dark.
+	_env.glow_enabled = true
+	_env.glow_intensity = 0.6
+	_env.glow_bloom = 0.05
+	_env.glow_hdr_threshold = 1.2
+	_env.adjustment_enabled = true
+	_env.adjustment_saturation = 0.8
+	_env.adjustment_contrast = 1.08
 	var world := WorldEnvironment.new()
 	world.environment = _env
 	add_child(world)
@@ -395,7 +439,7 @@ func _refresh_key_line() -> void:
 	var k := func(action: StringName, fallback: String) -> String:
 		var text := DotInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
 		return fallback if text == DotInputBinding.UNBOUND else text
-	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command (/r lobby, /l2 a level)   %s house   %s help" % [
+	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command   %s house   %s help" % [
 		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "F5"),
 		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"dot_menu_maps", "M"),
 		k.call(DotMenuBindings.HELP_ACTION, "H")]
@@ -421,18 +465,34 @@ func _build_hud() -> void:
 	_vignette.material = material
 	_hud.add_child(_vignette)
 
-	_step = _label("", 22, Vector2(20, 16))
-	_holds = _label("", 16, Vector2(20, 52))
+	# The step and what you hold, top left, as wide as the window and wrapping inside it. They
+	# were Labels with no width, and at some window sizes the step ran off the edge ("…d key",
+	# the first play test); a long step now takes a second line instead.
+	_objective = VBoxContainer.new()
+	_objective.name = "Objective"
+	_objective.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_objective.offset_left = 20.0
+	_objective.offset_top = 14.0
+	_objective.offset_right = -20.0
+	_objective.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective.add_theme_constant_override(&"separation", 2)
+	_hud.add_child(_objective)
+	_step = _wrapping(_label("", 22, Vector2.ZERO), _objective)
+	_step.name = "Step"
+	_holds = _wrapping(_label("", 16, Vector2.ZERO), _objective)
+	_holds.name = "Holds"
 	_holds.modulate = Color(0.8, 0.85, 0.9)
 
 	_meter_bar = ProgressBar.new()
+	_meter_bar.name = "Meter"
 	_meter_bar.max_value = 1.0
 	_meter_bar.show_percentage = false
 	_meter_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_meter_bar.offset_left = -180
 	_meter_bar.offset_right = 180
-	_meter_bar.offset_top = -40
-	_meter_bar.offset_bottom = -26
+	# Over the key line, which may take two lines in a narrow window.
+	_meter_bar.offset_top = -66
+	_meter_bar.offset_bottom = -52
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Color(0.75, 0.05, 0.05)
 	_meter_bar.add_theme_stylebox_override("fill", fill)
@@ -453,18 +513,24 @@ func _build_hud() -> void:
 	_hud.add_child(prompt)
 
 	_message = _label("", 34, Vector2.ZERO)
-	_message.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_message.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_message.offset_top = 120
-	_message.offset_left = -400
-	_message.offset_right = 400
+	_message.offset_left = 20
+	_message.offset_right = -20
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
+	# Bottom, the window's width, growing upward if it has to wrap.
 	_key_line = _label("", 13, Vector2.ZERO)
-	_key_line.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_key_line.offset_top = -26
+	_key_line.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_key_line.offset_top = -24
+	_key_line.offset_bottom = -6
 	_key_line.offset_left = 16
-	_key_line.offset_right = 900
+	_key_line.offset_right = -16
+	_key_line.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_key_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_key_line.modulate = Color(1, 1, 1, 0.5)
+	_key_line.name = "Keys"
 	_refresh_key_line()
 
 	_command = LineEdit.new()
@@ -505,6 +571,31 @@ func _label(text: String, size: int, at: Vector2) -> Label:
 	label.add_theme_constant_override("outline_size", 6)
 	_hud.add_child(label)
 	return label
+
+
+## [param label] moved into [param box], wrapping at the box's width.
+func _wrapping(label: Label, box: Container) -> Label:
+	_hud.remove_child(label)
+	box.add_child(label)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return label
+
+
+## Whether every line of the HUD that says something is inside a window of [param size]:
+## the step, what you hold, the key line and the meter. For the suite, which cannot open a
+## window that small; read after the HUD has been laid out at that size.
+func hud_fits(size: Vector2) -> Dictionary:
+	var window := Rect2(Vector2.ZERO, size)
+	var out := {"fits": true}
+	for piece: Control in {"step": _step, "holds": _holds, "keys": _key_line, "meter": _meter_bar}.values():
+		var rect := piece.get_global_rect()
+		# A Label's words are never wider than its rect while it wraps; one that does not wrap
+		# says so by a minimum width past it.
+		var inside := window.encloses(rect.grow(-0.5)) and piece.get_combined_minimum_size().x <= rect.size.x + 0.5
+		out[str(piece.name)] = "%s%s" % [rect, "" if inside else " OUTSIDE"]
+		out["fits"] = bool(out["fits"]) and inside
+	return out
 
 
 func _say(text: String, seconds: float = 2.5) -> void:
@@ -675,11 +766,18 @@ func _build_effects() -> void:
 func _present(delta: float) -> void:
 	var caught := player.caught_left > 0.0
 
-	if caught and not _was_caught and effects != null:
-		var _flashed := effects.flash(&"caught")
-		effects.shake_at(&"caught_jolt", camera.global_position)
+	if caught and not _was_caught:
+		if effects != null:
+			var _flashed := effects.flash(&"caught")
+			effects.shake_at(&"caught_jolt", camera.global_position)
+		if audio != null:
+			var _screamed := audio.scream()
+		_scare_left = SCARE_SECONDS
+		if _scare != null:
+			_scare.call(&"lunge")
 
 	_was_caught = caught
+	_scare_at(delta)
 
 	if audio != null:
 		audio.meter = player.meter
@@ -746,6 +844,7 @@ func _process(delta: float) -> void:
 	_place_camera()
 	flashlight.visible = player.flashlight
 	_draw_witches()
+	_swing_doors(get_process_delta_time())
 
 	for key: StringName in game.players:
 		var other: LmPlayer = game.players[key]
@@ -767,6 +866,7 @@ func _process(delta: float) -> void:
 	else:
 		prompt.show_prompt(str(target["text"]), DotInputBinding.describe_action(USE_ACTION))
 	_meter_bar.value = player.meter
+	_hear_player(level)
 	_present(delta)
 	_meter_bar.visible = player.meter > 0.01
 	(_vignette.material as ShaderMaterial).set_shader_parameter("amount", player.meter * 0.85 if player.caught_left <= 0.0 else 1.0)
@@ -844,32 +944,60 @@ func _other_players() -> Array:
 	return out
 
 
-## Each witch where the clock puts her, with her sight drawn faintly on the floor.
+## Metres between a witch's footfalls: a long, slow stride.
+const WITCH_STRIDE := 1.35
+## And the player's, walking; crouched it is shorter and quieter.
+const STRIDE := 2.0
+const STRIDE_CROUCHED := 1.4
+
+
+## Each witch where the clock puts her, her sight on the floor, flaring while she sees you; her
+## footfalls and her hum where she is; the stinger the moment one starts seeing you.
+##
+## [b]Whether she sees you is the server's own question[/b] ([method LmGame.exposure]), asked
+## here for the local player alone: the witches are posed from the clock on both ends
+## (Decision 2), so the answer here is the answer there, and what a player sees her do is
+## what is filling the meter.
 func _draw_witches() -> void:
 	var seconds := game.seconds_now()
+	# Drawn between ticks, as the player is: posed only at the tick, she stepped at the tick
+	# rate on any faster display. Whether she sees you is still asked at the tick's time.
+	var drawn_seconds := seconds + Engine.get_physics_interpolation_fraction() / float(maxi(game.tick_rate, 1))
+	var delta := get_process_delta_time()
+	var seen := false
+	var level := game.level_of(player)
 
-	for n: int in game.levels:
-		var level: LmLevel = game.levels[n]
-
-		# Only the level this player is on: thirty-two houses of witches is a lot of nodes
-		# for nobody to see.
-		if n != player.level:
-			continue
+	if level != null:
+		var n := player.level
 
 		for i in level.witches.size():
 			var key := "%d|%d" % [n, i]
 			var view: Node3D = _witch_views.get(key, null)
 
 			if view == null:
-				view = _witch_view(float(level.witches[i]["sight"]) * game.config.witch_sight_scale, float(level.witches[i]["cone"]) * game.config.witch_cone_scale)
+				view = LmWitch.new()
+				# In the tree first: her hat and eyes are placed from where her head is.
 				add_child(view)
+				view.call(&"build", float(level.witches[i]["sight"]) * game.config.witch_sight_scale, float(level.witches[i]["cone"]) * game.config.witch_cone_scale)
 				_witch_views[key] = view
 
-			var pose := level.witch_pose(i, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
-			view.global_position = level.position + (pose["at"] as Vector3)
-			view.rotation.y = float(pose["facing"])
-			(view.get_node("Head") as Node3D).rotation.y = float(pose["head"])
+			var pose := level.witch_pose(i, drawn_seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+			var walking := float(level.witches[i]["speed"]) * game.config.witch_speed_scale
+			var _moved: float = view.call(&"place", level.position + (pose["at"] as Vector3), float(pose["facing"]), float(pose["head"]), delta, walking)
+			var sees := player.caught_left <= 0.0 and game.exposure(player, level, i, seconds) > 0.0
+			view.call(&"set_seeing", sees, delta)
+			seen = seen or sees
 
+			if float(view.get(&"stride")) >= WITCH_STRIDE:
+				view.set(&"stride", fmod(float(view.get(&"stride")), WITCH_STRIDE))
+				if audio != null:
+					var _stepped := audio.witch_step(view.global_position)
+
+	# The first moment of being seen is the one to hear: a stab, once, then the heartbeat.
+	if seen and not _was_seen and player.meter < 0.5 and audio != null:
+		var _stung := audio.stinger()
+
+	_was_seen = seen
 	var heard := {}
 
 	for key: String in _witch_views.keys():
@@ -878,14 +1006,109 @@ func _draw_witches() -> void:
 		view.visible = n == player.level
 
 		if view.visible and audio != null:
-			# Her drone is hung at her head height, where the old player sat in her view.
-			audio.witch(key, view.global_position)
+			# Her hum is hung where she is, at her head.
+			audio.witch(key, view.global_position + Vector3(0, 1.9, 0))
 			heard[key] = true
 
 	# The drones of a level left behind stop: a hidden node's player kept humming, from where
 	# the witch last stood, on a level nobody here was on any more.
 	if audio != null:
 		audio.keep_witches(heard)
+
+
+## How far an opened door stands open, in radians, and how fast it swings there.
+const DOOR_OPEN := 1.75
+const DOOR_SWING := 2.5
+
+
+## Doors the local player has opened swing open on their hinge, for them. A door is open per
+## player (Decision 1), and until 2026-10-12 one you had opened still stood there shut, and you
+## walked through it. Only the drawing turns: the body stays where it is for everybody else,
+## and the player's own collision already ignores it.
+func _swing_doors(delta: float) -> void:
+	var level := game.level_of(player)
+	if level == null:
+		return
+	for door_id: String in level.doors:
+		var door: Dictionary = level.doors[door_id]
+		var body := door.get("body") as Node3D
+		if body == null:
+			continue
+		var want := DOOR_OPEN if player.opened.has(door_id) else 0.0
+		var now := float(body.get_meta(&"swing", 0.0))
+		if is_equal_approx(now, want):
+			continue
+		now = move_toward(now, want, delta * DOOR_SWING) if delta > 0.0 else want
+		body.set_meta(&"swing", now)
+		var normal: Vector3 = door["normal"]
+		# The hinge is one edge of the door; it swings into the room it opens into.
+		var hinge := Vector3(-LmLevel.DOOR_WIDTH * 0.5, 0, 0) if absf(normal.z) > 0.5 else Vector3(0, 0, -LmLevel.DOOR_WIDTH * 0.5)
+		var turn := Basis(Vector3.UP, now * (1.0 if normal.z + normal.x > 0.0 else -1.0))
+		for child in body.get_children():
+			if child is VisualInstance3D:
+				var rest: Transform3D = child.get_meta(&"rest", (child as Node3D).transform)
+				child.set_meta(&"rest", rest)
+				(child as Node3D).transform = Transform3D(turn, hinge - turn * hinge) * rest
+
+
+## The player's own footfalls, and the doors they open, heard. Both from what the world already
+## says (where the player is drawn, what they have opened), so offline and connected alike.
+func _hear_player(level: LmLevel) -> void:
+	if audio == null:
+		return
+
+	var at := player.drawn_eye_position()
+
+	if _stride_from != Vector3.INF:
+		var moved := Vector2(at.x - _stride_from.x, at.z - _stride_from.z).length()
+		# A warp (a catch, a level change) is not a step.
+		if moved < 1.0 and player.controller != null and player.controller.state.is_grounded():
+			_stride += moved
+
+	_stride_from = at
+	var crouched := player.is_crouching()
+
+	if _stride >= (STRIDE_CROUCHED if crouched else STRIDE):
+		_stride = 0.0
+		var _stepped := audio.step(crouched)
+
+	# A new level (or a catch that reset this one) is a new set of doors: nothing to hear.
+	if _doors_level != player.level or player.opened.size() < _doors_heard.size():
+		_doors_heard = player.opened.duplicate()
+		_doors_level = player.level
+		return
+
+	for door_id: String in player.opened:
+		if not _doors_heard.has(door_id):
+			_doors_heard[door_id] = true
+			var door: Dictionary = level.doors.get(door_id, {})
+			if not door.is_empty():
+				var _creaked := audio.door(level.position + (door["centre"] as Vector3) + Vector3(0, 1.2, 0))
+
+
+## The first moment of a catch: the witch that has you, in your face, arms up, with a shriek.
+## Drawn and heard here only; the catch itself is the server's.
+func _scare_at(delta: float) -> void:
+	if _scare == null:
+		_scare = LmWitch.new()
+		add_child(_scare)
+		_scare.call(&"build", 0.0, 0.0)
+		_scare.name = "Scare"
+		_scare.visible = false
+
+	if _scare_left <= 0.0:
+		_scare.visible = false
+		return
+
+	_scare_left -= delta
+	_scare.visible = true
+	# Close enough to fill the view from the chest up, facing the lens, lit by her own eyes.
+	var forward := -camera.global_basis.z
+	forward.y = 0.0
+	forward = forward.normalized() if forward.length_squared() > 0.001 else Vector3.FORWARD
+	var feet := camera.global_position + forward * 1.15 - Vector3(0, 1.85, 0)
+	var _moved: float = _scare.call(&"place", feet, atan2(forward.x, forward.z), 0.0, delta)
+	_scare.call(&"set_seeing", true, delta)
 
 
 func _forget_witches() -> void:
@@ -897,93 +1120,6 @@ func _forget_witches() -> void:
 			view.queue_free()
 
 	_witch_views.clear()
-
-
-## A witch: a tall black robe, a pale face, a hat, two red eyes, and the cone of her sight as a
-## faint red fan on the floor — being seen should be something a careful player can avoid.
-static func _witch_view(sight: float, cone: float) -> Node3D:
-	var root := Node3D.new()
-	root.name = "Witch"
-	var robe := MeshInstance3D.new()
-	var cone_mesh := CylinderMesh.new()
-	cone_mesh.top_radius = 0.18
-	cone_mesh.bottom_radius = 0.6
-	cone_mesh.height = 1.9
-	robe.mesh = cone_mesh
-	robe.position = Vector3(0, 0.95, 0)
-	var black := StandardMaterial3D.new()
-	black.albedo_color = Color(0.03, 0.03, 0.04)
-	robe.material_override = black
-	root.add_child(robe)
-	var head := Node3D.new()
-	head.name = "Head"
-	head.position = Vector3(0, 2.05, 0)
-	root.add_child(head)
-	var face := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.2
-	sphere.height = 0.42
-	face.mesh = sphere
-	var pale := StandardMaterial3D.new()
-	pale.albedo_color = Color(0.72, 0.75, 0.68)
-	face.material_override = pale
-	head.add_child(face)
-	var hat := MeshInstance3D.new()
-	var hat_mesh := CylinderMesh.new()
-	hat_mesh.top_radius = 0.0
-	hat_mesh.bottom_radius = 0.32
-	hat_mesh.height = 0.7
-	hat.mesh = hat_mesh
-	hat.position = Vector3(0, 0.45, 0)
-	hat.material_override = black
-	head.add_child(hat)
-	var eyes := StandardMaterial3D.new()
-	eyes.albedo_color = Color(1.0, 0.1, 0.05)
-	eyes.emission_enabled = true
-	eyes.emission = Color(1.0, 0.1, 0.05)
-	eyes.emission_energy_multiplier = 4.0
-
-	for side in [-0.07, 0.07]:
-		var eye := MeshInstance3D.new()
-		var dot := SphereMesh.new()
-		dot.radius = 0.035
-		dot.height = 0.07
-		eye.mesh = dot
-		eye.material_override = eyes
-		eye.position = Vector3(side, 0.03, -0.18)
-		head.add_child(eye)
-
-	var glow := OmniLight3D.new()
-	glow.light_color = Color(1.0, 0.15, 0.1)
-	glow.light_energy = 0.6
-	glow.omni_range = 3.0
-	glow.position = Vector3(0, 0.0, -0.3)
-	head.add_child(glow)
-
-	# The sight: a fan on the floor, turning with her head.
-	var fan := MeshInstance3D.new()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var steps := 16
-	var half := deg_to_rad(cone * 0.5)
-
-	for k in steps:
-		var a0 := -half + 2.0 * half * float(k) / float(steps)
-		var a1 := -half + 2.0 * half * float(k + 1) / float(steps)
-		st.add_vertex(Vector3.ZERO)
-		st.add_vertex(Vector3(-sin(a1), 0, -cos(a1)) * sight)
-		st.add_vertex(Vector3(-sin(a0), 0, -cos(a0)) * sight)
-
-	fan.mesh = st.commit()
-	var red := StandardMaterial3D.new()
-	red.albedo_color = Color(0.8, 0.0, 0.0, 0.07)
-	red.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	red.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	red.cull_mode = BaseMaterial3D.CULL_DISABLED
-	fan.material_override = red
-	fan.position = Vector3(0, -2.0, 0)
-	head.add_child(fan)
-	return root
 
 
 ## dot-game's chat box and microphone, with this game's channels and voice format. It also

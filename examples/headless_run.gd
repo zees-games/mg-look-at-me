@@ -10,8 +10,8 @@ const LmLevel := preload("res://game/lm_level.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
-const SECTIONS := 12
-const CHECKS := 67
+const SECTIONS := 14
+const CHECKS := 80
 
 var _passed := 0
 var _failed := 0
@@ -48,6 +48,8 @@ func _ready() -> void:
 	await _test_the_client_settings()
 	await _test_sound_and_effects()
 	await _test_the_mouse_turns_the_view()
+	await _test_the_witch_and_the_house()
+	await _test_the_hud_fits()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -191,13 +193,25 @@ func _test_sight() -> void:
 	var p: LmPlayer = game.players[&"a"]
 	game.send_to(p, 8)
 	var level: LmLevel = game.levels[8]
+	# A moment she is well inside a room, so 2.5 m in front of her is the same room: her walk
+	# is the level document's, which the builder may rewrite.
 	var seconds := 3.0
-	var pose := level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
-	var facing := float(pose["facing"]) + float(pose["head"])
-	var ahead := Vector3(-sin(facing), 0, -cos(facing))
-	var witch_at: Vector3 = level.position + (pose["at"] as Vector3)
-	var room := level.room_at(pose["at"])
-	p.place_at(witch_at + ahead * 2.5, 0.0)
+	var pose := {}
+	var facing := 0.0
+	var ahead := Vector3.ZERO
+	var witch_at := Vector3.ZERO
+	var room := ""
+	p.flashlight = false
+	for tenth in 600:
+		seconds = 3.0 + float(tenth) * 0.1
+		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+		facing = float(pose["facing"]) + float(pose["head"])
+		ahead = Vector3(-sin(facing), 0, -cos(facing))
+		witch_at = level.position + (pose["at"] as Vector3)
+		room = level.room_at(pose["at"])
+		p.place_at(witch_at + ahead * 2.5, 0.0)
+		if room != "" and level.room_at((pose["at"] as Vector3) + ahead * 2.5) == room and game.exposure(p, level, 0, seconds) > 0.0:
+			break
 	_check(game.exposure(p, level, 0, seconds) > 0.0, "in front of her, near, in the same room: seen", room)
 	p.place_at(witch_at - ahead * 2.5, 0.0)
 	_check(game.exposure(p, level, 0, seconds) == 0.0, "behind her: not")
@@ -433,6 +447,18 @@ func _test_the_client_settings() -> void:
 	client.call("_unhandled_input", use)
 	_check(me.holds.size() + me.taken.size() > 0, "and that key takes it", "%s %s" % [me.holds, me.taken])
 
+	# Rebound on the Controls page (its setting), the prompt and the key line say the new key.
+	var _rebound: Variant = settings.settings.set_value(&"bind_use", "R")
+	_stand_before(me, here, (here.items[here.items.keys()[-1]]["at"] as Vector3) + Vector3(0, 0.9, 0))
+	client.call("_refresh_key_line")
+	await _drawn()
+	var key_line: Label = client.get("_key_line")
+	_check(DotInputBinding.describe_action(LmClientScript.get("USE_ACTION")) == "R" and key_line.text.begins_with("R use")
+		and (not prompt.visible or prompt.key == "R"),
+		"use rebound to R: the action, the prompt and the key line all say R", "%s | %s" % [key_line.text, prompt.describe()])
+	_rebound = settings.settings.set_value(&"bind_use", "E")
+	client.call("_refresh_key_line")
+
 	# At 1280 x 720: the prompt under the crosshair, the chat box's full log bottom left and a
 	# ballot where the client shell draws one (a column down the right from 110 px) never meet.
 	var box: DotGameChatClient = LmClientScript.call("new_chat")
@@ -528,13 +554,12 @@ func _test_sound_and_effects() -> void:
 	_section("the house's sounds and the catch, through dot-audio and dot-fx")
 	var LmAudio: GDScript = load("res://game/lm_audio.gd")
 	var catalogue: DotAudioCatalogue = LmAudio.call("sound_catalogue")
-	var stand_ins: Dictionary = LmAudio.call("stand_ins")
 	var ids: Array = LmAudio.call("ids")
 	_check(
-		catalogue.validate().ok and ids.all(func(id: StringName) -> bool:
-			return catalogue.find(id) != null and stand_ins.has(id)),
-		"every sound the game names is in its catalogue, with a stand-in",
-		str(ids)
+		catalogue.validate().ok and ids.all(func(id: StringName) -> bool: return catalogue.find(id) != null)
+			and catalogue.missing_files().is_empty(),
+		"every sound the game names is in its catalogue, and every file it names is there",
+		str(catalogue.missing_files())
 	)
 
 	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
@@ -659,6 +684,125 @@ func _test_the_mouse_turns_the_view() -> void:
 	_check(absf(sampler.look_now().x) > 1.0, "connected, the client's own sampler takes the mouse",
 		"yaw %.1f" % sampler.yaw)
 	connected.free()
+	_finished_section()
+
+
+## The witch a player meets, and the house around her, as the client draws and plays them
+## (2026-10-12: the first play test saw no witch in 36 s and heard nearly nothing). The null
+## sink counts what was asked for; tools/audio_probe (xvfb) is what says it is heard.
+func _test_the_witch_and_the_house() -> void:
+	_section("the witch shows herself, and the house is heard")
+	var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://levels/lm_01.json"))
+	var walks: Array = doc["witches"][0]["path"]
+	var spawn := ""
+	for room: Dictionary in doc["rooms"]:
+		if bool(room["spawn"]):
+			spawn = str(room["id"])
+	var rooms := {}
+	for point: Array in walks:
+		if str(point[0]) == "room":
+			rooms[str(point[1])] = true
+	var red_key_room := ""
+	for item: Dictionary in doc["items"]:
+		if str(item["id"]).begins_with("key_red"):
+			red_key_room = str(item["room"])
+	_check(rooms.size() >= 2 and not rooms.has(spawn) and rooms.has(red_key_room),
+		"level 1's witch walks between rooms, through the one the red key is in, never the lobby",
+		"%s, key in %s" % [rooms.keys(), red_key_room])
+
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	client.set("start_level", 8)
+	add_child(client)
+	for i in 6:
+		await get_tree().process_frame
+
+	var game: LmGame = client.get("game")
+	var me: LmPlayer = client.get("player")
+	var level := game.level_of(me)
+	var sink := client.get("audio").get("manager").get("sink") as DotAudioSinkNull
+	var views: Dictionary = client.get("_witch_views")
+	var witch: Node3D = views.values()[0] if not views.is_empty() else null
+	_check(witch != null and bool(witch.describe().get("art", false)) and witch.find_child("Sight", true, false) != null,
+		"a witch is her model, animated, with her sight on the floor", str(witch.describe()) if witch != null else "none drawn")
+
+	# In her face, in her cone: she sees you, she flares, and the stinger says so once.
+	var pose := level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep)
+	var facing := float(pose["facing"]) + float(pose["head"])
+	var ahead := Vector3(-sin(facing), 0.0, -cos(facing))
+	me.meter = 0.0
+	for i in 60:
+		pose = level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep)
+		facing = float(pose["facing"]) + float(pose["head"])
+		ahead = Vector3(-sin(facing), 0.0, -cos(facing))
+		me.place_at(level.position + (pose["at"] as Vector3) + ahead * 2.5 + Vector3(0, 0.1, 0), 0.0)
+		me.meter = minf(me.meter, 0.3)
+		await get_tree().physics_frame
+		await get_tree().process_frame
+	_check(witch != null and float(witch.get("seeing")) > 0.5 and sink.count_of(&"stinger") == 1,
+		"in her sight she flares, and a stinger plays once", "seeing %.2f, stingers %d" % [float(witch.get("seeing")) if witch != null else -1.0, sink.count_of(&"stinger")])
+	_check(witch != null and String(witch.get("clip")) == "attack_idle", "and she reaches for you", String(witch.get("clip")) if witch != null else "")
+	_check(sink.count_of(&"witch_step") >= 1 and int(client.get("audio").call("droning")) >= 1,
+		"her steps and her hum are heard", str(sink.played_ids()))
+	_check(sink.count_of(&"ambience") >= 1, "the house's ambience plays under it all")
+
+	# Caught: she is in your face with a shriek.
+	me.caught_left = 2.0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var scare: Node3D = client.get("_scare")
+	_check(scare != null and scare.visible and sink.count_of(&"scream") == 1,
+		"caught, she is in your face, and you hear her", "scare %s, screams %d" % [scare != null and scare.visible, sink.count_of(&"scream")])
+	me.caught_left = 0.0
+	me.meter = 0.0
+
+	# Walking makes footfalls; opening a door makes a door.
+	me.place_at(level.position + level.room_centre(level.spawn_room()) + Vector3(0, 0.1, 0), 0.0)
+	await get_tree().physics_frame
+	var steps_before := sink.count_of(&"step")
+	# The forward key held, through the player's own sampler, for two seconds.
+	Input.action_press(&"dot_fps_forward")
+	for i in 120:
+		await get_tree().physics_frame
+	Input.action_release(&"dot_fps_forward")
+	_check(sink.count_of(&"step") > steps_before, "walking, you hear your own steps", "%d -> %d" % [steps_before, sink.count_of(&"step")])
+	var door_id: String = level.doors.keys()[0]
+	me.opened[door_id] = true
+	await _drawn()
+	_check(sink.count_of(&"door") == 1, "a door you open is heard opening", str(sink.count_of(&"door")))
+
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
+	_finished_section()
+
+
+## The HUD at the window sizes a player has: the step wraps rather than runs off the edge
+## (the first play test's "…d key"), and every line stays inside the window.
+func _test_the_hud_fits() -> void:
+	_section("the HUD fits the window")
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	add_child(client)
+	for i in 4:
+		await get_tree().process_frame
+	var step: Label = client.get("_step")
+	var hud: Control = client.get("_hud")
+	var long_step := "Level 32 of 32 — Take the bucket to the tap in the Servants' Hall and fill it with water"
+	for size: Vector2 in [Vector2(1280, 720), Vector2(800, 600), Vector2(640, 360)]:
+		# A window this size, as the HUD's root would be laid out in it.
+		hud.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		hud.position = Vector2.ZERO
+		hud.size = size
+		# Held still, so the long step written here is the one laid out (the client writes
+		# the step every frame).
+		client.set_process(false)
+		step.text = long_step
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var fits: Dictionary = client.call("hud_fits", size)
+		_check(bool(fits["fits"]), "at %dx%d the step, the holds, the keys and the meter are inside the window" % [size.x, size.y], str(fits))
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
 	_finished_section()
 
 
