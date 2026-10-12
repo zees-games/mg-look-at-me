@@ -87,6 +87,11 @@ var _house_out: Dictionary = {}
 var _house_serial: int = 0
 ## Server: each level of the current house as a LEVEL body, deflated once, not once a joiner.
 var _level_wires: Dictionary = {}
+## Server: peers whose READY came before their seat ([method add_player]). A client sends READY
+## when its link says PLAYING, which it decides itself after sending `loaded` on another channel;
+## over ENet with loss the READY can overtake `loaded`, and dropping it left the client waiting
+## for a house for ever. Admitted when seated.
+var _ready_unseated: Dictionary = {}
 
 ## Client: the HELLO the LEVELs arriving belong to, and whether this frame's ack is queued.
 var _hello_serial: int = 0
@@ -179,6 +184,11 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 	var avatar: DotAvatar = avatar_fn.call(session_id) if avatar_fn.is_valid() else null
 	var player := game.join(key, display_name, avatar if avatar != null else LmAvatars.stock_avatar(key))
 	_build_entity(player, peer_id)
+
+	if _ready_unseated.has(peer_id):
+		_ready_unseated.erase(peer_id)
+		_admit(peer_id)
+
 	return DotResult.success(key)
 
 
@@ -187,6 +197,7 @@ func remove_peer(peer_id: int) -> void:
 	_key_of_peer.erase(peer_id)
 	_ready_peers.erase(peer_id)
 	_house_out.erase(peer_id)
+	_ready_unseated.erase(peer_id)
 
 	if key == &"":
 		return
@@ -267,6 +278,7 @@ func _admit(peer_id: int) -> void:
 	var key: StringName = _key_of_peer.get(peer_id, &"")
 
 	if key == &"":
+		_ready_unseated[peer_id] = true
 		return
 
 	_ready_peers[peer_id] = true

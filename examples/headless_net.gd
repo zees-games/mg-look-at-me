@@ -11,7 +11,7 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
 const SECTIONS := 8
-const CHECKS := 33
+const CHECKS := 34
 const LmAvatars := preload("res://game/lm_avatars.gd")
 const LmEvent := preload("res://game/net/lm_event.gd")
 const LmEvents := preload("res://game/net/lm_events.gd")
@@ -160,6 +160,12 @@ func _build() -> bool:
 
 func _test_joining() -> void:
 	_section("a client joins")
+	# The READY first, as over ENet with loss: a client is PLAYING by its own reckoning once it has
+	# sent `loaded`, on another channel, so its READY can reach the server before its seat.
+	_client_bridge.ask_ready()
+	_flush()
+	_check(_to_client.is_empty() and _server_bridge.house_progress(CLIENT_PEER).is_empty(),
+		"a READY before the seat is told nothing yet")
 	var seated := _server_bridge.add_player(CLIENT_PEER, SESSION, "Ada")
 	_key = seated.value if seated.ok else &""
 	# What the client had built when its first PROGRESS came: held behind the last LEVEL, it is 32.
@@ -167,9 +173,7 @@ func _test_joining() -> void:
 	_client_bridge.progress_received.connect(func(_data: Dictionary) -> void:
 		if built_at_progress[0] < 0:
 			built_at_progress[0] = _client_game.levels.size(), CONNECT_ONE_SHOT)
-	_client_bridge.ask_ready()
-	_flush()
-	# The READY has reached the server, which has sent the HELLO and its first window.
+	# Seated, the waiting READY is answered: the HELLO and the first window.
 	var first := _server_bridge.house_progress(CLIENT_PEER)
 	_check(int(first.get("sent", 0)) > 0 and int(first.get("sent", 0)) < 32
 		and int(first.get("outstanding", 0)) <= LmNetBridge.LEVEL_WINDOW,
