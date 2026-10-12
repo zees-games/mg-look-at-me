@@ -97,6 +97,20 @@ func eye_position() -> Vector3:
 	return controller.state.position + Vector3(0.0, EYE_HEIGHT * (0.6 if is_crouching() else 1.0), 0.0)
 
 
+## Where the eye is DRAWN this frame, for this machine's own player: between its last two
+## ticks ([method DotFpsController.render_state]), not on the last one. [method eye_position]
+## is the simulation's and stays on the tick.
+##
+## [b]The camera was drawn on the tick[/b], so it advanced in tick-sized steps whatever the
+## display rate, and every frame that ran no tick stood still. A connected client also hands
+## the controller its clock (`render_clock`, see `LmClient._process`), so a physics frame the
+## clock's drift left with no tick or two is drawn through rather than stalled or doubled.
+## Only for a player this machine simulates: a mirror's controller has no second tick.
+func drawn_eye_position() -> Vector3:
+	var drawn := controller.render_state()
+	return drawn.position + Vector3(0.0, EYE_HEIGHT * (0.6 if drawn.crouch_fraction > 0.5 else 1.0), 0.0)
+
+
 func look_direction() -> Vector3:
 	var view := Basis.from_euler(Vector3(deg_to_rad(controller.state.pitch), deg_to_rad(controller.state.yaw), 0.0))
 	return -view.z
@@ -151,7 +165,9 @@ func set_avatar(next: DotAvatar) -> void:
 
 
 ## What somebody else sees: a Kenney figure in this player's avatar, and a crown over a winner.
-func present_body(own_view: bool) -> void:
+## [param simulated_here] draws the body between ticks, as the camera is (see
+## [method drawn_eye_position]); only for this machine's own player.
+func present_body(own_view: bool, simulated_here: bool = false) -> void:
 	if figure == null:
 		figure = LmFigure.new()
 		figure.name = "Figure"
@@ -160,7 +176,8 @@ func present_body(own_view: bool) -> void:
 		figure.build(1.8, LmFigure.ATLASES[clampi(index, 0, LmFigure.ATLASES.size() - 1)], Color.WHITE)
 
 	figure.visible = not own_view
-	figure.pose(global_position, deg_to_rad(controller.state.yaw), horizontal_speed())
+	var at := controller.render_state().position if simulated_here else global_position
+	figure.pose(at, deg_to_rad(controller.state.yaw), horizontal_speed())
 	var crown: Label3D = get_node_or_null("Crown")
 
 	if won and crown == null:

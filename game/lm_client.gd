@@ -680,6 +680,15 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 
+	# Your own player is drawn at the clock's render alpha, not the engine's fraction: the
+	# clock stretches and shrinks its ticks while it settles on the server, so a physics frame
+	# now and then runs no tick or two, and drawn at the engine's fraction the eye stood still
+	# on one frame and moved double on the next. `DotFpsController.render_state` reads it from
+	# `render_clock` (dot-player-controller); by name both ways, so a shell older than either
+	# draws as before. Null offline, where every physics frame is one tick.
+	if player.controller != null:
+		player.controller.set(&"render_clock", net.clock if net != null and net.is_running() else null)
+
 	_place_camera()
 	flashlight.visible = player.flashlight
 	_draw_witches()
@@ -688,7 +697,7 @@ func _process(delta: float) -> void:
 		var other: LmPlayer = game.players[key]
 		# Only the people in the same house: the others are on another level, out of sight.
 		other.visible = other.level == player.level
-		other.present_body(other == player and not third_person)
+		other.present_body(other == player and not third_person, other == player)
 
 	var level := game.level_of(player)
 
@@ -736,7 +745,7 @@ func _hold_names(level: LmLevel) -> PackedStringArray:
 
 
 func _place_camera() -> void:
-	var eye := player.eye_position()
+	var eye := player.drawn_eye_position()
 	var basis := Basis.from_euler(Vector3(deg_to_rad(player.controller.state.pitch), deg_to_rad(player.controller.state.yaw), 0.0))
 
 	if third_person:

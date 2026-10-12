@@ -119,6 +119,13 @@ func _build() -> bool:
 	_check(_server_game.levels.size() == 32 and _client_game.levels.is_empty(), "the server reads the levels; the client reads none")
 	_server_net = _make_manager(true, server_side)
 	_client_net = _make_manager(false, client_side)
+	# This harness stamps every command itself (`_tick + INPUT_LEAD`), not from the client's
+	# clock, so the client must not ask for dot-net's input-lead report: steered by reports
+	# about commands it never stamped, the clock runs away from them (only dot-net's cap
+	# holds it). By the constant map, so this parses against a dot-net from before the report.
+	var lead_bit := int((DotNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
+	_client_net.messages.features &= ~lead_bit
+
 	_server_bridge = LmNetBridge.new()
 	_server_bridge.name = "Bridge"
 	server_side.add_child(_server_bridge)
