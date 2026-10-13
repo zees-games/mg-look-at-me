@@ -4,7 +4,7 @@ A dark house, thirty-two levels deep and up to three floors high, with witches w
 
 Read the family-wide conventions in [`../../CLAUDE.md`](../../CLAUDE.md) first, and dot-player-controller's `CLAUDE.md` before touching movement. This file is only about what this game decides.
 
-**Built 2026-10-06, in one session**: offline first (the house, the 32 levels, the witches, the meter, per-player doors, the commands, winning, a playable client), then networked the same day — a module, a bridge with predicted players, a mirroring client, chat and voice — and joined by a real client over a real socket in a delivered pack (dot-server-deploy's `examples/lookatme_client`, 26 checks, a second client over a throttled WebSocket and a second tab of the same guest among them). Not seen in a browser yet and not published. Remote set (`gamemann/mg-look-at-me`), nothing pushed.
+**Built 2026-10-06, in one session**: offline first (the house, the 32 levels, the witches, the meter, per-player doors, the commands, winning, a playable client), then networked the same day — a module, a bridge with predicted players, a mirroring client, chat and voice — and joined by a real client over a real socket in a delivered pack (dot-server-deploy's `examples/lookatme_client`, 26 checks, a second client over a throttled WebSocket and a second tab of the same guest among them). Seen in headless Chromium against a local server (a fresh shell export): it joins, builds all 32 levels and then the Asylum on `lm_house asylum`, with no "Buffer payload full". Not published. Remote set (`gamemann/mg-look-at-me`), nothing pushed.
 
 ## Layout
 
@@ -91,5 +91,5 @@ xvfb-run -a godot --path . --resolution 1600x500 res://tools/witch_shot.tscn -- 
 
 In the order they are worth doing.
 
-1. **A browser look**, then publishing: the pack is `tmc/lookatme` (dot-server-deploy `content/lookatme/`), and the release order is the family's.
+1. **Publishing**: the pack is `tmc/lookatme` (dot-server-deploy `content/lookatme/`), and the release order is the family's.
 2. **The GitHub repository** is the owner's to create.
