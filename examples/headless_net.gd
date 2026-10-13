@@ -10,8 +10,8 @@ const LmNetBridge := preload("res://game/net/lm_net_bridge.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmLevel := preload("res://game/lm_level.gd")
 
-const SECTIONS := 8
-const CHECKS := 34
+const SECTIONS := 9
+const CHECKS := 38
 const LmAvatars := preload("res://game/lm_avatars.gd")
 const LmEvent := preload("res://game/net/lm_event.gd")
 const LmEvents := preload("res://game/net/lm_events.gd")
@@ -49,6 +49,7 @@ func _ready() -> void:
 		await _test_the_witches_agree()
 		await _test_the_click()
 		await _test_progress_and_meter()
+		_test_one_account_twice()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -414,6 +415,40 @@ func _test_progress_and_meter() -> void:
 	_server_bridge.remove_peer(CLIENT_PEER)
 	_check(not _server_game.players.has(_key), "a peer that leaves takes its player with it")
 	_check(_server_net.registry.all().is_empty(), "and its entity")
+	_finished_section()
+
+
+## Two browser tabs of one guest share a device id, so one uid, so one key. The newest connection
+## wins: the module is told to drop the older (dot-server-deploy's lookatme_client sees the reason
+## arrive), and the older's leave, which follows the kick, must not take the newcomer's player.
+func _test_one_account_twice() -> void:
+	_section("one account on two connections: the newest wins")
+	const TAB_ONE := 21
+	const TAB_TWO := 22
+	var key := &"uid:guest-two-tabs"
+	var saved := _server_bridge.key_fn
+	_server_bridge.key_fn = func(_peer: int, _session: int) -> StringName: return key
+	var dropped: Array = []
+	var on_drop := func(peer: int, which: StringName) -> void: dropped.append([peer, which])
+	_server_bridge.superseded.connect(on_drop)
+	var one := _server_bridge.add_player(TAB_ONE, 61, "Tab one")
+	var two := _server_bridge.add_player(TAB_TWO, 62, "Tab two")
+	_check(one.ok and two.ok and dropped == [[TAB_ONE, key]],
+		"the second connection of one account has the first dropped", str(dropped))
+	_check(_server_bridge.peer_of(key) == TAB_TWO and _server_bridge.key_of_peer(TAB_ONE) == &""
+		and _server_game.players.size() == 1, "and the player is the newcomer's alone",
+		"%d %s %d" % [_server_bridge.peer_of(key), _server_bridge.key_of_peer(TAB_ONE), _server_game.players.size()])
+	# What the kick sets off: the older session leaves, and the roster tells the bridge.
+	_server_bridge.remove_peer(TAB_ONE)
+	var player: LmPlayer = _server_game.players.get(key, null)
+	var identity: DotNetIdentity = player.get_node_or_null("Identity") if player != null else null
+	_check(identity != null and identity.owner_peer_id == TAB_TWO and _server_net.registry.all().size() == 1,
+		"the older connection's leave does not take the newcomer's player", str(identity.owner_peer_id if identity != null else -1))
+	_server_bridge.remove_peer(TAB_TWO)
+	_check(_server_game.players.is_empty() and _server_net.registry.all().is_empty(), "and the newcomer's own leave does")
+	_server_bridge.superseded.disconnect(on_drop)
+	_server_bridge.key_fn = saved
+	_to_client.clear()
 	_finished_section()
 
 
