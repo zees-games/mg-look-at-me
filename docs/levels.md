@@ -48,6 +48,10 @@ The lights and the glimpse are the owner's client's to show (`LmClient._show_eve
 
 2 + (n-1)/3 witches (12 on level 32), each walking an out-and-back round of 3 to 8 rooms, never into a start room or starting on a stairwell. A stairwell on her round is its ramp, walked from the end she comes in at (`LmLevel._witch_loop` turns the room into the foot and head of the ramp, and back down if she leaves by the end she came in), so she walks on the floor; `headless_run` samples every witch's round and checks.
 
+## No toys
+
+The family's map toys (dot-props' balls, swings, horns and the rest) are not placed in the house. It is a stealth game whose levels are generated and proven as measured: a toy's noise, or a ball rolling into a witch's round or across a doorway, would change a level after it was proven, and every level would have to be measured again with the toys where they ended up.
+
 ## The house laid out
 
 Every level is built at once, side by side in rows of eight (`LmGame.LEVELS_PER_ROW`, 40 m apart): 32 levels three times the size in one line ran to 5 km. A level is sent to a client as one LEVEL message (deflated, and paced so a browser's 64 KiB inbound buffer never overflows: [design](design.md#the-house-on-the-wire)), so the builder refuses a document over 48,000 bytes compact, which a client with nothing outstanding must still be able to take whole; level 32 is about 25 KB.
