@@ -83,6 +83,10 @@ var lamps: Dictionary = {}
 ## Whether this level draws (meshes, labels, lamps). Off on a server.
 var draws: bool = true
 
+## Whether the document's furniture is built (`lm_furniture_enabled`). It is collision as well
+## as a drawing, so a server and its clients must agree.
+var furnished: bool = true
+
 var _materials: Dictionary = {}
 
 
@@ -589,8 +593,15 @@ func _build_room(room_id: String) -> void:
 		_build_stair(root, room_id)
 	elif str(room["kind"]) == "room":
 		# A corridor is left bare: furniture down both walls of a 4 m passage leaves no passage.
-		for side in ["n", "s", "w", "e"]:
-			_furnish(root, room_id, rect, side)
+		if doc.has("props"):
+			# The builder placed it, per room type, and proved it clear of every door, item,
+			# station and witch's lane (tools/lm_furnish.py).
+			if furnished:
+				_place_props(root, room_id, rect)
+		else:
+			# A document from before the builder furnished: the old wall-by-wall hash.
+			for side in ["n", "s", "w", "e"]:
+				_furnish(root, room_id, rect, side)
 
 	var light := float(room["doc"].get("light", 0.0))
 
@@ -675,6 +686,72 @@ func _furnish(root: Node, room_id: String, rect: Rect2, side: String) -> void:
 
 		cursor += 2.4
 		slot += 1
+
+
+## One room's props from the document: `[model, room, x, z, rot]`, the centre in metres from
+## the room's corner, plus a height for something standing on another piece (drawn only). The
+## sizes come from the document (`models`), the ones the builder proved, never from the mesh.
+func _place_props(root: Node, room_id: String, rect: Rect2) -> void:
+	var sizes: Dictionary = doc.get("models", {})
+	var scale := float(doc.get("prop_scale", FURNITURE_SCALE))
+	var base := room_base(room_id)
+
+	for row: Array in doc["props"]:
+		if str(row[1]) != room_id:
+			continue
+
+		var model := str(row[0])
+		var size_a: Array = sizes.get(model, [])
+
+		if size_a.size() < 3:
+			continue
+
+		var size := Vector3(float(size_a[0]), float(size_a[1]), float(size_a[2]))
+		var lift := float(row[5]) if row.size() > 5 else 0.0
+		var body: Node3D = Node3D.new() if lift > 0.0 else StaticBody3D.new()
+		body.name = "Furniture_%s" % model
+		root.add_child(body)
+		body.rotation.y = deg_to_rad(float(row[4]))
+		body.position = Vector3(rect.position.x + float(row[2]), base + lift, rect.position.y + float(row[3]))
+
+		if lift <= 0.0:
+			var shape := BoxShape3D.new()
+			shape.size = size
+			var collider := CollisionShape3D.new()
+			collider.shape = shape
+			collider.position = Vector3(0, size.y * 0.5, 0)
+			body.add_child(collider)
+
+		if not draws:
+			continue
+
+		var packed := _furniture_scene(model)
+
+		if packed == null:
+			continue
+
+		var piece := packed.instantiate() as Node3D
+		piece.scale = Vector3.ONE * scale
+		var bounds: AABB = _furniture_bounds[model]
+		var centre := bounds.get_center() * scale
+		piece.position = Vector3(-centre.x, -bounds.position.y * scale, -centre.z)
+		body.add_child(piece)
+
+
+## A model's scene and (once) its bounds; null for a model the kit does not have here.
+func _furniture_scene(model: String) -> PackedScene:
+	if not _furniture_scenes.has(model):
+		var path := LmPaths.rebase("res://assets/kenney/furniture/%s.glb" % model)
+		_furniture_scenes[model] = load(path) if ResourceLoader.exists(path) else null
+
+	var packed: PackedScene = _furniture_scenes[model]
+
+	if packed != null and not _furniture_bounds.has(model):
+		var probe := packed.instantiate() as Node3D
+		_furniture_bounds[model] = _bounds_of(probe)
+		probe.free()
+
+	return packed
 
 
 func _place_furniture(root: Node, model: String, wall_point: Vector3, inward: Vector3, facing: float) -> void:

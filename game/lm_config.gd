@@ -102,6 +102,12 @@ extends DotConfig
 ## walk, through the door as if it were not there.
 @export_range(0.0, 10.0, 0.1) var witch_door_seconds: float = 1.6
 
+@export_group("House")
+
+## The furniture the builder placed in each room (`lm_furniture_enabled`). Solid, so a server and
+## its clients must agree; off, a house is bare rooms, as the first build had it.
+@export var furniture_enabled: bool = true
+
 @export_group("Scares")
 
 ## Sanity scares: a sudden sound and a brief face, flash or figure, the client's alone. How

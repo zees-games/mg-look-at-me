@@ -33,6 +33,8 @@ import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from lm_furnish import furnish, prove  # noqa: E402
 
 CELL = 4.0
 HEIGHT = 3.2
@@ -92,7 +94,8 @@ HOUSES = {
     "asylum": ("houses/asylum", 16, 5000, ASYLUM_NAMES, "Reception", "The Asylum", ASYLUM_ROOMS, ASYLUM_CORRIDORS, ASYLUM_STAIRS),
 }
 
-ROOM_SHAPES = [(3, 3), (3, 3), (4, 3), (3, 4), (4, 4), (5, 3), (3, 5), (5, 4), (4, 5)]
+# 8 to 16 m a side: the first build's 12 to 20 m rooms were too big (full game review).
+ROOM_SHAPES = [(2, 2), (3, 2), (2, 3), (3, 3), (3, 3), (4, 3), (3, 4)]
 DIRS = {"n": (0, -1), "s": (0, 1), "w": (-1, 0), "e": (1, 0)}
 OPPOSITE = {"n": "s", "s": "n", "w": "e", "e": "w"}
 
@@ -198,7 +201,7 @@ def grow(rng, n, lobby_name, names, corridor_names, stair_names):
     # The start room. Level 1's is the lobby: the biggest room in the game, lit, where everybody
     # arrives and talks before anybody goes through a door.
     if n == 1:
-        g.put(lobby_name, "room", 0, 0, 6, 6, 0, None)["light"] = 0.8
+        g.put(lobby_name, "room", 0, 0, 5, 4, 0, None)["light"] = 0.8
     else:
         g.put("Landing", "room", 0, 0, 4, 2, 0, None)["light"] = 0.45
 
@@ -415,7 +418,10 @@ def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_
         if exit_of(g) is None:
             continue
         doc = furnish_puzzles(rng, g, n, p, level_names, total, prefix)
-        if solve(doc) and len(compact(doc)) <= MAX_BYTES:
+        if not solve(doc):
+            continue
+        furnish(doc)
+        if len(compact(doc)) <= MAX_BYTES and not prove(doc):
             return doc
     raise SystemExit("level %d of %s: no house grew that fits its plan" % (n, prefix))
 
@@ -809,7 +815,7 @@ def stats_line(doc):
 def main():
     check = "--check" in sys.argv
     stats = "--stats" in sys.argv
-    stale, broken = [], []
+    stale, broken, unfit = [], [], []
     written = 0
 
     for house_id, (directory, total, seed_base, level_names, lobby_name, title, names, corridors, stairs) in HOUSES.items():
@@ -829,6 +835,7 @@ def main():
             doc = level(n, seed_base, level_names, lobby_name, total, prefix, names, corridors, stairs)
             if not solve(doc):
                 broken.append(doc["id"])
+            unfit.extend(prove(doc))
             if stats:
                 print(stats_line(doc))
                 continue
@@ -842,6 +849,9 @@ def main():
                 f.write(text)
             written += 1
 
+    if unfit:
+        print("furniture that breaks a rule:", *unfit, sep="\n  ")
+        return 1
     if broken:
         print("cannot be finished:", ", ".join(broken))
         return 1

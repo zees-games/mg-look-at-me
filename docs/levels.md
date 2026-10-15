@@ -4,21 +4,27 @@ How a level is grown, what is in it, and what the house does to you on the way. 
 
 ## Size
 
-A level is rooms on a grid of 4 m cells (`cell` in the document). Level n has at least 14 + n rooms (15 on level 1, 49 on level 32 counting its stairwells; the Asylum's 16 levels go to 30), about three times the floor area of the first build (level 1 from 960 m² to about 3,600; level 32 from 2,300 to about 7,900). `tools/build_levels.py --stats` prints every level's rooms, area, floors, doors, steps, events and size.
+A level is rooms on a grid of 4 m cells (`cell` in the document). Level n has at least 14 + n rooms (15 on level 1, 49 on level 32 counting its stairwells; the Asylum's 16 levels go to 30), about three times the floor area of the first build (level 1 from 960 m² to about 1,900; level 32 from 2,300 to about 5,200, after the rooms were cut to 8 to 16 m). `tools/build_levels.py --stats` prints every level's rooms, area, floors, doors, steps, events and size.
 
 Three shapes of room:
 
 | Kind | Size | What it is for |
 | --- | --- | --- |
-| `room` | 12 to 20 m a side (8 to 12 upstairs too) | furnished by its name; where the parts of puzzles are |
+| `room` | 8 to 16 m a side (8 to 12 upstairs too; they were 12 to 20 m until the full game review found them too big) | furnished by its name; where the parts of puzzles are |
 | `corridor` | 4 m wide, 12 to 24 m long | the way between rooms, bare (furniture down both walls of a 4 m passage leaves no passage); where she is seen at a distance |
 | `stair` | 8 by 16 m, two storeys | the only way between floors: a 4 m landing at its foot, an 8 m ramp (25°, the controller walks up to 46°), a 4 m landing at its head, level with the floor above, solid underneath |
 
-The lobby (level 1's start room, 24 m square) is still the biggest room in the game, and level 1 is one floor, to learn the house on. Levels 16 and up (and the Asylum's 16) have a third floor, of three to five rooms, up a stairwell from the first floor. Every level from 2 has an upstairs: a stairwell's foot opens off a room, and a room upstairs only stands over rooms below it (a stairwell mostly climbs alongside the wall it is entered through, so its head is beside the house; one that climbed away from it led nowhere, because nothing could stand there). A stairwell is placed only with a room off its head, or not at all.
+The lobby (level 1's start room, 20 by 16 m) is still the biggest room in the game, and level 1 is one floor, to learn the house on. Levels 16 and up (and the Asylum's 16) have a third floor, of three to five rooms, up a stairwell from the first floor. Every level from 2 has an upstairs: a stairwell's foot opens off a room, and a room upstairs only stands over rooms below it (a stairwell mostly climbs alongside the wall it is entered through, so its head is beside the house; one that climbed away from it led nowhere, because nothing could stand there). A stairwell is placed only with a room off its head, or not at all.
 
 **A third floor is grown a floor at a time** (`grow_floors`). A stairwell up from the first floor needs ground under all eight of its cells as well as two free storeys over them, beside the first-floor room it is entered from. Grown the two-floor way (a third of the house upstairs, stairwells tried at random throughout), the first floor had covered nearly all the ground by the time one was tried, and almost none fitted, so the third floor was dropped. Now each floor is finished before the next is started, the first floor is a quarter of the house (leaving ground uncovered round its edges), and a stairwell to floor f is tried from a room on f-1 or from the head of a stairwell up to f-1, where it runs back alongside the first over the room that one was entered from (a stair tower). A level whose top floor has fewer than three rooms is grown again. Two-floor levels keep the old order, so their houses are what they were.
 
 Floors are a storey apart (`storey`, 3.7 m: a room's 3.2 m, its ceiling slab and the next floor's slab, one over the other; two boxes in one place flicker). Walls are built a storey at a time, each cut for the doors on that storey. `LmLevel.room_at` takes a height: each room owns from 0.9 m under its floor to 0.9 m under the floor above its top, so two floors never both claim a point. `LmLevel.floor_at` is the floor under a point, the ramp included, and everything placed in a level (items, stations, witches' points, spawn points) is placed on it.
+
+## Furniture
+
+Each `room` is furnished by its name (`tools/lm_furnish.py`: bedroom, nursery, kitchen, pantry, dining, bath, laundry, ward, cell, library, study, sitting, garden, hall, chapel, workshop, else a store), with Kenney's CC0 Furniture Kit. The builder writes it into the document: `prop_scale`, `models` (each model's final size in metres, read from its glTF) and `props` (`[model, room, x, z, rot]`, the centre in metres from the room's corner, rotation 0/90/180/270, plus a height for something standing on another piece, drawn only). `LmLevel._place_props` builds a box body per piece from the document's size and draws the model (loaded through `LmPaths.rebase`, so it survives pack delivery). A document without `props` (an owner's older house) keeps the old hash placement.
+
+`tools/build_levels.py` refuses a level, and `--check` fails, unless every room's furniture is inside its walls, overlaps nothing, stays out of every doorway (2.6 by 2 m), every item and station (0.8 m round) and every line a witch walks through the room, and leaves a floor that still joins every door, item and station with 0.45 m kept off each piece (`prove`). A level that cannot be furnished to that is left with fewer pieces, never with a blocked door. `lm_furniture_enabled` (0) builds bare rooms; it is solid, so server and clients must agree. A level with furniture is about 60% bigger as a document (level 32 about 37 KB, still under the 48,000 limit).
 
 ## Doors
 

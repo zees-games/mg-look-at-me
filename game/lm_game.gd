@@ -267,6 +267,7 @@ func build_levels() -> void:
 		var level := LmLevel.new()
 		level.name = "Level_%02d" % n
 		add_child(level)
+		level.furnished = config.furniture_enabled
 		var built := level.build(documents[n], draws)
 
 		if not built.ok:

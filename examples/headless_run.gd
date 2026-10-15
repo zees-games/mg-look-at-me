@@ -94,7 +94,8 @@ func _test_levels() -> void:
 	_check(doors_placed, "every door sits on a wall its rooms share")
 	_check((game.levels[1] as LmLevel).witches.size() == 2 and (game.levels[32] as LmLevel).witches.size() == 12, "two witches on level 1, twelve on level 32")
 	# The second build of the levels (2026-10-12, "bigger and longer with more to do"): about
-	# three times the floor of the first, which ran from 960 m2 and 4 rooms to 2,300 m2 and 20.
+	# three times the floor of the first, which ran from 960 m2 and 4 rooms to 2,300 m2 and 20;
+	# rooms were then cut to 8 to 16 m (fgr-props-1), which took level 1 from 3,600 m2 to 1,900.
 	var small := PackedStringArray()
 	var flat := PackedStringArray()
 	var low := []
@@ -102,7 +103,7 @@ func _test_levels() -> void:
 
 	for n: int in game.levels:
 		var level: LmLevel = game.levels[n]
-		if level.floor_area() < 2000.0 or level.rooms.size() < 14 + n:
+		if level.floor_area() < 1800.0 or level.rooms.size() < 14 + n:
 			small.append("%d (%d m2, %d rooms)" % [n, int(level.floor_area()), level.rooms.size()])
 		if n >= 2 and level.floor_count() < 2:
 			flat.append(str(n))
@@ -119,8 +120,8 @@ func _test_levels() -> void:
 		if not (kinds.has("lights") and kinds.has("slam") and kinds.has("glimpse")):
 			quiet.append("%d %s" % [n, kinds.keys()])
 
-	_check(small.is_empty() and (game.levels[32] as LmLevel).floor_area() > 7000.0,
-		"every level is big: 14 + n rooms, over 2,000 m2, level 32 over 7,000", ", ".join(small))
+	_check(small.is_empty() and (game.levels[32] as LmLevel).floor_area() > 5000.0,
+		"every level is big enough: 14 + n rooms, over 1,800 m2, level 32 over 5,000 m2 (the rooms are 8 to 16 m, not 12 to 20)", ", ".join(small))
 	_check(flat.is_empty(), "every level from 2 has an upstairs", ", ".join(flat))
 	_check(low.is_empty(), "and every level from 16 a third floor of three rooms or more", ", ".join(low))
 	_check(quiet.is_empty(), "and every level has its events: lights that die, a door that slams, her down a corridor", ", ".join(quiet))
@@ -732,6 +733,12 @@ func _test_sound_and_effects() -> void:
 		str(settings.describe()) if settings != null else "no settings"
 	)
 
+	# Stand where her round starts: how far the nearest witch is from the start room depends on
+	# the house's layout, and her hum is only heard within the mixer's range.
+	var heard_level := (client.get("game") as LmGame).levels[8] as LmLevel
+	var round_start: Array = (heard_level.doc["witches"][0]["path"] as Array)[0]
+	player.place_at(heard_level.position + heard_level.room_centre(str(round_start[1])), 0.0)
+
 	for i in 90:
 		player.meter = 0.9
 		await get_tree().process_frame
@@ -741,7 +748,7 @@ func _test_sound_and_effects() -> void:
 		sink != null and sink.count_of(&"heartbeat") >= 1 and sink.count_of(&"click") == 1 \
 			and int(audio.call("droning")) > 0,
 		"a heartbeat at a high meter, a click, and the drone of a witch nearby",
-		str(sink.played_ids()) if sink != null else "no sink"
+		"%s player %s views %s" % [str(sink.played_ids()) if sink != null else "no sink", str(player.global_position), str((client.get("_witch_views") as Dictionary).values().map(func(v: Node3D) -> Vector3: return v.global_position))]
 	)
 	var unknown := PackedStringArray()
 

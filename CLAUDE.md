@@ -33,7 +33,7 @@ scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
 examples/        headless_run (20 sections, 149 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
-tools/           build_levels.py (--check, --stats); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
+tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
 ## How it is built
@@ -55,6 +55,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **Every placed thing goes through `LmLevel.floor_at` / `room_at` with a height**: a point at y 0 is the ground floor, not "the room". [levels](docs/levels.md#size)
 - **Events fire once per go, per player** (`LmPlayer.fired`, in PROGRESS); lights and the glimpse are the client's to show, a slam is the server's and waits until the player is 3 m clear of the doorway. A slam only ever shuts a door that opens again. [levels](docs/levels.md#events)
 - **The client draws only the player's level, with a 90 m far plane**: the compatibility renderer caps lights, and other levels' lamps pushed out the near ones. [history](docs/history.md)
+- **Furniture is placed and proven by the builder, per room type** (`props` in the document, Kenney's Furniture Kit; `--check` proves it clear of doors, items, stations, witches' lanes and walkable). Rooms are 8 to 16 m. [levels](docs/levels.md#furniture)
 - **A level document stays under 48,000 bytes compact** (one LEVEL message each; the builder refuses more). [levels](docs/levels.md#the-house-laid-out)
 - **The house goes deflated and a window at a time** (`LEVEL_WINDOW`, acked by `Ask.LEVELS`), and everything else to that peer is held behind the last LEVEL: a browser drops what overflows its 64 KiB inbound buffer between frames. Never send a client a burst. [design](docs/design.md#the-house-on-the-wire)
 - **A house is the biggest reliable burst in the family**, on the channel the commands and snapshots share; over ENet it needs dot-core's packet throttle setting, held by `headless_lossy`. [history](docs/history.md)

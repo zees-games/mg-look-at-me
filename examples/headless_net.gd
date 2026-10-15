@@ -409,7 +409,10 @@ func _test_progress_and_meter() -> void:
 	_exchange()
 	await _steps(4)
 	_check(server_player.level == 3 and mine.level == 3, "/l3 moves them on both ends", "%d / %d" % [server_player.level, mine.level])
-	_check(mine.opened.is_empty() and mine.controller.body.exclude.size() == 1, "with a fresh level: no doors open for them there")
+	# Her own body, and at most the door each witch has open at this instant (open for everybody
+	# while she has it: where each is depends on the house's layout).
+	_check(mine.opened.is_empty() and mine.controller.body.exclude.size() <= 1 + (_client_game.levels[3] as LmLevel).witches.size(), "with a fresh level: no doors open for them there",
+		"opened %s, exclude %d" % [str(mine.opened.keys()), mine.controller.body.exclude.size()])
 	var _changed := _server_game.change_house(&"asylum")
 	_exchange()
 	await _steps(6)

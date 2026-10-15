@@ -176,6 +176,15 @@ func _wire_voice(world: LmGame) -> void:
 		hear.changed.connect(func(_old: String, new_value: String) -> void:
 			world.config.witch_hear_voice = new_value.strip_edges() != "0")
 
+	var furniture := add_cvar(
+		"lm_furniture_enabled", "1" if world.config.furniture_enabled else "0",
+		"Furniture in the rooms: 1 yes, 0 bare rooms. Solid, so it takes effect when the house is next built", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+	)
+
+	if furniture != null:
+		furniture.changed.connect(func(_old: String, new_value: String) -> void:
+			world.config.furniture_enabled = new_value.strip_edges() != "0")
+
 	var router: Object = services.get("voice") if services != null else null
 
 	if router != null and router.has_signal(&"speech_relayed"):
