@@ -46,6 +46,13 @@ var meter: float = 0.0
 var unseen_for: float = 0.0
 var seen_by: int = 0
 
+## Per witch index, what she is doing about this player: {"head": her head's yaw now, "notice":
+## seconds a sound or the light has been perceived, "alert": she has reacted, "hold": seconds
+## the alert has left, "at": where she is looking}. The server's alone (see LmGame._listen).
+var gaze: Dictionary = {}
+## Seconds left of the noise a door or a switch makes, on top of footsteps.
+var noise_left: float = 0.0
+
 ## Seconds left of being caught, before they are put back. 0 when not caught.
 var caught_left: float = 0.0
 
@@ -162,6 +169,8 @@ func reset_level() -> void:
 	meter = 0.0
 	unseen_for = 0.0
 	caught_left = 0.0
+	gaze.clear()
+	noise_left = 0.0
 
 
 ## A new face: the figure is rebuilt on the next draw.

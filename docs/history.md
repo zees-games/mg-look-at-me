@@ -35,3 +35,7 @@ Running the delivered game through dot-net's lossy UDP relay (5% loss, 60 ± 20 
 ## 2026-10-12: two tabs of one guest were one player with two drivers
 
 dot-server-deploy's `lookatme_client` connected two clients in one process, and both were the same guest (one device id per install, as two browser tabs of one origin are). The house keys players by account, so the second `add_player` found the first's player under that key, built a second replicated entity onto it and took the key's peer: the first client's keys stopped moving anything while its link stayed up, and nothing errored. Its leave would then have removed the newcomer's player as well. Every suite passed because each seated players under distinct keys. The fix is the takeover in [design](design.md#one-account-one-connection); the lesson for any bridge keyed by account rather than by session is that `add_player` must ask whether the key is already held.
+
+## Stripes on far walls were 8-bit banding
+
+The stripes seen on walls from across a room were not shadow acne or aliasing (the walls are untextured and the lamps cast no shadows): a lamp's falloff across a dark wall is a smooth, very low gradient, and an 8-bit framebuffer steps it into concentric bands. The compatibility renderer ignores the debanding switches, so `LmClient._build_hud` adds a screen-space dither (`DITHER_SHADER`, about two levels of triangular noise) under the HUD. `screenshots/far_wall_before.png` and `far_wall_after.png` are the same frame; brighten them to see it.

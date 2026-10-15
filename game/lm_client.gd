@@ -457,6 +457,19 @@ func _refresh_key_line() -> void:
 		k.call(DotMenuBindings.HELP_ACTION, "H")]
 
 
+## Dithers the screen so a smooth dark gradient is not drawn as stripes (see _build_hud).
+const DITHER_SHADER := "shader_type canvas_item;
+uniform sampler2D screen : hint_screen_texture, filter_nearest;
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+void fragment() {
+	vec2 p = FRAGCOORD.xy;
+	float noise = hash(p) + hash(p + 17.31) - 1.0;
+	COLOR = vec4(texture(screen, SCREEN_UV).rgb + vec3(noise * 2.0 / 255.0), 1.0);
+}
+"
+
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -464,6 +477,20 @@ func _build_hud() -> void:
 	_hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_hud)
+
+	# The dark house is mostly very low, very smooth gradients (a lamp's falloff across a far wall),
+	# and an 8-bit framebuffer steps them into concentric stripes. The compatibility renderer has no
+	# debanding (the viewport and project switches are ignored there), so the frame is dithered here:
+	# triangular noise of about two levels, added after the world is drawn and before the HUD is.
+	var dither := ColorRect.new()
+	dither.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dither.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dither_shader := Shader.new()
+	dither_shader.code = DITHER_SHADER
+	var dither_material := ShaderMaterial.new()
+	dither_material.shader = dither_shader
+	dither.material = dither_material
+	_hud.add_child(dither)
 
 	# The meter's own colour, over everything: the closer she is to seeing you, the redder the
 	# edges. A bar is read; a screen going red is felt.
@@ -809,6 +836,10 @@ func _act(action: String, args: Dictionary = {}) -> void:
 	if player == null:
 		return
 
+	if action == "flashlight" and audio != null:
+		# Heard at once, on the key: the click is the player's own, the same offline and on a server.
+		var _clicked := audio.torch(not player.flashlight)
+
 	if not _offline:
 		var body := args.duplicate()
 
@@ -1002,7 +1033,7 @@ func _draw_witches() -> void:
 				view.call(&"build", float(level.witches[i]["sight"]) * game.config.witch_sight_scale, float(level.witches[i]["cone"]) * game.config.witch_cone_scale)
 				_witch_views[key] = view
 
-			var pose := level.witch_pose(i, drawn_seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+			var pose := game.witch_pose_for(player, level, i, drawn_seconds)
 			var walking := float(level.witches[i]["speed"]) * game.config.witch_speed_scale
 			var _moved: float = view.call(&"place", level.position + (pose["at"] as Vector3), float(pose["facing"]), float(pose["head"]), delta, walking)
 			var sees := player.caught_left <= 0.0 and game.exposure(player, level, i, seconds) > 0.0
@@ -1050,12 +1081,26 @@ func _swing_doors(delta: float) -> void:
 	var level := game.level_of(player)
 	if level == null:
 		return
+	# A door a witch is opening swings open for everybody, the clock's doing like her walk.
+	var witch_open: Dictionary = {}
+	var seconds := game.seconds_now()
+
+	for i in level.witches.size():
+		var pose := level.witch_pose(i, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
+
+		if str(pose["door"]) != "":
+			witch_open[str(pose["door"])] = maxf(float(witch_open.get(str(pose["door"]), 0.0)), float(pose["open"]))
+
 	for door_id: String in level.doors:
 		var door: Dictionary = level.doors[door_id]
 		var body := door.get("body") as Node3D
 		if body == null:
 			continue
-		var want := DOOR_OPEN if player.opened.has(door_id) else 0.0
+		var want := DOOR_OPEN if player.opened.has(door_id) else DOOR_OPEN * float(witch_open.get(door_id, 0.0))
+
+		if want > 0.0 and not player.opened.has(door_id) and float(body.get_meta(&"swing", 0.0)) <= 0.0 and audio != null:
+			var _creaked := audio.door(level.position + (door["centre"] as Vector3))
+
 		var now := float(body.get_meta(&"swing", 0.0))
 		if is_equal_approx(now, want):
 			continue

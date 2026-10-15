@@ -16,3 +16,4 @@ Every file here is CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
 | `creak_3.ogg` | Kenney, RPG Audio | `doorClose_4` |
 | `door_0.ogg`, `door_1.ogg` | Kenney, RPG Audio | `doorOpen_1`, `doorOpen_2` |
 | `click.ogg` | Kenney, RPG Audio | `metalLatch` |
+| `torch_on.ogg`, `torch_off.ogg` | Kenney, Interface Sounds (kenney.nl) | `switch_002`, `switch_003`: the flashlight's click |

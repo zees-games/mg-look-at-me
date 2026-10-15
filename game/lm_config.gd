@@ -32,10 +32,11 @@ extends DotConfig
 @export_range(0.05, 5.0, 0.05) var exposure_rate: float = 0.9
 
 ## How fast it drains, per second, out of sight.
-@export_range(0.01, 5.0, 0.01) var decay_rate: float = 0.22
+@export_range(0.01, 5.0, 0.01) var decay_rate: float = 0.05
 
-## Seconds after being seen before it starts to drain.
-@export_range(0.0, 10.0, 0.25) var decay_delay: float = 1.0
+## Seconds after being seen before it starts to drain. The meter was draining in about four
+## seconds, which let a player stand in a witch's sight twice over; now it takes twenty.
+@export_range(0.0, 10.0, 0.25) var decay_delay: float = 2.0
 
 ## A lit flashlight multiplies how fast you are seen, and how far.
 @export_range(1.0, 5.0, 0.05) var flashlight_exposure: float = 1.8
@@ -66,6 +67,34 @@ extends DotConfig
 
 ## Whether witches turn their heads as they walk, sweeping the cone.
 @export var witch_head_sweep: bool = true
+
+@export_group("Witches' senses")
+
+## Metres a witch hears a player at a full run in the open; walking is quieter in proportion,
+## crouching quieter again, standing still silent. A wall in the way costs `witch_hear_walls` of it.
+@export_range(0.0, 40.0, 0.5) var witch_hear_range: float = 9.0
+@export_range(0.0, 1.0, 0.05) var witch_hear_walls: float = 0.5
+
+## A door opened or something used is this much louder than a run, for `witch_noise_seconds`.
+@export_range(1.0, 5.0, 0.1) var witch_noise_boost: float = 1.4
+@export_range(0.1, 3.0, 0.1) var witch_noise_seconds: float = 0.6
+
+## Metres a witch sees a lit flashlight at, inside her cone and with nothing between: the beam
+## is seen from much further than a player is.
+@export_range(0.0, 80.0, 0.5) var witch_light_range: float = 28.0
+
+## Seconds from a sound or the light first being perceived to her starting to turn, and how
+## fast her head turns after that, in degrees a second. A person takes about this long and
+## turns about this fast; a witch that turned at once would never miss.
+@export_range(0.0, 5.0, 0.05) var witch_reaction_seconds: float = 0.7
+@export_range(10.0, 720.0, 5.0) var witch_turn_rate: float = 100.0
+
+## Seconds she keeps looking where it came from after it stops, before her head goes back.
+@export_range(0.0, 30.0, 0.5) var witch_alert_seconds: float = 4.0
+
+## Seconds a witch stands at a closed door, opening it, before she walks through. 0 is the old
+## walk, through the door as if it were not there.
+@export_range(0.0, 10.0, 0.1) var witch_door_seconds: float = 1.6
 
 @export_group("The world")
 
@@ -117,5 +146,6 @@ func describe() -> Dictionary:
 		"light": "flashlight x%.1f seen, x%.1f sight" % [flashlight_exposure, flashlight_sight],
 		"caught": ["keep what you hold", "lose the level"][caught_penalty],
 		"witches": "speed x%.2f, sight x%.2f" % [witch_speed_scale, witch_sight_scale],
+		"senses": "hears %.1f m, sees a light at %.1f m, reacts in %.2f s, turns %.0f deg/s, opens doors in %.1f s" % [witch_hear_range, witch_light_range, witch_reaction_seconds, witch_turn_rate, witch_door_seconds],
 		"shared": shared_progress,
 	}

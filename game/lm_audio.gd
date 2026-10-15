@@ -45,6 +45,9 @@ const CREAK := &"creak"
 const DOOR := &"door"
 ## Something taken or used: a latch.
 const CLICK := &"click"
+## The flashlight's switch, on and off: two different clicks, so the state is heard.
+const TORCH_ON := &"torch_on"
+const TORCH_OFF := &"torch_off"
 ## A witch has started seeing you.
 const STINGER := &"stinger"
 ## She has you.
@@ -95,7 +98,7 @@ var _drones: Dictionary = {}
 
 
 static func ids() -> Array[StringName]:
-	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, STINGER, SCREAM, SLAM, LIGHTS_OUT]
+	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, TORCH_ON, TORCH_OFF, STINGER, SCREAM, SLAM, LIGHTS_OUT]
 
 
 static func sound_catalogue() -> DotAudioCatalogue:
@@ -155,6 +158,12 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	click.cooldown_ms = 60
 	click.gain_db = -9.0
 	c.add(click)
+
+	for torch: StringName in [TORCH_ON, TORCH_OFF]:
+		var def := _def(torch, 1, 60)
+		def.cooldown_ms = 80
+		def.gain_db = -8.0
+		c.add(def)
 
 	var stinger := _def(STINGER, 1, 85)
 	# Once per scare: two witches catching sight of you a frame apart are one fright.
@@ -308,6 +317,11 @@ func play(id: StringName) -> bool:
 ## A latch for something taken or used.
 func click() -> bool:
 	return manager != null and manager.play(CLICK) != 0
+
+
+## The flashlight switched [param on] or off, heard by the player alone.
+func torch(on: bool) -> bool:
+	return manager != null and manager.play(TORCH_ON if on else TORCH_OFF) != 0
 
 
 ## A door swinging open at [param at].

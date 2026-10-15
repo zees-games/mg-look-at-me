@@ -11,8 +11,8 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 const LmSettings := preload("res://game/lm_settings.gd")
 
-const SECTIONS := 17
-const CHECKS := 100
+const SECTIONS := 18
+const CHECKS := 114
 
 var _passed := 0
 var _failed := 0
@@ -54,6 +54,7 @@ func _ready() -> void:
 	await _test_the_events_seen_and_heard()
 	await _test_upstairs()
 	await _test_the_hud_fits()
+	_test_witch_senses()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -263,7 +264,7 @@ func _test_sight() -> void:
 	p.flashlight = false
 	for tenth in 600:
 		seconds = 3.0 + float(tenth) * 0.1
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		facing = float(pose["facing"]) + float(pose["head"])
 		ahead = Vector3(-sin(facing), 0, -cos(facing))
 		witch_at = level.position + (pose["at"] as Vector3)
@@ -308,7 +309,7 @@ func _test_caught() -> void:
 
 	for _i in 120:
 		var seconds := game.seconds_now() + 1.0 / 60.0
-		var pose := level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+		var pose := level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		var facing := float(pose["facing"]) + float(pose["head"])
 		p.place_at(level.position + (pose["at"] as Vector3) + Vector3(-sin(facing), 0, -cos(facing)) * 2.0, 0.0)
 		game.step(1.0 / 60.0)
@@ -879,12 +880,12 @@ func _test_the_witch_and_the_house() -> void:
 		"a witch is her model, animated, with her sight on the floor", str(witch.describe()) if witch != null else "none drawn")
 
 	# In her face, in her cone: she sees you, she flares, and the stinger says so once.
-	var pose := level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep)
+	var pose := level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 	var facing := float(pose["facing"]) + float(pose["head"])
 	var ahead := Vector3(-sin(facing), 0.0, -cos(facing))
 	me.meter = 0.0
 	for i in 60:
-		pose = level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep)
+		pose = level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		facing = float(pose["facing"]) + float(pose["head"])
 		ahead = Vector3(-sin(facing), 0.0, -cos(facing))
 		me.place_at(level.position + (pose["at"] as Vector3) + ahead * 2.5 + Vector3(0, 0.1, 0), 0.0)
@@ -1092,6 +1093,161 @@ func _move_mouse(by: Vector2) -> void:
 	for i in 4:
 		await get_tree().physics_frame
 	await get_tree().process_frame
+
+
+func _test_witch_senses() -> void:
+	_section("witches open doors, hear, see the light, and take time to react")
+	var config := game.config
+	_check(config.decay_rate <= 0.06 and config.decay_delay >= 2.0, "the meter drains slowly by default", "%.2f/s after %.1f s" % [config.decay_rate, config.decay_delay])
+	_check(config.witch_reaction_seconds >= 0.3 and config.witch_turn_rate <= 200.0, "she reacts in a person's time and turns at a person's speed", "%.2f s, %.0f deg/s" % [config.witch_reaction_seconds, config.witch_turn_rate])
+
+	# Doors: find a witch whose walk goes through a doorway.
+	var p: LmPlayer = game.players[&"a"]
+	game.send_to(p, 8)
+	var level: LmLevel = game.levels[8]
+	var witch := -1
+
+	for i in level.witches.size():
+		for id: String in level.witches[i]["door_ids"]:
+			if id != "":
+				witch = i
+
+	_check(witch >= 0, "a witch of level 8 walks through a doorway", str(level.witches.size()))
+	var dwell := config.witch_door_seconds
+	var standing := 0
+	var still := true
+	var opened := 0.0
+	var walked_through := false
+	var previous := {}
+
+	for tenth in 3000:
+		var seconds := float(tenth) * 0.1
+		var pose := level.witch_pose(witch, seconds, config.witch_speed_scale, config.witch_head_sweep, dwell)
+		var old := level.witch_pose(witch, seconds, config.witch_speed_scale, config.witch_head_sweep, 0.0)
+
+		if str(old["door"]) != "":
+			walked_through = true
+
+		if str(pose["door"]) != "" and float(pose["open"]) >= 1.0:
+			opened = 1.0
+
+		if not previous.is_empty() and float(previous["open"]) > 0.0 and float(pose["open"]) > float(previous["open"]) and float(pose["open"]) < 1.0:
+			standing += 1
+
+			if not (pose["at"] as Vector3).is_equal_approx(previous["at"]):
+				still = false
+
+		previous = pose
+
+	_check(not walked_through, "with no door time she opens nothing (the old walk)")
+	_check(opened == 1.0, "she opens a door fully on her way through")
+	_check(standing > 0 and still, "and stands still at the doorway while it opens", str(standing))
+	var doorway := ""
+	var at_door := Vector3.ZERO
+
+	for tenth in 3000:
+		var pose := level.witch_pose(witch, float(tenth) * 0.1, config.witch_speed_scale, config.witch_head_sweep, dwell)
+
+		if str(pose["door"]) != "" and float(pose["open"]) > 0.0:
+			doorway = str(pose["door"])
+			at_door = pose["at"]
+			break
+
+	_check(doorway != "" and (level.doors[doorway]["centre"] as Vector3).distance_to(at_door) < 0.3, "she is at the door she is opening", doorway)
+
+	# Hearing: stand behind her, outside her cone and her sight, and make a noise.
+	game.send_to(p, 8)
+	p.flashlight = false
+	p.gaze.clear()
+	var steps := 0
+	var alerted_at := -1
+	var worst_turn := 0.0
+	var last_head := 0.0
+	var first := true
+	var delta := 1.0 / 60.0
+
+	for _i in 240:
+		var seconds := game.seconds_now() + delta
+		var pose := level.witch_pose(0, seconds, config.witch_speed_scale, config.witch_head_sweep, dwell)
+		var facing := float(pose["facing"])
+		p.place_at(level.position + (pose["at"] as Vector3) + Vector3(sin(facing), 0, cos(facing)) * 4.0, 0.0)
+		p.noise_left = 1.0
+		game.tick += 1
+		game._listen(p, level, seconds, delta)
+		steps += 1
+		var state: Dictionary = p.gaze.get(0, {})
+
+		if state.is_empty():
+			continue
+
+		if not first:
+			worst_turn = maxf(worst_turn, absf(wrapf(float(state["head"]) - last_head, -PI, PI)))
+
+		first = false
+		last_head = float(state["head"])
+
+		if alerted_at < 0 and bool(state["alert"]):
+			alerted_at = steps
+
+	_check(alerted_at > 0, "a noise behind her is heard", str(alerted_at))
+	_check(float(alerted_at) * delta >= config.witch_reaction_seconds - 0.02, "but not at once: she takes her reaction time", "%.2f s" % (float(alerted_at) * delta))
+	_check(worst_turn <= deg_to_rad(config.witch_turn_rate) * delta * 1.02, "and her head never turns faster than the turn rate", "%.2f deg a tick" % rad_to_deg(worst_turn))
+	_check(absf(last_head) > deg_to_rad(90.0), "she ends up looking round at where it came from", "%.0f deg" % rad_to_deg(last_head))
+
+	# Silence is not heard: standing still, light off, in the same place.
+	p.gaze.clear()
+	p.noise_left = 0.0
+	var quiet := true
+
+	for _i in 120:
+		var seconds := game.seconds_now() + delta
+		var pose := level.witch_pose(0, seconds, config.witch_speed_scale, config.witch_head_sweep, dwell)
+		var facing := float(pose["facing"])
+		p.place_at(level.position + (pose["at"] as Vector3) + Vector3(sin(facing), 0, cos(facing)) * 4.0, 0.0)
+		game._listen(p, level, seconds, delta)
+		quiet = quiet and not bool((p.gaze[0] as Dictionary)["alert"])
+
+	_check(quiet, "standing still in the dark, nobody turns")
+
+	# The flashlight: in front of her, beyond her sight but inside the range a light is seen at.
+	var seen_light := false
+	var far_from_sight := false
+
+	for number in [8, 12, 16, 20, 24, 28, 32]:
+		if far_from_sight:
+			break
+
+		game.send_to(p, number)
+		level = game.levels[number]
+
+		for w in level.witches.size():
+			for tenth in 600:
+				var seconds := float(tenth) * 0.5
+				var pose := level.witch_pose(w, seconds, config.witch_speed_scale, config.witch_head_sweep, dwell)
+				var facing := float(pose["facing"]) + float(pose["head"])
+				var ahead := Vector3(-sin(facing), 0, -cos(facing))
+				var sight := float(level.witches[w]["sight"]) * config.witch_sight_scale
+				var eye := level.position + (pose["at"] as Vector3) + Vector3(0, 2.0, 0)
+				p.place_at(level.position + (pose["at"] as Vector3) + ahead * (sight * config.flashlight_sight + 3.0), 0.0)
+				p.flashlight = true
+				p.noise_left = 0.0
+
+				if game._clear_between(eye, p.eye_position(), p):
+					far_from_sight = true
+					p.gaze.clear()
+					game._listen(p, level, seconds, config.witch_reaction_seconds + 0.01)
+					game._listen(p, level, seconds, 0.01)
+					seen_light = bool((p.gaze[w] as Dictionary)["alert"])
+					_check(game.exposure(p, level, w, seconds) == 0.0, "the light is seen from beyond where she would see the player")
+					break
+
+			if far_from_sight:
+				break
+
+	_check(far_from_sight and seen_light, "a lit flashlight in the open is seen from far off, in her view")
+	p.flashlight = false
+	game.send_to(p, 1)
+	_finished_section()
 
 
 func _section(name: String) -> void:

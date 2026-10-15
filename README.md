@@ -90,7 +90,10 @@ Everything else is a setting. Put it in `user://cfg/lookatme.json`, or set it wi
 
 | Setting | |
 | --- | --- |
-| `exposure_rate`, `decay_rate`, `decay_delay` | How fast the meter fills and drains |
+| `exposure_rate`, `decay_rate`, `decay_delay` | How fast the meter fills and drains (it drains slowly: 0.05 a second after two) |
+| `witch_hear_range`, `witch_hear_walls`, `witch_noise_boost`, `witch_noise_seconds`, `witch_light_range` | What a witch hears (footsteps, doors) and how far she sees a lit flashlight |
+| `witch_reaction_seconds`, `witch_turn_rate`, `witch_alert_seconds` | How long she takes to react, how fast her head turns, how long she keeps looking |
+| `witch_door_seconds` | How long she stands opening a door before she walks through |
 | `flashlight_exposure`, `flashlight_sight`, `crouch_exposure`, `still_exposure` | What changes it |
 | `caught_penalty` | What getting caught costs: keep what you hold, or lose the level |
 | `witch_speed_scale`, `witch_sight_scale`, `witch_cone_scale`, `witch_head_sweep` | The witches |
@@ -129,7 +132,7 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
 
 ## Credits
-The players are the family's animated people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by Kenney's Blocky Characters' skins. The witch is the same kit's basic zombie (Quaternius, CC0 1.0), recoloured and dressed in code (`assets/witch/`, made by `tools/make_witch.py`). The furniture is Kenney's Furniture Kit ([kenney.nl](https://kenney.nl), CC0), in `assets/kenney/` with their licences. The footsteps, creaks, doors and latch are Kenney's Impact Sounds and RPG Audio (CC0); the ambience, the witch's hum, the stinger, the shriek and the heartbeat are synthesised for this game by `tools/make_sounds.py` (CC0). `audio/CREDITS.md` lists every file. Everything else is drawn in code.
+The players are the family's animated people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by Kenney's Blocky Characters' skins. The witch is the same kit's basic zombie (Quaternius, CC0 1.0), recoloured and dressed in code (`assets/witch/`, made by `tools/make_witch.py`). The furniture is Kenney's Furniture Kit ([kenney.nl](https://kenney.nl), CC0), in `assets/kenney/` with their licences. The footsteps, creaks, doors and latch are Kenney's Impact Sounds and RPG Audio (CC0), and the flashlight's click is his Interface Sounds (CC0); the ambience, the witch's hum, the stinger, the shriek and the heartbeat are synthesised for this game by `tools/make_sounds.py` (CC0). `audio/CREDITS.md` lists every file. Everything else is drawn in code.
 
 ## License
 MIT. See [LICENSE](LICENSE). The Kenney and Quaternius art and sounds are CC0, which is public domain.

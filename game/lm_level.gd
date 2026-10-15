@@ -425,32 +425,85 @@ func _witch_loop(witch: Dictionary) -> Dictionary:
 		lengths.append(leg)
 		total += leg
 
+	# Which of her points are a doorway: she stops there to open the door ([method witch_pose]).
+	var door_ids: Array = []
+
+	for point in points:
+		var found := ""
+
+		for door_id: String in doors:
+			if (doors[door_id]["centre"] as Vector3).is_equal_approx(point):
+				found = door_id
+				break
+
+		door_ids.append(found)
+
 	return {
-		"points": points, "lengths": lengths, "total": maxf(total, 0.01),
+		"points": points, "lengths": lengths, "total": maxf(total, 0.01), "door_ids": door_ids,
 		"speed": float(witch.get("speed", 1.6)), "sight": float(witch.get("sight", 10.0)), "cone": float(witch.get("cone", 70.0)),
 	}
 
 
 ## Where witch [param index] is at [param seconds]: {"at", "facing" (radians), "head" (radians,
-## added to facing)}. Local to the level. [param speed_scale] is the server's scaling.
-func witch_pose(index: int, seconds: float, speed_scale: float = 1.0, sweep: bool = true) -> Dictionary:
+## added to facing), "door" (the door she is opening or has just opened, or ""), "open" (0 to 1, how
+## far she has it open)}. Local to the level. [param speed_scale] is the server's scaling.
+## [param dwell] is the seconds she stands at each doorway on her walk to open it; the walk is
+## still a pure function of time, a pause is just more time on the loop. The door stays open for
+## a couple of seconds after she has gone through it, then closes.
+func witch_pose(index: int, seconds: float, speed_scale: float = 1.0, sweep: bool = true, dwell: float = 0.0) -> Dictionary:
 	var loop: Dictionary = witches[index]
 	var points: PackedVector3Array = loop["points"]
 	var lengths: PackedFloat32Array = loop["lengths"]
-	var along := fmod(seconds * float(loop["speed"]) * speed_scale + float(index) * 7.3, float(loop["total"]))
-	var i := 0
+	var door_ids: Array = loop["door_ids"]
+	var v := maxf(float(loop["speed"]) * speed_scale, 0.001)
+	var stops := 0
 
-	while i < lengths.size() - 1 and along > lengths[i]:
-		along -= lengths[i]
+	if dwell > 0.0:
+		for id: String in door_ids:
+			if id != "":
+				stops += 1
+
+	var cycle := float(loop["total"]) / v + float(stops) * dwell
+	var u := fmod(seconds + float(index) * 7.3 / v, cycle)
+	var i := 0
+	var at := points[0]
+	var door := ""
+	var open := 0.0
+
+	while true:
+		var here := dwell if (dwell > 0.0 and door_ids[i] != "") else 0.0
+		var a := points[i]
+		var b := points[(i + 1) % points.size()]
+
+		if u < here:
+			at = a
+			door = door_ids[i]
+			open = smoothstep(0.0, here * 0.5, u)
+			break
+
+		u -= here
+		var leg := lengths[i] / v
+
+		if u <= leg or i >= lengths.size() - 1:
+			at = a.lerp(b, clampf(u * v / maxf(lengths[i], 0.001), 0.0, 1.0))
+
+			if here > 0.0:
+				door = door_ids[i]
+				open = clampf(DOOR_HELD + 1.0 - u, 0.0, 1.0) if u > DOOR_HELD else 1.0
+
+			break
+
+		u -= leg
 		i += 1
 
-	var a := points[i]
-	var b := points[(i + 1) % points.size()]
-	var t := clampf(along / maxf(lengths[i], 0.001), 0.0, 1.0)
-	var dir := (b - a)
+	var dir := points[(i + 1) % points.size()] - points[i]
 	var facing := atan2(-dir.x, -dir.z) if dir.length_squared() > 0.0001 else 0.0
 	var head := sin(seconds * 0.8 + float(index)) * deg_to_rad(35.0) if sweep else 0.0
-	return {"at": a.lerp(b, t), "facing": facing, "head": head}
+	return {"at": at, "facing": facing, "head": head, "door": door if open > 0.0 else "", "open": open}
+
+
+## Seconds a door a witch opened stays open after she leaves the doorway, before it closes.
+const DOOR_HELD := 2.0
 
 
 # --- Geometry ----------------------------------------------------------------

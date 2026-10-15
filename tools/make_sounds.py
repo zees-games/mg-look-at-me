@@ -22,7 +22,7 @@ from scipy import signal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "audio")
-KENNEY = os.path.expanduser("~/stack/game-dev/assets/kenny-assets/Audio")
+KENNEY = os.path.expanduser("~/assets/kenny-assets/Audio")
 RATE = 44100
 RNG = np.random.default_rng(20261012)
 
@@ -40,6 +40,8 @@ KENNEY_FILES = [
     ("RPG Audio", "doorOpen_1.ogg", "door_0.ogg"),
     ("RPG Audio", "doorOpen_2.ogg", "door_1.ogg"),
     ("RPG Audio", "metalLatch.ogg", "click.ogg"),
+    ("Interface Sounds", "switch_002.ogg", "torch_on.ogg"),
+    ("Interface Sounds", "switch_003.ogg", "torch_off.ogg"),
 ]
 
 

@@ -70,7 +70,7 @@ func _ready() -> void:
 			on_her_walk.append(str(point[1]))
 	for i in 600:
 		seconds = game.seconds_now()
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		her = level.position + (pose["at"] as Vector3)
 		var hers := level.room_at(pose["at"])
 		# The next room on her walk from the one she is in: she comes through its door.
@@ -85,7 +85,7 @@ func _ready() -> void:
 	# 5. In her sight, 3 m in front of her: the stinger, her eyes flare, she reaches.
 	for i in 90:
 		seconds = game.seconds_now()
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		facing = float(pose["facing"]) + float(pose["head"])
 		var ahead := Vector3(-sin(facing), 0, -cos(facing))
 		her = level.position + (pose["at"] as Vector3)
@@ -99,7 +99,7 @@ func _ready() -> void:
 	# 6. Still in it: the meter fills and the heart races.
 	for i in 45:
 		seconds = game.seconds_now()
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep)
+		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		facing = float(pose["facing"]) + float(pose["head"])
 		var ahead := Vector3(-sin(facing), 0, -cos(facing))
 		her = level.position + (pose["at"] as Vector3)

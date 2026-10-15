@@ -23,7 +23,7 @@ func _ready() -> void:
 
 	for i in 120:
 		# Beside the first witch, behind her: her hum and her steps, and a high meter's heart.
-		var pose: Dictionary = level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep)
+		var pose: Dictionary = level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
 		var facing := float(pose["facing"])
 		var behind := Vector3(sin(facing), 0, cos(facing))
 		me.place_at(level.position + (pose["at"] as Vector3) + behind * 0.5 + Vector3(0, 0.1, 0), 0.0)

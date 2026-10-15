@@ -463,6 +463,8 @@ func interact(key: StringName) -> String:
 
 	if text != "":
 		said.emit(key, text)
+		# A door, a latch, a tap: heard.
+		player.noise_left = config.witch_noise_seconds
 
 	fire_events(player)
 	return text
@@ -739,6 +741,7 @@ func _watch(player: LmPlayer, seconds: float, delta: float) -> void:
 
 	var best_rate := 0.0
 	var seen := 0
+	_listen(player, level, seconds, delta)
 
 	for i in level.witches.size():
 		var rate := exposure(player, level, i, seconds)
@@ -770,7 +773,7 @@ func _watch(player: LmPlayer, seconds: float, delta: float) -> void:
 ## see them. Public so a suite can ask the question the tick asks.
 func exposure(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> float:
 	var loop: Dictionary = level.witches[index]
-	var pose := level.witch_pose(index, seconds, config.witch_speed_scale, config.witch_head_sweep)
+	var pose := witch_pose_for(player, level, index, seconds)
 	var eye: Vector3 = level.position + (pose["at"] as Vector3) + Vector3(0, 2.0, 0)
 	var target := player.eye_position()
 	var to := target - eye
@@ -788,7 +791,7 @@ func exposure(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> f
 	if forward.dot(flat) < cos(half_cone):
 		return 0.0
 
-	if not _clear_between(eye, target, player):
+	if not _clear_between(eye, target, player, str(pose["door"]) if float(pose["open"]) > 0.5 else ""):
 		return 0.0
 
 	var rate := config.exposure_rate * clampf(1.0 - distance / sight, 0.15, 1.0)
@@ -803,9 +806,112 @@ func exposure(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> f
 	return rate
 
 
+## Witch [param index]'s pose for [param player]: the clock's, with her head where she has turned
+## it to look at a sound or the light ([method _listen]) when she has.
+func witch_pose_for(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> Dictionary:
+	var pose := level.witch_pose(index, seconds, config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
+	var state: Dictionary = player.gaze.get(index, {})
+
+	if not state.is_empty():
+		pose["head"] = float(state["head"])
+
+	return pose
+
+
+## How far off a witch hears [param player] right now, in metres: footsteps scaled by speed,
+## less crouched, nothing standing still, and a door or a use louder for a moment.
+func noise_radius(player: LmPlayer) -> float:
+	var speed := player.horizontal_speed()
+	var radius := 0.0
+
+	if speed > 0.3:
+		radius = config.witch_hear_range * clampf(speed / maxf(config.run_speed, 0.1), 0.0, 1.0)
+
+		if player.is_crouching():
+			radius *= config.crouch_exposure * 0.6
+
+	if player.noise_left > 0.0:
+		radius = maxf(radius, config.witch_hear_range * config.witch_noise_boost)
+
+	return radius
+
+
+## Every witch on the level perceives the player's noise and lit flashlight, and reacts: after
+## `witch_reaction_seconds` of it she turns her head toward where it came from at
+## `witch_turn_rate`, keeps looking for `witch_alert_seconds`, then turns back to her sweep. She
+## never leaves her walk (Decision 2), only looks; being seen is still the cone's question, asked
+## with the head where it is now, so a player has the delay and the turn to get out of the way.
+func _listen(player: LmPlayer, level: LmLevel, seconds: float, delta: float) -> void:
+	player.noise_left = maxf(player.noise_left - delta, 0.0)
+	var noise := noise_radius(player)
+	var target := player.eye_position()
+
+	for i in level.witches.size():
+		var pose := level.witch_pose(i, seconds, config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
+		var state: Dictionary = player.gaze.get(i, {})
+
+		if state.is_empty():
+			state = {"head": float(pose["head"]), "notice": 0.0, "alert": false, "hold": 0.0, "at": target}
+
+		var eye: Vector3 = level.position + (pose["at"] as Vector3) + Vector3(0, 2.0, 0)
+		var to := target - eye
+		var distance := to.length()
+		var perceived := false
+
+		if distance > 0.01 and player.caught_left <= 0.0:
+			var open_door := str(pose["door"]) if float(pose["open"]) > 0.5 else ""
+			var in_range := (noise > 0.0 and distance <= noise) or (player.flashlight and distance <= config.witch_light_range)
+
+			if in_range:
+				var clear := _clear_between(eye, target, player, open_door)
+
+				# A sound goes round and through walls, quieter; a beam is seen only in the open,
+				# by a witch looking roughly its way.
+				if noise > 0.0 and distance <= noise * (1.0 if clear else config.witch_hear_walls):
+					perceived = true
+
+				if not perceived and clear and player.flashlight and distance <= config.witch_light_range:
+					var facing := float(pose["facing"]) + float(state["head"])
+					var forward := Vector3(-sin(facing), 0.0, -cos(facing))
+					var half_cone := deg_to_rad(float((level.witches[i] as Dictionary)["cone"]) * config.witch_cone_scale * 0.5)
+					perceived = forward.dot(Vector3(to.x, 0.0, to.z).normalized()) >= cos(half_cone)
+
+		if perceived:
+			state["notice"] = float(state["notice"]) + delta
+			state["at"] = target
+
+			if float(state["notice"]) >= config.witch_reaction_seconds:
+				state["alert"] = true
+				state["hold"] = config.witch_alert_seconds
+		else:
+			state["notice"] = maxf(float(state["notice"]) - delta, 0.0)
+
+			if bool(state["alert"]):
+				state["hold"] = float(state["hold"]) - delta
+
+				if float(state["hold"]) <= 0.0:
+					state["alert"] = false
+
+		var wanted := float(pose["head"])
+
+		if bool(state["alert"]):
+			var look: Vector3 = (state["at"] as Vector3) - eye
+			var heading := atan2(-look.x, -look.z) - float(pose["facing"])
+			wanted = clampf(wrapf(heading, -PI, PI), -MAX_HEAD, MAX_HEAD)
+
+		var step := deg_to_rad(config.witch_turn_rate) * delta
+		var head := float(state["head"])
+		state["head"] = head + clampf(wrapf(wanted - head, -PI, PI), -step, step)
+		player.gaze[i] = state
+
+
+## A head turns about this far off the shoulders and no further.
+const MAX_HEAD := deg_to_rad(140.0)
+
+
 ## Nothing solid between a witch's eye and a player's: walls, and doors still shut for THAT
 ## player (one they opened is open for them, and she sees through it).
-func _clear_between(from: Vector3, to: Vector3, player: LmPlayer) -> bool:
+func _clear_between(from: Vector3, to: Vector3, player: LmPlayer, open_door: String = "") -> bool:
 	var space := get_world_3d().direct_space_state if is_inside_tree() else null
 
 	if space == null:
@@ -815,7 +921,13 @@ func _clear_between(from: Vector3, to: Vector3, player: LmPlayer) -> bool:
 	var exclude: Array[RID] = [player.get_rid()]
 	var level := level_of(player)
 
-	for door_id: String in player.opened:
+	var open_ids: Array = player.opened.keys()
+
+	# A door she is standing in, open, is no more in her way than one the player opened.
+	if open_door != "":
+		open_ids.append(open_door)
+
+	for door_id: String in open_ids:
 		var rid := level.door_rid(door_id) if level != null else RID()
 
 		if rid.is_valid():
