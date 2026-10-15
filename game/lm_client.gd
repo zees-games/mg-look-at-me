@@ -1081,6 +1081,8 @@ func _swing_doors(delta: float) -> void:
 	var level := game.level_of(player)
 	if level == null:
 		return
+	# The predicting controller passes the doors a witch has open, as the server's does.
+	game._apply_doors(player)
 	# A door a witch is opening swings open for everybody, the clock's doing like her walk.
 	var witch_open: Dictionary = {}
 	var seconds := game.seconds_now()

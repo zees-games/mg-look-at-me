@@ -12,7 +12,7 @@ const LmProgress := preload("res://game/lm_progress.gd")
 const LmSettings := preload("res://game/lm_settings.gd")
 
 const SECTIONS := 18
-const CHECKS := 114
+const CHECKS := 116
 
 var _passed := 0
 var _failed := 0
@@ -1246,6 +1246,33 @@ func _test_witch_senses() -> void:
 
 	_check(far_from_sight and seen_light, "a lit flashlight in the open is seen from far off, in her view")
 	p.flashlight = false
+
+	# A doorway a witch has open is one a player walks through: the collider follows the door.
+	game.send_to(p, 8)
+	level = game.levels[8]
+	var found := false
+
+	for tenth in 3000:
+		var seconds := float(tenth) * 0.1
+		var pose := level.witch_pose(witch, seconds, config.witch_speed_scale, config.witch_head_sweep, dwell)
+
+		if str(pose["door"]) != "" and float(pose["open"]) >= 1.0:
+			var door: Dictionary = level.doors[str(pose["door"])]
+			var normal: Vector3 = door["normal"]
+			var centre: Vector3 = level.position + (door["centre"] as Vector3)
+			game.tick = int(seconds * float(game.tick_rate))
+			p.opened.clear()
+			p.place_at(centre - normal * 1.2 + Vector3(0, 0.1, 0), rad_to_deg(atan2(-normal.x, -normal.z)) + 180.0)
+			game._apply_doors(p)
+			found = true
+			var shut := PhysicsRayQueryParameters3D.create(centre - normal * 1.0 + Vector3(0, 1.0, 0), centre + normal * 1.0 + Vector3(0, 1.0, 0), 1)
+			shut.exclude = p.controller.body.exclude
+			_check(game.get_world_3d().direct_space_state.intersect_ray(shut).is_empty(), "the door she has open does not stop the player", str(pose["door"]))
+			game.tick = int((seconds + dwell + 6.0) * float(game.tick_rate))
+			game._apply_doors(p)
+			break
+
+	_check(found, "found a moment a witch has a door open")
 	game.send_to(p, 1)
 	_finished_section()
 

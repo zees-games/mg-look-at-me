@@ -358,7 +358,17 @@ func _apply_doors(player: LmPlayer) -> void:
 	var rids: Array[RID] = []
 
 	if level != null:
-		for door_id: String in player.opened:
+		var ids: Dictionary = player.opened.duplicate()
+
+		# A door a witch is opening is open for everybody while she has it open: the same clock
+		# on every machine, so a predicting client agrees with the server (Decision 2).
+		for i in level.witches.size():
+			var pose := level.witch_pose(i, seconds_now(), config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
+
+			if str(pose["door"]) != "" and float(pose["open"]) > 0.3:
+				ids[str(pose["door"])] = true
+
+		for door_id: String in ids:
 			var rid := level.door_rid(door_id)
 
 			if rid.is_valid():
@@ -722,6 +732,7 @@ func step(delta: float) -> void:
 
 			continue
 
+		_apply_doors(player)
 		player.simulate(tick, delta)
 		_watch(player, seconds, delta)
 		fire_events(player)

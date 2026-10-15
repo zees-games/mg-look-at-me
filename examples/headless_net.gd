@@ -328,7 +328,12 @@ func _test_a_door_for_one() -> void:
 	_exchange()
 	await _steps(4)
 	_check(mine.fired.has(str(slam["id"])) and not mine.opened.has(slammed), "a door that slams behind the player is shut for its client too", str(mine.describe()))
-	_check(not mine.controller.body.exclude.has(_client_game.levels[1].door_rid(slammed)), "and its own controller no longer walks through it")
+	var witch_has_it := false
+	for w in level.witches.size():
+		var wp := level.witch_pose(w, _client_game.seconds_now(), _client_game.config.witch_speed_scale, _client_game.config.witch_head_sweep, _client_game.config.witch_door_seconds)
+		witch_has_it = witch_has_it or (str(wp["door"]) == slammed and float(wp["open"]) > 0.3)
+	print("  (witch has it open: %s)" % witch_has_it)
+	_check(witch_has_it or not mine.controller.body.exclude.has(_client_game.levels[1].door_rid(slammed)), "and its own controller no longer walks through it")
 	_finished_section()
 
 
