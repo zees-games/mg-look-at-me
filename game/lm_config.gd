@@ -79,6 +79,12 @@ extends DotConfig
 @export_range(1.0, 5.0, 0.1) var witch_noise_boost: float = 1.4
 @export_range(0.1, 3.0, 0.1) var witch_noise_seconds: float = 0.6
 
+## A witch hears a player's voice (a packet the server relayed) as a sound that long after the
+## last packet, as loud as a footstep run (`witch_hear_range`); walls still halve it. Off, a
+## player may talk as they like. The cvar `lm_witch_hear_voice` flips it live.
+@export var witch_hear_voice: bool = true
+@export_range(0.05, 2.0, 0.05) var witch_voice_seconds: float = 0.35
+
 ## Metres a witch sees a lit flashlight at, inside her cone and with nothing between: the beam
 ## is seen from much further than a player is.
 @export_range(0.0, 80.0, 0.5) var witch_light_range: float = 28.0

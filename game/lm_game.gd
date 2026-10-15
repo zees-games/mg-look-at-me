@@ -829,6 +829,15 @@ func witch_pose_for(player: LmPlayer, level: LmLevel, index: int, seconds: float
 	return pose
 
 
+## Somebody's voice went out: a witch near them hears it for a moment. Server only, and cheap:
+## one float, read by the noise the witches already perceive.
+func hear_voice(key: StringName) -> void:
+	var talker: LmPlayer = players.get(key, null)
+
+	if talker != null and config.witch_hear_voice:
+		talker.voice_left = config.witch_voice_seconds
+
+
 ## How far off a witch hears [param player] right now, in metres: footsteps scaled by speed,
 ## less crouched, nothing standing still, and a door or a use louder for a moment.
 func noise_radius(player: LmPlayer) -> float:
@@ -844,6 +853,9 @@ func noise_radius(player: LmPlayer) -> float:
 	if player.noise_left > 0.0:
 		radius = maxf(radius, config.witch_hear_range * config.witch_noise_boost)
 
+	if player.voice_left > 0.0 and config.witch_hear_voice:
+		radius = maxf(radius, config.witch_hear_range)
+
 	return radius
 
 
@@ -854,6 +866,7 @@ func noise_radius(player: LmPlayer) -> float:
 ## with the head where it is now, so a player has the delay and the turn to get out of the way.
 func _listen(player: LmPlayer, level: LmLevel, seconds: float, delta: float) -> void:
 	player.noise_left = maxf(player.noise_left - delta, 0.0)
+	player.voice_left = maxf(player.voice_left - delta, 0.0)
 	var noise := noise_radius(player)
 	var target := player.eye_position()
 

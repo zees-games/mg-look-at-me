@@ -53,6 +53,9 @@ var gaze: Dictionary = {}
 ## Seconds left of the noise a door or a switch makes, on top of footsteps.
 var noise_left: float = 0.0
 
+## Seconds a witch still hears this player talk (refreshed by every relayed voice packet).
+var voice_left: float = 0.0
+
 ## Seconds left of being caught, before they are put back. 0 when not caught.
 var caught_left: float = 0.0
 
@@ -171,6 +174,7 @@ func reset_level() -> void:
 	caught_left = 0.0
 	gaze.clear()
 	noise_left = 0.0
+	voice_left = 0.0
 
 
 ## A new face: the figure is rebuilt on the next draw.

@@ -78,6 +78,10 @@ var key_fn: Callable = Callable()
 var avatar_fn: Callable = Callable()
 
 var _key_of_peer: Dictionary = {}
+
+## Client: the server's peer id of each player (voice speakers are named by it), from their JOIN.
+## The client's own `_key_of_peer` is only a server's.
+var speaker_keys: Dictionary = {}
 var _key_of_session: Dictionary = {}
 var _peer_of_key: Dictionary = {}
 var _ready_peers: Dictionary = {}
@@ -412,7 +416,7 @@ func _join_body(key: StringName) -> Dictionary:
 		return {}
 
 	return {"key": String(key), "name": behaviour.player.display_name, "net_id": behaviour.identity.net_id,
-		"avatar": _avatar_wire(behaviour.player.avatar)}
+		"peer": peer_of(key), "avatar": _avatar_wire(behaviour.player.avatar)}
 
 
 ## The avatar DOCUMENT rather than the skin it picks, so a client reads a site avatar itself
@@ -748,6 +752,10 @@ func _apply_join(data: Dictionary) -> void:
 		return
 
 	var avatar := _avatar_from_wire(key, data.get("avatar", {}))
+	var voice_peer := int(data.get("peer", 0))
+
+	if voice_peer > 0:
+		speaker_keys[voice_peer] = key
 
 	# Again for somebody already here is a new name or face, not a second player.
 	if _behaviours.has(key):

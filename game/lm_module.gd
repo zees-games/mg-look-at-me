@@ -114,6 +114,8 @@ func _game_load() -> DotResult:
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
 
+	_wire_voice(world)
+
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
 	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
 	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")
@@ -153,6 +155,33 @@ func _game_load() -> DotResult:
 		var _reported := report_map(str((world.levels[1] as Node).get("doc").get("id", "lm_01")))
 
 	return DotResult.success(null)
+
+
+## Voice's server side beyond what dot-game binds (sv_voice_enable, _mode and the proximity
+## cvars, which [LmServices] gave this game's defaults): the look-to-gag and look-to-mute
+## switches, so every client follows them, and the witches hearing a talker.
+func _wire_voice(world: LmGame) -> void:
+	var flags := DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+
+	for spec in DotVoiceLookMute.cvar_specs():
+		var _made := add_cvar(String(spec["name"]), String(spec["value"]), String(spec["description"]), flags)
+
+	var hear := add_cvar(
+		"lm_witch_hear_voice", "1" if world.config.witch_hear_voice else "0",
+		"Witches hear players talking as a sound: 1 yes, 0 no", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+	)
+
+	if hear != null:
+		hear.changed.connect(func(_old: String, new_value: String) -> void:
+			world.config.witch_hear_voice = new_value.strip_edges() != "0")
+
+	var router: Object = services.get("voice") if services != null else null
+
+	if router != null and router.has_signal(&"speech_relayed"):
+		# The router counts a packet it relayed, so a muted or rate-limited speaker is no
+		# sound; the key is looked up here because the router knows peers and the house keys.
+		router.connect(&"speech_relayed", func(speaker: int, _listeners: int) -> void:
+			world.hear_voice(bridge.call("key_of_peer", speaker)))
 
 
 ## A chat line: the house's when it is one of its commands, the chat router's otherwise.

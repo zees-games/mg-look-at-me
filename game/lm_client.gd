@@ -89,6 +89,8 @@ var _offline: bool = true
 ## Connected, the keys are sampled here and sent; the local player is predicted from them.
 var _sampler: DotFpsSampler = null
 var chat: DotGameChatClient = null
+## Look at a player and press G to stop hearing them, K to mute them; connected games only.
+var look_mute: DotVoiceLookMute = null
 ## The house's sounds, through dot-audio. See [LmAudio].
 var audio: LmAudio = null
 ## The catch, felt: a red flash and a jolt through dot-fx, so the settings' "allow flashes" and
@@ -189,6 +191,7 @@ func _ready() -> void:
 	if not _offline:
 		DotLog.result(CHANNEL, "the netcode", _build_netcode())
 		DotLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
+		_build_look_mute()
 		return
 
 	DotLog.result(CHANNEL, "chat, offline", chat.attach(null))
@@ -1305,6 +1308,59 @@ func _forget_witches() -> void:
 			view.queue_free()
 
 	_witch_views.clear()
+
+
+## dot-voice's look-to-gag and look-to-mute on the keys [LmBindings] binds. The server's
+## sv_voice_gag_* and sv_voice_mute_allowed are followed from the shell's link, so an owner can
+## switch them off. A mute also drops that player's chat through the box's block list.
+func _build_look_mute() -> void:
+	if chat == null or chat.voice == null:
+		return
+
+	look_mute = DotVoiceLookMute.new()
+	look_mute.name = "LookMute"
+	look_mute.manager = chat.voice as DotVoiceManager
+	look_mute.separate_keys = true
+	look_mute.gag_action = LmBindings.VOICE_GAG
+	look_mute.mute_action = LmBindings.VOICE_MUTE
+	look_mute.target_fn = voice_target
+	look_mute.chat_mute_fn = _chat_mute
+	add_child(look_mute)
+
+	var source: Object = link if link != null else DotRegistry.get_service(LINK_SERVICE)
+	var _following := look_mute.follow_cvars(source) if source != null else false
+
+
+## The peer under the crosshair, 0 for nobody: the player whose head is nearest the view axis
+## ([method DotVoiceLookMute.pick_by_angle]) on this level, within a few metres and with no
+## wall between. The voice manager names speakers by the server's peer id, which a JOIN carries.
+func voice_target() -> int:
+	if bridge == null or player == null or camera == null:
+		return 0
+
+	var heads := {}
+	var space := camera.get_world_3d().direct_space_state
+
+	for peer: int in bridge.speaker_keys:
+		var other: LmPlayer = game.players.get(bridge.speaker_keys[peer], null)
+
+		if other == null or other == player or other.level != player.level:
+			continue
+
+		var head := other.global_position + Vector3.UP * 1.5
+		var query := PhysicsRayQueryParameters3D.create(camera.global_position, head, LmGame.LAYER_WORLD)
+
+		if space.intersect_ray(query).is_empty():
+			heads[peer] = head
+
+	return DotVoiceLookMute.pick_by_angle(camera.global_transform, heads, 20.0, 8.0)
+
+
+func _chat_mute(peer: int, muted: bool) -> void:
+	var other: LmPlayer = game.players.get(bridge.speaker_keys.get(peer, &""), null) if bridge != null else null
+
+	if other != null and chat != null and chat.self_mute != null and chat.self_mute.has_method(&"set_muted"):
+		chat.self_mute.call(&"set_muted", {"key": "", "name": other.display_name}, muted)
 
 
 ## dot-game's chat box and microphone, with this game's channels and voice format. It also

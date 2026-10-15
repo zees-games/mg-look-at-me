@@ -10,9 +10,10 @@ const LmLevel := preload("res://game/lm_level.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 const LmSettings := preload("res://game/lm_settings.gd")
+const LmServices := preload("res://game/lm_services.gd")
 
-const SECTIONS := 18
-const CHECKS := 116
+const SECTIONS := 19
+const CHECKS := 128
 
 var _passed := 0
 var _failed := 0
@@ -55,6 +56,7 @@ func _ready() -> void:
 	await _test_upstairs()
 	await _test_the_hud_fits()
 	_test_witch_senses()
+	await _test_voice()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -1274,6 +1276,94 @@ func _test_witch_senses() -> void:
 
 	_check(found, "found a moment a witch has a door open")
 	game.send_to(p, 1)
+	_finished_section()
+
+
+## Proximity voice as this game configures it: the gain a listener gets at distance, a wall
+## turning it down, nothing past the radius, and a witch hearing a talker.
+func _test_voice() -> void:
+	_section("voice: proximity with a short radius, a wall turns it down, witches hear it")
+	var services := LmServices.new()
+	services.game = game
+	var router := DotVoiceRouter.new()
+	var format := LmServices.voice_format()
+	router.config = format
+	router.default_channel = LmServices.new()._voice_default_channel()
+	services.configure_voice(router)
+	_check(router.default_channel == DotVoiceRouter.Channel.PROXIMITY, "voice is proximity by default")
+	_check(router.proximity_range == LmServices.PROXIMITY_RANGE and router.proximity_range <= 20.0, "with a short radius", str(router.proximity_range))
+	_check(router.proximity_occlusion and router.occlusion_fn.is_valid(), "and a wall in the way is on")
+	var specs := {}
+
+	for spec in router.cvar_specs():
+		specs[String(spec["name"])] = String(spec["value"])
+
+	_check(specs.get("sv_voice_proximity_occlusion", "") == "1" and specs.get("sv_voice_proximity_range", "") == str(LmServices.PROXIMITY_RANGE), "the sv_voice_* cvars default to those", str(specs))
+
+	var level: LmLevel = game.levels[1]
+	var centre: Vector3 = level.position + level.room_centre(level.spawn_room())
+	var space := game.get_world_3d().direct_space_state
+	var head := Vector3.UP * 1.6
+	var clear_at := Vector3.ZERO
+	var wall_at := Vector3.ZERO
+	var dirs: Array[Vector3] = [Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD]
+
+	for dir in dirs:
+		for step in range(6, 25):
+			var d := float(step) * 0.5
+			var at := centre + dir * d
+			var hit := not space.intersect_ray(PhysicsRayQueryParameters3D.create(centre + head, at + head, LmGame.LAYER_WORLD)).is_empty()
+
+			if not hit and d >= 3.0 and clear_at == Vector3.ZERO:
+				clear_at = at
+			if hit and wall_at == Vector3.ZERO and d >= 4.0:
+				wall_at = at
+
+	_check(clear_at != Vector3.ZERO and wall_at != Vector3.ZERO, "the first room has open floor and a wall to test through", "%s %s" % [clear_at, wall_at])
+
+	var places := {1: centre, 2: clear_at, 3: wall_at, 4: centre + Vector3(0.5, 0, 0), 5: centre + Vector3(60, 0, 0)}
+	router.position_fn = func(peer: int) -> Vector3: return places.get(peer, Vector3.ZERO)
+	var heard := {}
+	router.send_fn = func(peer: int, bytes: PackedByteArray) -> void:
+		var parsed := DotVoicePacket.from_bytes(bytes)
+		heard[peer] = parsed.value.gain if parsed.ok else -1.0
+
+	for peer in places:
+		router.add_peer(peer)
+
+	var packet := DotVoicePacket.new()
+	packet.speaker = 1
+	packet.sample_count = format.frame_samples()
+	packet.channel = DotVoiceRouter.Channel.PROXIMITY
+	packet.codec_id = &"adpcm"
+	packet.payload = DotVoiceCodec.instance_for(&"adpcm").encode(DotVoiceSourceBuffer.tone(300.0, 0.02, format.sample_rate, 0.4))
+	var relayed := router.relay(1, packet.to_bytes())
+	_check(relayed.ok, "a frame relays", str(relayed.error))
+
+	var expected_clear := DotVoiceProximity.gain(centre.distance_to(clear_at), router.proximity_range, router.proximity_min_distance, router.proximity_falloff)
+	var expected_wall := DotVoiceProximity.gain(centre.distance_to(wall_at), router.proximity_range, router.proximity_min_distance, router.proximity_falloff) * router.occlusion_gain
+	_check(heard.has(4) and is_equal_approx(heard[4], 1.0), "a player 0.5 m away hears full volume", str(heard.get(4)))
+	_check(heard.has(2) and absf(heard[2] - expected_clear) < 0.02 and heard[2] < 1.0, "a player in the open at distance hears the falloff's gain", "%.3f expected %.3f" % [heard.get(2, -1.0), expected_clear])
+	_check(heard.has(3) and absf(heard[3] - expected_wall) < 0.02, "through a wall it is turned down by the occlusion gain", "%.3f expected %.3f" % [heard.get(3, -1.0), expected_wall])
+	_check(heard.has(3) and heard.has(2) and expected_wall < expected_clear and not heard.has(5), "a wall is quieter than open floor, and past the radius nothing is sent")
+
+	# Witches: a relayed frame is a sound for a moment, and the cvar's field turns it off.
+	var p: LmPlayer = game.players[&"a"]
+	p.voice_left = 0.0
+	var quiet := game.noise_radius(p)
+	game.hear_voice(&"a")
+	var loud := game.noise_radius(p)
+	_check(quiet == 0.0 and absf(loud - game.config.witch_hear_range) < 0.001, "a talker is heard by witches as far as a run", "%.1f then %.1f m" % [quiet, loud])
+	game.config.witch_hear_voice = false
+	p.voice_left = 0.0
+	game.hear_voice(&"a")
+	_check(game.noise_radius(p) == 0.0, "and not when the switch is off")
+	game.config.witch_hear_voice = true
+	p.voice_left = 0.0
+
+	services.free()
+	router.free()
+	await get_tree().process_frame
 	_finished_section()
 
 

@@ -31,7 +31,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (18 sections, 116 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
+examples/        headless_run (19 sections, 128 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
 tools/           build_levels.py (--check, --stats); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -57,6 +57,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **A level document stays under 48,000 bytes compact** (one LEVEL message each; the builder refuses more). [levels](docs/levels.md#the-house-laid-out)
 - **The house goes deflated and a window at a time** (`LEVEL_WINDOW`, acked by `Ask.LEVELS`), and everything else to that peer is held behind the last LEVEL: a browser drops what overflows its 64 KiB inbound buffer between frames. Never send a client a burst. [design](docs/design.md#the-house-on-the-wire)
 - **A house is the biggest reliable burst in the family**, on the channel the commands and snapshots share; over ENet it needs dot-core's packet throttle setting, held by `headless_lossy`. [history](docs/history.md)
+- **Voice is proximity** (`LmServices.configure_voice`: 14 m, full inside 2 m, a wall leaves 30%, all `sv_voice_*` cvars) and a witch hears a relayed voice frame as far as a run (`lm_witch_hear_voice`, `LmGame.hear_voice`). Look at a player: G gags, K mutes (`LmClient.voice_target`, a JOIN carries each player's `peer` because voice speakers are peer ids).
 - **A READY before the player is seated is kept** (`_ready_unseated`) and answered by `add_player`: over ENet with loss it overtakes the link's `loaded`. [design](docs/design.md#the-house-on-the-wire)
 - **One account, one player: the newest connection wins** (two tabs of a guest share a device id); the older is taken out and kicked with "You joined from another tab or window", never left on a link whose keys move nothing. [design](docs/design.md#one-account-one-connection)
 - **Movement and doors are predicted**; progress goes to its owner alone. [design](docs/design.md#decision-5-movement-is-predicted-and-so-are-the-doors)
@@ -73,7 +74,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 18 sections, 116 checks: the solver plays all 32 levels, events, stairs, the third floor
+godot --headless --path . res://examples/headless_run.tscn   # 19 sections, 128 checks: the solver plays all 32 levels, events, stairs, the third floor
 godot --headless --path . res://examples/headless_net.tscn   # 9 sections, 38 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
 godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks

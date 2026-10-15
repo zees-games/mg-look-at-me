@@ -5,7 +5,7 @@ extends DotGameServices
 ## [b]Everybody can talk to everybody, whatever level they are on[/b]: the lobby is for
 ## socialising, and the house is too dark to be lonely in. Voice is push-to-talk and carries
 ## across the house too; a proximity channel would be the obvious horror choice and is the
-## owner's to make.
+## owner's to make. It is made now: proximity, a short radius, and a wall turns a voice down.
 
 const LmGame := preload("lm_game.gd")
 
@@ -16,8 +16,15 @@ const CH_WHISPER := &"whisper"
 ## The longest line, here once: the client's box refuses past it rather than the server cutting it.
 const MAX_LINE := 160
 
-## Voice reaches this far on a proximity channel, if an owner adds one.
-const PROXIMITY_RANGE := 60.0
+## Voice carries this far (sv_voice_proximity_range). Short on purpose: in the dark a voice you
+## can hear from the next room is a voice a witch can too, and silence is the horror.
+const PROXIMITY_RANGE := 14.0
+
+## Full volume inside this many metres (sv_voice_proximity_min).
+const PROXIMITY_MIN := 2.0
+
+## A wall between two players leaves this much of the voice (sv_voice_proximity_occlusion_gain).
+const OCCLUSION_GAIN := 0.3
 
 
 func _services_name() -> String:
@@ -67,6 +74,39 @@ func _chat_channels() -> Array:
 
 func _voice_config() -> Object:
 	return voice_format()
+
+
+## Everybody is heard by whoever is near, never across the house.
+func _voice_default_channel() -> int:
+	return DotVoiceRouter.Channel.PROXIMITY
+
+
+## The router is built by the base; this game's proximity rules go on it before the module
+## binds the sv_voice_* cvars, which read these values as their defaults.
+func setup(p_server: DotServer, p_game: Object, p_link: Object) -> DotResult:
+	var made: DotResult = super.setup(p_server, p_game, p_link)
+
+	if made.ok and voice != null:
+		configure_voice(voice)
+
+	return made
+
+
+## Proximity on, a wall in the way on. The occluder asks the house's physics once per listener
+## already inside the radius ([method DotVoiceProximity.ray_occluder]), on the world layer only:
+## a body is never a wall to a voice.
+func configure_voice(router: Object) -> void:
+	router.set("proximity_range", PROXIMITY_RANGE)
+	router.set("proximity_min_distance", PROXIMITY_MIN)
+	router.set("proximity_falloff", DotVoiceProximity.Falloff.INVERSE)
+	router.set("proximity_occlusion", true)
+	router.set("occlusion_gain", OCCLUSION_GAIN)
+	router.set("occlusion_fn", DotVoiceProximity.ray_occluder(_space, LmGame.LAYER_WORLD))
+
+
+func _space() -> Variant:
+	var world := game as LmGame
+	return world.get_world_3d().direct_space_state if world != null and world.is_inside_tree() else null
 
 
 ## The voice format both ends must agree on exactly: the client's voice manager reads this too.

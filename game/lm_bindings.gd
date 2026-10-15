@@ -18,6 +18,9 @@ const FLASHLIGHT := &"lm_flashlight"
 const VIEW := &"lm_view"
 const COMMAND := &"lm_command"
 const SCOREBOARD := &"lm_scoreboard"
+## dot-voice's own action names, so DotVoiceLookMute reads the rows this table binds.
+const VOICE_GAG := &"voice_gag"
+const VOICE_MUTE := &"voice_mute"
 
 
 static func make() -> DotMenuBindings:
@@ -28,6 +31,10 @@ static func make() -> DotMenuBindings:
 	# F5, the family's view key in every game (it was C here).
 	keys.add(VIEW, &"bind_view", "First or third person, where the server allows it", "F5", "General")
 	keys.add(COMMAND, &"bind_command", "A command: /r to the lobby, /l3 to a level you reached (Enter too)", "Slash", "General")
+	# Look at a player and press: G stops hearing them, K mutes them (voice and chat). Two keys,
+	# not a double-tap, so the help screen says what each does. K, because H is help.
+	keys.add(VOICE_GAG, &"bind_voice_gag", "Look at a player: stop (or resume) hearing them", "G", "Voice")
+	keys.add(VOICE_MUTE, &"bind_voice_mute", "Look at a player: mute (or unmute) their voice and chat", "K", "Voice")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "General")
 	# The view's default moved from C under saved documents: a player who never touched it
 	# follows to F5, a key they chose stays.
