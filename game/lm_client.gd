@@ -16,6 +16,8 @@ const LmNetBridge := preload("net/lm_net_bridge.gd")
 const LmServices := preload("lm_services.gd")
 const LmAudio := preload("lm_audio.gd")
 const LmWitch := preload("lm_witch.gd")
+const LmScares := preload("lm_scares.gd")
+const LmScareView := preload("lm_scare_view.gd")
 
 ## Where dot-server's client publishes its link before the game scene loads.
 const LINK_SERVICE := &"dot_client_link"
@@ -107,6 +109,10 @@ const SCARE_SECONDS := 0.9
 ## catch. See [method _scare_at].
 var _scare: Node3D = null
 var _scare_left := 0.0
+## Sanity scares, demons and the look-behind whisper (see [LmScares]): the client's own, drawn
+## by the view.
+var scares: LmScares = null
+var scare_view: LmScareView = null
 ## Metres the local player has walked since their last footfall, and where they were.
 var _stride := 0.0
 var _stride_from := Vector3.INF
@@ -185,6 +191,7 @@ func _ready() -> void:
 	_build_audio()
 	_build_effects()
 	_build_settings()
+	_build_scares()
 	chat = new_chat()
 	add_child(chat)
 
@@ -821,6 +828,9 @@ func _present(delta: float) -> void:
 	_was_caught = caught
 	_scare_at(delta)
 
+	if scare_view != null:
+		var _told := scare_view.present(delta, scare_view_state())
+
 	if audio != null:
 		audio.meter = player.meter
 		audio.listen_from(camera.global_position)
@@ -1297,6 +1307,55 @@ func _scare_at(delta: float) -> void:
 	var feet := camera.global_position + forward * 1.15 - Vector3(0, 1.85, 0)
 	var _moved: float = _scare.call(&"place", feet, atan2(forward.x, forward.z), 0.0, delta)
 	_scare.call(&"set_seeing", true, delta)
+
+
+func _build_scares() -> void:
+	scares = LmScares.new(game.config)
+	scare_view = LmScareView.new()
+	scare_view.name = "Scares"
+	scare_view.director = scares
+	scare_view.audio = audio
+	scare_view.camera = camera
+	scare_view.spook = _spook
+	add_child(scare_view)
+	# Under the vignette and the words, over the world: its own rect, so a flash never has to
+	# share one with the catch's.
+	var rect := ColorRect.new()
+	rect.name = "ScareFlash"
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.color = Color(0, 0, 0, 0)
+	_hud.add_child(rect)
+	_hud.move_child(rect, _vignette.get_index() + 1)
+	scare_view.flash = rect
+
+
+## A fright moves the meter, and the meter is the server's: offline it is the house's own call,
+## connected it is a request (which the server caps, and may refuse).
+func _spook(amount: float) -> void:
+	if player == null:
+		return
+
+	if _offline:
+		var _applied := game.spook(local_key, amount)
+	elif bridge != null:
+		bridge.ask_act("spook", {"amount": amount})
+
+
+## What the scare director is told each frame: the eye, the view, the meter, and a ray for room.
+func scare_view_state() -> Dictionary:
+	return {
+		"meter": player.meter, "level": player.level, "who": hash(String(local_key)),
+		"eye": camera.global_position, "feet": player.global_position, "forward": -camera.global_basis.z,
+		"caught": player.caught_left > 0.0, "clear": _open_ahead,
+	}
+
+
+## How far from [param from] along [param dir] is open, up to [param reach]: a wall or a shut door ends it.
+func _open_ahead(from: Vector3, dir: Vector3, reach: float) -> float:
+	var query := PhysicsRayQueryParameters3D.create(from, from + dir * reach, LmGame.LAYER_WORLD)
+	var hit := camera.get_world_3d().direct_space_state.intersect_ray(query)
+	return reach if hit.is_empty() else from.distance_to(hit["position"] as Vector3)
 
 
 func _forget_witches() -> void:

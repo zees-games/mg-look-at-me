@@ -322,6 +322,16 @@ func _admit(peer_id: int) -> void:
 ## the peer's acks ([constant LEVEL_WINDOW]). Anything else told to the peer meanwhile is held
 ## until the last LEVEL has gone. A second house before the first finished replaces it; what was
 ## held for the first still follows.
+## The scare tunables as they stand, so a joining client's director runs the server's numbers.
+func _scare_settings() -> Dictionary:
+	var out := {}
+
+	for setting in game.config.scare_keys():
+		out[setting] = game.config.get(setting)
+
+	return out
+
+
 func _send_house(peer_id: int) -> void:
 	var key: StringName = _key_of_peer.get(peer_id, &"")
 	var numbers: Array = game.levels.keys()
@@ -335,7 +345,7 @@ func _send_house(peer_id: int) -> void:
 		"config": {"allow_third_person": game.config.allow_third_person, "witch_speed_scale": game.config.witch_speed_scale,
 			"witch_sight_scale": game.config.witch_sight_scale, "witch_cone_scale": game.config.witch_cone_scale,
 			"witch_head_sweep": game.config.witch_head_sweep, "reach": game.config.reach,
-			"flashlight_range": game.config.flashlight_range, "flashlight_angle": game.config.flashlight_angle},
+			"flashlight_range": game.config.flashlight_range, "flashlight_angle": game.config.flashlight_angle}.merged(_scare_settings()),
 	})
 
 	var wires: Array = []
@@ -559,6 +569,8 @@ func _on_request(message: DotNetMessage) -> void:
 						_tell(peer_id, LmEvents.Kind.SOUND, {"id": "click"})
 				"flashlight":
 					game.set_flashlight(key, bool(args.get("on", true)))
+				"spook":
+					var _applied := game.spook(key, float(args.get("amount", 0.0)))
 				"command":
 					var reply := game.command(key, str(args.get("text", "")))
 					_tell(peer_id, LmEvents.Kind.SAY, {"text": reply if reply != "" else "Nothing called that"})

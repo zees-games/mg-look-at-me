@@ -102,6 +102,74 @@ extends DotConfig
 ## walk, through the door as if it were not there.
 @export_range(0.0, 10.0, 0.1) var witch_door_seconds: float = 1.6
 
+@export_group("Scares")
+
+## Sanity scares: a sudden sound and a brief face, flash or figure, the client's alone. How
+## often one comes depends on the meter: `scare_interval_max` seconds apart at an empty meter,
+## `scare_interval_min` at a full one (the meter is read live, so a fright mid-wait shortens it).
+## Each wait is stretched or shrunk by 0.7 to 1.3 from the house's seed. Every one of these is
+## an `lm_*` cvar of the same name (`lm_scare_interval_max`).
+@export var scares_enabled: bool = true
+@export_range(1.0, 600.0, 1.0) var scare_interval_max: float = 90.0
+@export_range(1.0, 600.0, 1.0) var scare_interval_min: float = 14.0
+
+## Seconds after any scare, jump or whisper-turned scare before the next may start.
+@export_range(0.0, 120.0, 0.5) var scare_cooldown: float = 10.0
+
+## How long a scare's figure and flash stay.
+@export_range(0.1, 3.0, 0.05) var scare_seconds: float = 0.55
+
+## What a demon's jump or a look-behind scare can push the meter to, and no further: a fright
+## alone never catches anybody, a witch still has to.
+@export_range(0.0, 1.0, 0.05) var scare_meter_cap: float = 0.85
+
+@export_group("Demons")
+
+## Once a witch has seen you (the meter has passed `demon_sight_meter` on this level) demons
+## whisper and show in the corners of your view.
+@export var demons_enabled: bool = true
+@export_range(0.0, 1.0, 0.01) var demon_sight_meter: float = 0.05
+@export_range(1, 6, 1) var demon_max: int = 2
+
+## Seconds between one showing and the next, scaled down by the meter (at a full one, by half).
+@export_range(1.0, 300.0, 1.0) var demon_spawn_min: float = 12.0
+@export_range(1.0, 300.0, 1.0) var demon_spawn_max: float = 35.0
+
+## Where one shows: this far from the eyes, this many degrees off the middle of the view (so
+## the corner of it, not the middle).
+@export_range(2.0, 20.0, 0.5) var demon_distance_min: float = 4.5
+@export_range(2.0, 20.0, 0.5) var demon_distance_max: float = 8.0
+@export_range(5.0, 80.0, 1.0) var demon_corner_min: float = 28.0
+@export_range(5.0, 80.0, 1.0) var demon_corner_max: float = 48.0
+
+## Walking this close to one makes it jump you.
+@export_range(0.5, 6.0, 0.1) var demon_trigger_distance: float = 2.2
+
+## Looking straight at one (within this many degrees) for this many seconds sends it away.
+@export_range(1.0, 45.0, 1.0) var demon_look_degrees: float = 12.0
+@export_range(0.2, 20.0, 0.1) var demon_look_seconds: float = 2.0
+
+## It fades by itself after this long.
+@export_range(2.0, 300.0, 1.0) var demon_lifetime: float = 30.0
+
+## Seconds between one's whispers, from where it stands.
+@export_range(0.5, 60.0, 0.5) var demon_whisper_gap: float = 6.0
+
+## What its jump adds to the meter.
+@export_range(0.0, 1.0, 0.01) var demon_meter_spike: float = 0.25
+
+@export_group("Look behind you")
+
+## A whisper from behind, "look behind you". Turn round (to within `look_behind_degrees` of
+## straight back) inside `look_behind_window` seconds and something is there. The wait between
+## whispers is `look_behind_min` to `look_behind_max`, shorter as the meter climbs.
+@export var look_behind_enabled: bool = true
+@export_range(5.0, 600.0, 1.0) var look_behind_min: float = 45.0
+@export_range(5.0, 600.0, 1.0) var look_behind_max: float = 140.0
+@export_range(0.5, 20.0, 0.1) var look_behind_window: float = 4.0
+@export_range(10.0, 90.0, 1.0) var look_behind_degrees: float = 50.0
+@export_range(0.0, 1.0, 0.01) var look_behind_spike: float = 0.1
+
 @export_group("The world")
 
 ## How dark: the ambient light everywhere a lamp is not.
@@ -131,6 +199,18 @@ extends DotConfig
 @export var seed_value: int = 0
 
 
+## The scare tunables, by property name: each is an `lm_<name>` cvar and is sent to a joining
+## client, whose director runs the same numbers.
+func scare_keys() -> PackedStringArray:
+	return PackedStringArray([
+		"scares_enabled", "scare_interval_max", "scare_interval_min", "scare_cooldown", "scare_seconds", "scare_meter_cap",
+		"demons_enabled", "demon_sight_meter", "demon_max", "demon_spawn_min", "demon_spawn_max", "demon_distance_min",
+		"demon_distance_max", "demon_corner_min", "demon_corner_max", "demon_trigger_distance", "demon_look_degrees",
+		"demon_look_seconds", "demon_lifetime", "demon_whisper_gap", "demon_meter_spike",
+		"look_behind_enabled", "look_behind_min", "look_behind_max", "look_behind_window", "look_behind_degrees", "look_behind_spike",
+	])
+
+
 func env_prefix() -> String:
 	return "LM_"
 
@@ -153,5 +233,8 @@ func describe() -> Dictionary:
 		"caught": ["keep what you hold", "lose the level"][caught_penalty],
 		"witches": "speed x%.2f, sight x%.2f" % [witch_speed_scale, witch_sight_scale],
 		"senses": "hears %.1f m, sees a light at %.1f m, reacts in %.2f s, turns %.0f deg/s, opens doors in %.1f s" % [witch_hear_range, witch_light_range, witch_reaction_seconds, witch_turn_rate, witch_door_seconds],
+		"scares": "%s, every %.0f to %.0f s by the meter, cooldown %.0f s" % ["on" if scares_enabled else "off", scare_interval_max, scare_interval_min, scare_cooldown],
+		"demons": "%s, up to %d, jump at %.1f m for +%.2f" % ["on" if demons_enabled else "off", demon_max, demon_trigger_distance, demon_meter_spike],
+		"look_behind": "%s, %.0f to %.0f s, %.1f s to turn" % ["on" if look_behind_enabled else "off", look_behind_min, look_behind_max, look_behind_window],
 		"shared": shared_progress,
 	}

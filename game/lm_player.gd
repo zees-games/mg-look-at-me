@@ -45,6 +45,8 @@ var flashlight: bool = true
 var meter: float = 0.0
 var unseen_for: float = 0.0
 var seen_by: int = 0
+## Server seconds of the last spook (a demon's jump, a look-behind): what rate limits asking.
+var spooked_at: float = -1000.0
 
 ## Per witch index, what she is doing about this player: {"head": her head's yaw now, "notice":
 ## seconds a sound or the light has been perceived, "alert": she has reacted, "hold": seconds
@@ -171,6 +173,7 @@ func reset_level() -> void:
 	slams_waiting.clear()
 	meter = 0.0
 	unseen_for = 0.0
+	spooked_at = -1000.0
 	caught_left = 0.0
 	gaze.clear()
 	noise_left = 0.0

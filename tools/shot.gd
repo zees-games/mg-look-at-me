@@ -75,6 +75,24 @@ func _ready() -> void:
 		var from := at + Vector3(sin(float(pose["facing"])), 0, cos(float(pose["facing"]))) * -5.0
 		player.place_at(from + Vector3(0, 0.1, 0), rad_to_deg(atan2(-(at - from).x, -(at - from).z)))
 
+	# --view=demon: the meter says a witch has seen you, and a demon shows in the corner of the view.
+	# --view=scare: a sanity scare caught at its peak (--style=witch|demon|flash).
+	if view == "demon" or view == "scare":
+		var cfg = client.scares.config
+		cfg.demon_spawn_min = 0.2
+		cfg.demon_spawn_max = 0.3
+		cfg.demon_corner_min = 34.0
+		cfg.demon_corner_max = 36.0
+		cfg.demon_distance_min = 4.0
+		cfg.demon_distance_max = 4.5
+		cfg.scare_seconds = 4.0
+		cfg.scares_enabled = false
+		cfg.look_behind_enabled = false
+		cfg.demons_enabled = view == "demon"
+		player.meter = 0.3
+		if view == "demon":
+			player.place_at(player.global_position, 0.0)
+
 	if view != "glimpse":
 		client.game.set_flashlight(player.player_key, str(_args.get("light", "on")) != "off")
 	await get_tree().create_timer(float(_args.get("seconds", "1"))).timeout
@@ -83,6 +101,10 @@ func _ready() -> void:
 	if _args.has("caught"):
 		player.caught_left = 2.0
 		await get_tree().create_timer(0.1).timeout
+
+	if view == "scare":
+		client.scare_view.call("_startle", str(_args.get("style", "demon")), 1.0, 4.0, client.camera.global_position)
+		await get_tree().process_frame
 
 	if view == "above":
 		_plan(client, level, int(_args.get("floor", "0")))

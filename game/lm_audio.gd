@@ -56,6 +56,11 @@ const SCREAM := &"scream"
 const SLAM := &"slam"
 ## The lights of a room dying (an event): the buzz stutters with the lamps, then a pop.
 const LIGHTS_OUT := &"lights_out"
+## A sanity scare's sudden sound, a demon's whisper from where it stands, and the whisper that
+## says to look behind you.
+const SCARE_HIT := &"scare_hit"
+const WHISPER := &"whisper"
+const WHISPER_BEHIND := &"whisper_behind"
 
 ## The most witches a level has (tools/build_levels.py: 2 + (n-1)/3, up to 12), and two spare
 ## for an owner's house that has more. Past that, the furthest ones go unheard.
@@ -98,7 +103,7 @@ var _drones: Dictionary = {}
 
 
 static func ids() -> Array[StringName]:
-	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, TORCH_ON, TORCH_OFF, STINGER, SCREAM, SLAM, LIGHTS_OUT]
+	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, TORCH_ON, TORCH_OFF, STINGER, SCREAM, SLAM, LIGHTS_OUT, SCARE_HIT, WHISPER, WHISPER_BEHIND]
 
 
 static func sound_catalogue() -> DotAudioCatalogue:
@@ -188,6 +193,27 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	lights.max_distance = 30.0
 	lights.gain_db = -10.0
 	c.add(lights)
+
+	var hit := _def(SCARE_HIT, 1, 95)
+	hit.cooldown_ms = 1000
+	hit.gain_db = -8.0
+	c.add(hit)
+
+	var whisper := _def(WHISPER, 3, 55, _numbered("whisper", 3))
+	whisper.kind = DotAudioDef.Kind.POSITIONAL_3D
+	whisper.pitch_min = 0.92
+	whisper.pitch_max = 1.05
+	whisper.unit_size = 1.5
+	whisper.max_distance = 16.0
+	whisper.gain_db = -4.0
+	c.add(whisper)
+
+	var behind := _def(WHISPER_BEHIND, 1, 75)
+	behind.kind = DotAudioDef.Kind.POSITIONAL_3D
+	behind.unit_size = 1.2
+	behind.max_distance = 10.0
+	behind.gain_db = -2.0
+	c.add(behind)
 	return c
 
 
@@ -352,6 +378,21 @@ func slam(at: Vector3) -> bool:
 ## A room's lights dying, from its middle at [param at].
 func lights_out(at: Vector3) -> bool:
 	return manager != null and manager.play_at(LIGHTS_OUT, at) != 0
+
+
+## A sanity scare's sudden sound, in the player's own ears.
+func scare_hit() -> bool:
+	return manager != null and manager.play(SCARE_HIT) != 0
+
+
+## A demon whispering from [param at].
+func whisper(at: Vector3) -> bool:
+	return manager != null and manager.play_at(WHISPER, at) != 0
+
+
+## "Look behind you", from [param at], behind where the player faces.
+func whisper_behind(at: Vector3) -> bool:
+	return manager != null and manager.play_at(WHISPER_BEHIND, at) != 0
 
 
 ## She has you.

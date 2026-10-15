@@ -11,9 +11,11 @@ const LmPlayer := preload("res://game/lm_player.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 const LmSettings := preload("res://game/lm_settings.gd")
 const LmServices := preload("res://game/lm_services.gd")
+const LmScares := preload("res://game/lm_scares.gd")
+const LmConfig := preload("res://game/lm_config.gd")
 
-const SECTIONS := 19
-const CHECKS := 128
+const SECTIONS := 20
+const CHECKS := 149
 
 var _passed := 0
 var _failed := 0
@@ -57,6 +59,7 @@ func _ready() -> void:
 	await _test_the_hud_fits()
 	_test_witch_senses()
 	await _test_voice()
+	await _test_scares()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -1365,6 +1368,205 @@ func _test_voice() -> void:
 	router.free()
 	await get_tree().process_frame
 	_finished_section()
+
+
+## Sanity scares, demons and the look-behind whisper: the director's schedule against the meter,
+## what a sighting starts, an approach, a stare, a turn; then the same drawn and heard by a client.
+func _test_scares() -> void:
+	_section("scares: sanity scares by the meter, demons after a sighting, approach, look behind")
+	var config := LmConfig.new()
+	_check(LmScares.interval_for(config, 0.0) > LmScares.interval_for(config, 0.5) and LmScares.interval_for(config, 0.5) > LmScares.interval_for(config, 1.0),
+		"a sanity scare comes sooner as the meter climbs", "%.0f, %.0f, %.0f s" % [LmScares.interval_for(config, 0.0), LmScares.interval_for(config, 0.5), LmScares.interval_for(config, 1.0)])
+
+	var calm := _scare_night(1, 0.0, 1800.0)
+	var haunted := _scare_night(1, 0.9, 1800.0)
+	var calm_scares := calm.filter(func(e: Dictionary) -> bool: return e["kind"] == LmScares.SCARE)
+	var haunted_scares := haunted.filter(func(e: Dictionary) -> bool: return e["kind"] == LmScares.SCARE)
+	_check(haunted_scares.size() >= calm_scares.size() * 3 and calm_scares.size() >= 1,
+		"half an hour at a high meter has several times the scares of an empty one", "%d against %d" % [haunted_scares.size(), calm_scares.size()])
+	_check(JSON.stringify(_scare_night(1, 0.9, 600.0)) == JSON.stringify(_scare_night(1, 0.9, 600.0)) and JSON.stringify(_scare_night(1, 0.9, 600.0)) != JSON.stringify(_scare_night(2, 0.9, 600.0)),
+		"the same seed is the same night, another seed another")
+
+	var gaps_ok := true
+	var last := -1000.0
+	for e: Dictionary in haunted:
+		if e["kind"] == LmScares.SCARE:
+			gaps_ok = gaps_ok and float(e["t"]) - last >= config.scare_cooldown - 0.01
+			last = float(e["t"])
+	_check(gaps_ok, "no two scares closer than the cooldown", "%.0f s" % config.scare_cooldown)
+
+	var off := LmConfig.new()
+	off.scares_enabled = false
+	_check(_scare_night(1, 0.9, 600.0, off).filter(func(e: Dictionary) -> bool: return e["kind"] == LmScares.SCARE).is_empty(),
+		"lm_scares_enabled off is no scares")
+
+	# Demons: none before a witch has seen you; after, one in the corner of the view.
+	var dir := LmScares.new(LmConfig.new())
+	var view := {"meter": 0.0, "level": 1, "eye": Vector3(0, 1.6, 0), "feet": Vector3.ZERO, "forward": Vector3.FORWARD, "caught": false}
+	var shown_before := 0
+	for i in 600:
+		for e in dir.tick(0.5, view):
+			if e["kind"] == LmScares.DEMON_SHOWS:
+				shown_before += 1
+	_check(shown_before == 0 and dir.demons.is_empty(), "no demon while no witch has seen you", str(shown_before))
+
+	view["meter"] = 0.3
+	var spawned: Dictionary = {}
+	var whispered := false
+	for i in 200:
+		for e in dir.tick(0.25, view):
+			if e["kind"] == LmScares.DEMON_SHOWS and spawned.is_empty():
+				spawned = e
+			whispered = whispered or e["kind"] == LmScares.WHISPER
+		if not spawned.is_empty():
+			break
+	_check(not spawned.is_empty() and dir.sighted, "after a sighting a demon shows within its spawn window", "%.0f s" % (float(dir.told.size())))
+	var at: Vector3 = spawned.get("at", Vector3.ZERO)
+	var off_axis := rad_to_deg(Vector3.FORWARD.angle_to(Vector3(at.x, 0.0, at.z).normalized())) if not spawned.is_empty() else 0.0
+	var away := Vector2(at.x, at.z).length()
+	_check(off_axis >= config.demon_corner_min - 0.5 and off_axis <= config.demon_corner_max + 0.5 and away >= config.demon_distance_min - 0.01 and away <= config.demon_distance_max + 0.01,
+		"in the corner of the view, at its distance", "%.0f degrees, %.1f m" % [off_axis, away])
+	_check(whispered, "and it whispers from where it stands")
+
+	# Approach: walk at it, it jumps, with a spike for the meter, and is gone.
+	var spiked := 0.0
+	var gone := false
+	for i in 80:
+		view["eye"] = (view["eye"] as Vector3).move_toward(Vector3(at.x, 1.6, at.z), 0.25)
+		for e in dir.tick(0.1, view):
+			if e["kind"] == LmScares.DEMON_JUMPS:
+				spiked = float(e["spike"])
+	gone = dir.demons.is_empty() or not dir.demons.any(func(d: Dictionary) -> bool: return int(d["id"]) == int(spawned["id"]))
+	_check(spiked == config.demon_meter_spike and gone, "walking up to it makes it jump you, then it vanishes", "spike %.2f" % spiked)
+
+	# The server's side of the spike: it raises the meter, to the cap and no further, and not twice at once.
+	game.config.scare_cooldown = 10.0
+	var key := &"scare_test"
+	var guest := game.join(key, "Scare")
+	guest.meter = 0.2
+	game.tick += 600
+	_check(game.spook(key, 0.25) and absf(guest.meter - 0.45) < 0.001, "the house applies the spike to the meter", "%.2f" % guest.meter)
+	_check(not game.spook(key, 0.25) and absf(guest.meter - 0.45) < 0.001, "and refuses a second inside the cooldown")
+	game.tick += 600
+	guest.meter = 0.8
+	var _again := game.spook(key, 0.25)
+	_check(guest.meter <= game.config.scare_meter_cap + 0.001 and guest.meter > 0.8 - 0.001, "and never past the cap, so a fright is never a catch", "%.2f" % guest.meter)
+	game.leave(key)
+
+	# A stare sends it away, no jump.
+	var stare := LmScares.new(LmConfig.new())
+	view["eye"] = Vector3(0, 1.6, 0)
+	view["meter"] = 0.4
+	var target := {}
+	for i in 400:
+		for e in stare.tick(0.25, view):
+			if e["kind"] == LmScares.DEMON_SHOWS and target.is_empty():
+				target = e
+		if not target.is_empty():
+			break
+	var look := (target["at"] as Vector3) - Vector3(0, 0, 0)
+	view["forward"] = Vector3(look.x, 0.0, look.z).normalized()
+	var seen_off := false
+	var jumped := false
+	for i in 60:
+		for e in stare.tick(0.1, view):
+			seen_off = seen_off or (e["kind"] == LmScares.DEMON_GONE and e["why"] == "seen")
+			jumped = jumped or e["kind"] == LmScares.DEMON_JUMPS
+	_check(seen_off and not jumped, "looking straight at it long enough sends it away without a jump")
+
+	# Look behind: the whisper, then turning round inside the window.
+	var back_config := LmConfig.new()
+	back_config.look_behind_min = 5.0
+	back_config.look_behind_max = 6.0
+	back_config.scares_enabled = false
+	var turn := LmScares.new(back_config)
+	view = {"meter": 0.0, "level": 1, "eye": Vector3(0, 1.6, 0), "feet": Vector3.ZERO, "forward": Vector3.FORWARD, "caught": false}
+	var whisper_at := Vector3.INF
+	for i in 200:
+		for e in turn.tick(0.1, view):
+			if e["kind"] == LmScares.BEHIND_WHISPER:
+				whisper_at = e["at"]
+		if whisper_at != Vector3.INF:
+			break
+	_check(whisper_at != Vector3.INF and whisper_at.z > 0.5, "a whisper \"look behind you\" comes from behind the player", str(whisper_at))
+	view["forward"] = Vector3.BACK
+	var scare_at := Vector3.INF
+	var behind_spike := -1.0
+	for i in 10:
+		for e in turn.tick(0.1, view):
+			if e["kind"] == LmScares.BEHIND_SCARE:
+				scare_at = e["at"]
+				behind_spike = float(e["spike"])
+	_check(scare_at != Vector3.INF and scare_at.z > 1.0 and behind_spike == back_config.look_behind_spike,
+		"turning round inside the window puts a scare where they look, behind where they were", str(scare_at))
+
+	var slow := LmScares.new(back_config)
+	view["forward"] = Vector3.FORWARD
+	var whispers := 0
+	var scares_seen := 0
+	for i in 140:
+		for e in slow.tick(0.1, view):
+			whispers += 1 if e["kind"] == LmScares.BEHIND_WHISPER else 0
+			scares_seen += 1 if e["kind"] == LmScares.BEHIND_SCARE else 0
+	_check(whispers >= 1 and scares_seen == 0 and slow.behind.size() <= 3, "a player who never turns round is not scared by it", "%d whispers" % whispers)
+
+	# Drawn and heard: a client with a sighting shows a demon and whispers; a jump flashes.
+	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
+	client.set("start_level", 3)
+	add_child(client)
+	for i in 6:
+		await get_tree().process_frame
+	var me: LmPlayer = client.get("player")
+	var sink := client.get("audio").get("manager").get("sink") as DotAudioSinkNull
+	var view_node: Node3D = client.get("scare_view")
+	var director: LmScares = client.get("scares")
+	director.config.demon_spawn_min = 1.0
+	director.config.demon_spawn_max = 1.5
+	director.config.demon_corner_min = 25.0
+	director.config.look_behind_enabled = false
+	director.config.scares_enabled = false
+	me.meter = 0.3
+	for i in 400:
+		me.meter = 0.3
+		await get_tree().process_frame
+		if not director.demons.is_empty():
+			break
+	_check(not director.demons.is_empty() and view_node.find_child("Demon1", true, false) != null, "the client draws a demon once the meter says a witch saw it", str(view_node.describe()))
+	_check(sink.count_of(&"whisper") >= 1, "and the whisper is heard", str(sink.count_of(&"whisper")))
+	var jolts := sink.count_of(&"scare_hit")
+	var meter_before := me.meter
+	var demon: Dictionary = director.demons[0]
+	var drawn_at: Vector3 = (view_node.get("_figures") as Dictionary)[int(demon["id"])].global_position if (view_node.get("_figures") as Dictionary).has(int(demon["id"])) else Vector3.INF
+	_check(drawn_at.distance_to(demon["at"] as Vector3) < 0.01, "at the spot the director chose", str(drawn_at))
+	me.global_position = demon["at"] as Vector3
+	me.controller.state.position = demon["at"] as Vector3
+	for i in 8:
+		await get_tree().process_frame
+	_check(sink.count_of(&"scare_hit") > jolts and me.meter > meter_before and director.demons.is_empty(),
+		"walking into it: a sound, the meter up, the demon gone", "%d to %d, %.2f to %.2f" % [jolts, sink.count_of(&"scare_hit"), meter_before, me.meter])
+	client.queue_free()
+	_finished_section()
+
+
+## The events of [param seconds] of a night at a steady [param meter], each stamped "t".
+func _scare_night(seed_value: int, meter: float, seconds: float, config: LmConfig = null) -> Array:
+	var cfg := config if config != null else LmConfig.new()
+	cfg.seed_value = seed_value
+	var dir := LmScares.new(cfg)
+	dir.reseed(seed_value, 1, 7)
+	var view := {"meter": meter, "level": 1, "eye": Vector3(0, 1.6, 0), "feet": Vector3.ZERO, "forward": Vector3.FORWARD, "caught": false}
+	var out: Array = []
+	var t := 0.0
+
+	while t < seconds:
+		t += 0.5
+
+		for e in dir.tick(0.5, view):
+			var stamped := e.duplicate()
+			stamped["t"] = t
+			out.append(stamped)
+
+	return out
 
 
 func _section(name: String) -> void:

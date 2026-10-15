@@ -33,6 +33,16 @@ The client asks `LmGame.exposure` for the local player only, from the same clock
 - **Measured** with `tools/playthrough.sh`: a scripted minute of level 1 recorded off the master bus after the limiter. 2026-10-12: peak -2.3 dBFS, -17.7 LUFS integrated, 9.9 LU range. The first recording, before the gains were set, peaked at 0.0 dBFS. Later that day the (now 20 s) playthrough read -18.9 and -19.8, under the family's band; `LmAudio` sets `loudness_trim_db` to +3, which reads -17.3 and -17.4 with the range (17 LU) unchanged and the catch at -1.9 dBTP.
 - **The ambience and the creaks are the house's own** (`house_sounds`), a 40 s loop and a creak every 6 to 16 s somewhere 5 to 13 m away. A looping sound plays a copy of its stream, which has no path, so the probe asks the manager by handle.
 
+## Scares
+
+Beyond the witches, three things frighten the player, all the client's own (`game/lm_scares.gd` decides, `game/lm_scare_view.gd` draws and plays; no nodes in the first, so a suite runs minutes of fright in a frame). Every number is an `lm_*` cvar of the same name as its `LmConfig` property (`lm_scare_interval_max`, `lm_demon_max`, `lm_look_behind_window`; `LmConfig.scare_keys()` lists them, and a joining client takes the server's values from the HELLO).
+
+- **Sanity scares**: a sudden sound and a brief demon face, witch lunge or white flash. A charge fills at 1 / interval a second, the interval running from `scare_interval_max` at an empty meter to `scare_interval_min` at a full one (read live), and a scare needs 0.7 to 1.3 of a charge and `scare_cooldown` since the last fright. Half an hour at a meter of 0.9 has about four times the scares of an empty one.
+- **Demons**: once the meter has passed `demon_sight_meter` on a level (a witch has seen you), a demon shows now and then, 28 to 48 degrees off the middle of the view, 4.5 to 8 m away, shortened to what a ray says is open, and whispers from there. It stands still and faces you. Walking within `demon_trigger_distance` makes it jump you: a scare, the meter up by `demon_meter_spike`, and it is gone. Looking straight at it for `demon_look_seconds` sends it away with no jump, and it fades by itself after `demon_lifetime`.
+- **Look behind you**: a slow whisper from behind. Turn to within `look_behind_degrees` of straight back inside `look_behind_window` and a figure is there, where you now look, with a small spike.
+
+**The meter is the server's, so a spike is a request** (`ACT spook`, `LmGame.spook`): it only raises the meter, never above `scare_meter_cap` (a fright alone catches nobody), and is refused inside the cooldown or during a catch. A client that never asks is simply not frightened. All draws come from one generator seeded from the house seed, the level and the player, so the same seed is the same night.
+
 ## Light
 
 Dark, but never so dark a player cannot step through a room: ambient 0.05, fog 0.05, filmic at 1.1, a little glow so lamps and eyes bloom, saturation down. The flashlight is a 36° spot with `spot_angle_attenuation` 0.55 (under 1 it falls away from a hot middle; at 1 and over it was the flat disc the play test saw), and a faint 3 m spill round the camera so the floor at your feet is there with the light off. The flashlight is still what a witch sees you by.

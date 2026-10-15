@@ -115,6 +115,7 @@ func _game_load() -> DotResult:
 	)
 
 	_wire_voice(world)
+	_wire_scares(world)
 
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
 	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
@@ -182,6 +183,30 @@ func _wire_voice(world: LmGame) -> void:
 		# sound; the key is looked up here because the router knows peers and the house keys.
 		router.connect(&"speech_relayed", func(speaker: int, _listeners: int) -> void:
 			world.hear_voice(bridge.call("key_of_peer", speaker)))
+
+
+## Every scare tunable as an `lm_*` cvar of the same name (`lm_demon_max`, `lm_scare_interval_min`),
+## writing straight into the config. The server's own checks (`LmGame.spook`) follow at once; a
+## client takes the numbers when it joins (the HELLO's config), so a change reaches those who join
+## after it, and the next level or house for those already in.
+func _wire_scares(world: LmGame) -> void:
+	for setting in world.config.scare_keys():
+		var current: Variant = world.config.get(setting)
+		var text := ("1" if current else "0") if current is bool else str(current)
+		var cvar := add_cvar("lm_" + setting, text, "Scares: %s (see lm_config.gd)" % setting.replace("_", " "), DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+
+		if cvar == null:
+			continue
+
+		cvar.changed.connect(func(_old: String, new_value: String) -> void:
+			var now: Variant = world.config.get(setting)
+
+			if now is bool:
+				world.config.set(setting, new_value.strip_edges() != "0")
+			elif now is int:
+				world.config.set(setting, int(new_value))
+			else:
+				world.config.set(setting, float(new_value)))
 
 
 ## A chat line: the house's when it is one of its commands, the chat router's otherwise.

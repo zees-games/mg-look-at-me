@@ -707,6 +707,32 @@ func set_flashlight(key: StringName, on: bool) -> void:
 		player.flashlight = on
 
 
+## A fright the player's client reports (a demon's jump, a look-behind): the meter rises by
+## [param amount] and no higher than `scare_meter_cap`, and the drain waits as it does after a
+## sighting. Refused for a catch in progress, with demons off, or inside `scare_cooldown` of the
+## last: a client may ask for the meter to go UP, which costs nobody but itself, and the cooldown
+## keeps a loop of asks from being the way to a catch. Returns whether it applied.
+func spook(key: StringName, amount: float) -> bool:
+	var player: LmPlayer = players.get(key, null)
+
+	if player == null or player.caught_left > 0.0 or amount <= 0.0:
+		return false
+
+	if not config.demons_enabled and not config.look_behind_enabled:
+		return false
+
+	var now := seconds_now()
+
+	if now - player.spooked_at < minf(config.scare_cooldown, 5.0):
+		return false
+
+	var top := maxf(config.demon_meter_spike, config.look_behind_spike)
+	player.spooked_at = now
+	player.meter = maxf(player.meter, minf(player.meter + minf(amount, top), config.scare_meter_cap))
+	player.unseen_for = 0.0
+	return true
+
+
 # --- The tick ------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:

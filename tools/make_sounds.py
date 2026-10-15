@@ -184,10 +184,69 @@ def lights_out():
     return buzz * gate * 0.8 + pop * 1.2
 
 
+def whisper_voice(seed, syllables, length, pitch):
+    """A whisper has no pitch: breath through the formants of a vowel, chopped into syllables
+    by an envelope. Each syllable moves between two vowels' formants so it reads as speech
+    with no word in it, which is worse than a word. A separate generator per file, so adding
+    a whisper never changes the noise any other sound was rendered with."""
+    rng = np.random.default_rng(seed)
+    t = t_of(length)
+    out = np.zeros_like(t)
+    vowels = [(730, 1090, 2440), (270, 2290, 3010), (570, 840, 2410), (300, 870, 2240)]
+    slot = length / syllables
+    for i in range(syllables):
+        a = vowels[rng.integers(len(vowels))]
+        b = vowels[rng.integers(len(vowels))]
+        start = int((i * slot + slot * 0.08) * RATE)
+        n = int(slot * 0.78 * RATE)
+        noise = rng.standard_normal(n)
+        seg = np.zeros(n)
+        for k, (fa, fb) in enumerate(zip(a, b)):
+            # Two formant bands per vowel, the second's centre slid towards the next vowel.
+            lo = min(fa, fb) * pitch
+            hi = max(fa, fb) * pitch * 1.12
+            seg += bandpass(noise, lo * 0.9, min(hi, 9500.0)) * (1.0 / (k + 1))
+        shape = np.sin(np.linspace(0, np.pi, n)) ** 1.6
+        out[start:start + n] += seg * shape
+    out += bandpass(rng.standard_normal(t.size), 4000.0, 9000.0) * 0.04 * np.abs(out).max()
+    return out
+
+
+def whisper_0():
+    return whisper_voice(11, 5, 1.8, 1.0)
+
+
+def whisper_1():
+    return whisper_voice(12, 4, 1.5, 0.85)
+
+
+def whisper_2():
+    return whisper_voice(13, 6, 2.1, 1.1)
+
+
+def whisper_behind():
+    """"Look behind you": four unhurried syllables, close and low."""
+    return whisper_voice(14, 4, 1.7, 0.8)
+
+
+def scare_hit():
+    """The sudden sound of a sanity scare: a loud, short, wrong thing. A downward bark of
+    inharmonic metal over a burst of noise and a thump, with no build-up and a quick tail."""
+    t = t_of(1.4)
+    rng = np.random.default_rng(15)
+    env = np.exp(-t * 5.0) * np.clip(t / 0.004, 0, 1)
+    metal = sum(np.sin(2 * np.pi * f * t * (1.0 - 0.18 * (1 - np.exp(-t * 6.0)))) for f in (187.0, 311.0, 466.0, 733.0, 1217.0)) / 5.0
+    burst = bandpass(rng.standard_normal(t.size), 400.0, 8000.0) * np.exp(-t * 14.0)
+    thump = np.sin(2 * np.pi * (45.0 + 60.0 * np.exp(-t * 20.0)) * t) * np.exp(-t * 6.0)
+    return np.tanh((metal * env * 1.1 + burst * 1.2 + thump * 1.0) * 1.5)
+
+
 GENERATED = {
     "ambience": ambience, "witch_drone": drone, "stinger": stinger, "scream": scream, "heartbeat": heartbeat,
     # After the five above, so the seeded generator gives those the same noise it always has.
     "slam": slam, "lights_out": lights_out,
+    "scare_hit": scare_hit, "whisper_0": whisper_0, "whisper_1": whisper_1, "whisper_2": whisper_2,
+    "whisper_behind": whisper_behind,
 }
 
 
