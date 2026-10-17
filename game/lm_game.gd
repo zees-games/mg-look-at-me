@@ -78,7 +78,7 @@ var players: Dictionary = {}
 var winners: Dictionary = {}
 
 ## Every house's winners, house id -> {key: when}, kept in config.winners_file. Per house,
-## because getting out of a 17-level house is not getting out of the 32-level one, and a crown
+## because getting out of a 18-level house is not getting out of the 32-level one, and a crown
 ## that said so would be one the second house's players stop believing.
 var _all_winners: Dictionary = {}
 

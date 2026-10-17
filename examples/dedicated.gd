@@ -181,7 +181,7 @@ func _test_the_console() -> void:
 	_check(bool(changed["ok"]) and game.house_id == target, "staff choosing one changes the house on the spot",
 		"%s: %s" % [target, changed.get("text", "")])
 	var _a := _run_command("lm_house asylum")
-	_check(game.house_id == &"asylum" and game.levels.size() == 17, "lm_house asylum opens it")
+	_check(game.house_id == &"asylum" and game.levels.size() == 18, "lm_house asylum opens it")
 	var _h := _run_command("lm_house house")
 	_finished_section()
 

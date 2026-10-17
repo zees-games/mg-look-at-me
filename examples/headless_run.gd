@@ -173,7 +173,7 @@ func _test_every_level_finishes() -> void:
 	# The Asylum's 17 as well, the last of them (Discharge) included.
 	var _asylum := game.change_house(&"asylum")
 	var asylum_stuck := _solve_house(solver)
-	_check(game.levels.size() == 17 and asylum_stuck.is_empty(), "and out of all 17 of the Asylum's", ", ".join(asylum_stuck))
+	_check(game.levels.size() == 18 and asylum_stuck.is_empty(), "and out of all 18 of the Asylum's", ", ".join(asylum_stuck))
 	var _home := game.change_house(&"house")
 	game.leave(&"solver")
 	_finished_section()
@@ -500,7 +500,7 @@ func _test_houses() -> void:
 	var told := [&""]
 	game.house_changed.connect(func(id: StringName) -> void: told[0] = id)
 	var changed := game.change_house(&"asylum")
-	_check(changed.ok and told[0] == &"asylum" and game.levels.size() == 17 and game.house_name() == "The Asylum", "the Asylum opens: seventeen levels")
+	_check(changed.ok and told[0] == &"asylum" and game.levels.size() == 18 and game.house_name() == "The Asylum", "the Asylum opens: eighteen levels")
 	_check(a.level == 1 and a.best == 1, "and everybody starts again in its lobby")
 	_check(not game.change_house(&"nowhere").ok, "a house that does not exist is refused")
 	var _back := game.change_house(&"house")

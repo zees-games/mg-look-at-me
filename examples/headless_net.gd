@@ -418,7 +418,7 @@ func _test_progress_and_meter() -> void:
 	await _steps(6)
 	_exchange()
 	await _steps(4)
-	_check(_client_game.levels.size() == 17 and _client_game.house_id == &"asylum" and mine.level == 1,
+	_check(_client_game.levels.size() == 18 and _client_game.house_id == &"asylum" and mine.level == 1,
 		"a new house reaches the client: it rebuilds sixteen levels and stands in the new lobby (%d, %s, %d)" % [_client_game.levels.size(), _client_game.house_id, mine.level])
 	_server_bridge.remove_peer(CLIENT_PEER)
 	_check(not _server_game.players.has(_key), "a peer that leaves takes its player with it")

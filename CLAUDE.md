@@ -28,7 +28,7 @@ game/
   lm_figure.gd   a player drawn as one of the family's animated people (dot-player-char's DotHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
   lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
-houses/asylum/   The Asylum: asylum_01 .. asylum_17, the same builder
+houses/asylum/   The Asylum: asylum_01 .. asylum_18, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
