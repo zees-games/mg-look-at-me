@@ -25,6 +25,10 @@ func _ready() -> void:
 	for id in str(_args.get("houses", "")).split(",", false):
 		var _changed = client.game.change_house(StringName(id))
 		await get_tree().physics_frame
+	# A house change puts everybody in the new lobby: --level then means that house's level.
+	if _args.has("houses") and client.start_level > 1:
+		client.game.send_to(client.player, client.start_level)
+		await get_tree().physics_frame
 
 	# Somewhere worth looking: facing the nearest witch, a few metres away, or a room by id.
 	var player = client.player

@@ -32,7 +32,7 @@ The start room of every level is safe: no witch ever walks into it. Level 1 has 
 
 Finish all thirty-two and you get a crown everybody else can see.
 
-There are two **houses**: The House (32 levels) and The Asylum (16). A server plays one at a time, and after 45 minutes the players vote on the next. `!rtv` calls a vote at any time.
+There are two **houses**: The House (32 levels) and The Asylum (17). A server plays one at a time, and after 45 minutes the players vote on the next. `!rtv` calls a vote at any time.
 
 ## Controls
 

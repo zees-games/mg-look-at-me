@@ -8,6 +8,7 @@
 #   tools/shot.sh --level=2 --room=r3 --yaw=90  # standing in a room
 #   tools/shot.sh --caught=1 --out=res://screenshots/caught.png   # the moment of being caught
 #   tools/shot.sh --view=prompt --houses=asylum,house             # the prompt after a house change and back
+#   tools/shot.sh --view=above --houses=asylum --level=17 --floor=1   # a level of another house
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p screenshots

@@ -28,11 +28,11 @@ game/
   lm_figure.gd   a player drawn as one of the family's animated people (dot-player-char's DotHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
   lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
-houses/asylum/   The Asylum: asylum_01 .. asylum_16, the same builder
+houses/asylum/   The Asylum: asylum_01 .. asylum_17, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (20 sections, 149 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
+examples/        headless_run (20 sections, 150 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -76,7 +76,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 149 checks: the solver plays all 32 levels, events, stairs, the third floor
+godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 150 checks: the solver plays all 32 levels, events, stairs, the third floor
 godot --headless --path . res://examples/headless_net.tscn   # 9 sections, 38 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
 godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks

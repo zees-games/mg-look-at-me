@@ -15,7 +15,7 @@ const LmScares := preload("res://game/lm_scares.gd")
 const LmConfig := preload("res://game/lm_config.gd")
 
 const SECTIONS := 20
-const CHECKS := 149
+const CHECKS := 150
 
 var _passed := 0
 var _failed := 0
@@ -167,9 +167,22 @@ func _test_levels() -> void:
 func _test_every_level_finishes() -> void:
 	_section("every level can be finished")
 	var solver := game.join(&"solver", "Solver")
-	var stuck := PackedStringArray()
+	var stuck := _solve_house(solver)
+	_check(stuck.is_empty(), "the solver opens the way out of all 32", ", ".join(stuck))
 
-	for n in range(1, 33):
+	# The Asylum's 17 as well, the last of them (Discharge) included.
+	var _asylum := game.change_house(&"asylum")
+	var asylum_stuck := _solve_house(solver)
+	_check(game.levels.size() == 17 and asylum_stuck.is_empty(), "and out of all 17 of the Asylum's", ", ".join(asylum_stuck))
+	var _home := game.change_house(&"house")
+	game.leave(&"solver")
+	_finished_section()
+
+
+## Plays every level of the current house; returns the levels it could not get out of.
+func _solve_house(solver: LmPlayer) -> PackedStringArray:
+	var stuck := PackedStringArray()
+	for n in range(1, game.levels.size() + 1):
 		game.send_to(solver, n)
 		var level: LmLevel = game.levels[n]
 		var progress := true
@@ -191,10 +204,7 @@ func _test_every_level_finishes() -> void:
 
 		if not solver.opened.has("exit"):
 			stuck.append("%d (%s)" % [n, game.step_of(solver)])
-
-	_check(stuck.is_empty(), "the solver opens the way out of all 32", ", ".join(stuck))
-	game.leave(&"solver")
-	_finished_section()
+	return stuck
 
 
 ## Puts [param player] 1.2 m back from [param at] (level-local), looking straight at it.
@@ -490,7 +500,7 @@ func _test_houses() -> void:
 	var told := [&""]
 	game.house_changed.connect(func(id: StringName) -> void: told[0] = id)
 	var changed := game.change_house(&"asylum")
-	_check(changed.ok and told[0] == &"asylum" and game.levels.size() == 16 and game.house_name() == "The Asylum", "the Asylum opens: sixteen levels")
+	_check(changed.ok and told[0] == &"asylum" and game.levels.size() == 17 and game.house_name() == "The Asylum", "the Asylum opens: seventeen levels")
 	_check(a.level == 1 and a.best == 1, "and everybody starts again in its lobby")
 	_check(not game.change_house(&"nowhere").ok, "a house that does not exist is refused")
 	var _back := game.change_house(&"house")
