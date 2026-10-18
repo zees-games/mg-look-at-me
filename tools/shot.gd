@@ -18,6 +18,12 @@ func _ready() -> void:
 	add_child(client)
 	var view := str(_args.get("view", "eyes"))
 	client.third_person = view == "third"
+	# --view=cover: the loading cover dot-game's DotGameClient puts up first, before it lifts.
+	if view == "cover":
+		for _i in 2:
+			await RenderingServer.frame_post_draw
+		_save(client)
+		return
 	await get_tree().physics_frame
 
 	# --houses=asylum,house: change house through each, solo, before looking (the map menu's
@@ -121,6 +127,12 @@ func _ready() -> void:
 		print("glimpse: fired %s, drawn %s at %s, player at %s" % [player.fired.keys(), her != null and her.visible,
 			her.global_position if her != null else Vector3.ZERO, player.global_position])
 
+	_save(client)
+
+
+func _save(client: Node) -> void:
+	var platform: DotGameClient = client.get("platform")
+	print("cover %s" % ("lifted" if platform == null or platform.is_shown() else "up"))
 	var path := ProjectSettings.globalize_path(str(_args.get("out", "res://screenshots/shot.png")))
 	var saved := get_viewport().get_texture().get_image().save_png(path)
 	print("saved %s (%s)" % [path, error_string(saved)])

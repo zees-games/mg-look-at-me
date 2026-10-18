@@ -4,6 +4,7 @@
 #   tools/shot.sh                               # the lobby, first person, flashlight on
 #   tools/shot.sh --view=witch --level=8        # five metres from a witch, looking at her
 #   tools/shot.sh --view=third --level=3        # third person
+#   tools/shot.sh --view=cover                  # the loading cover, before it lifts
 #   tools/shot.sh --view=above --level=16 --floor=1 --res=1600x1600   # a plan of one floor, labelled
 #   tools/shot.sh --level=2 --room=r3 --yaw=90  # standing in a room
 #   tools/shot.sh --caught=1 --out=res://screenshots/caught.png   # the moment of being caught

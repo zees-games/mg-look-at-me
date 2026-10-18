@@ -15,7 +15,7 @@ const LmScares := preload("res://game/lm_scares.gd")
 const LmConfig := preload("res://game/lm_config.gd")
 
 const SECTIONS := 20
-const CHECKS := 150
+const CHECKS := 151
 
 var _passed := 0
 var _failed := 0
@@ -510,15 +510,32 @@ func _test_houses() -> void:
 
 # --- Harness -----------------------------------------------------------------
 
+## Waits for a booted client's loading cover to lift (dot-game's DotGameClient holds it until
+## the player exists and the camera is current); everything is held under it.
+func _shown(client: Node) -> void:
+	for i in 240:
+		await get_tree().process_frame
+		var platform: Variant = client.get("platform")
+		if platform != null and (platform as DotGameClient).is_shown():
+			break
+	for i in 2:
+		await get_tree().process_frame
+
+
 ## A real offline client, booted: its settings are read by the camera and the look, and
 ## Escape opens the screen. Escape used to let go of the mouse and offer nothing to click.
 func _test_the_client_settings() -> void:
 	_section("the client's settings are read, and Escape opens them")
 	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
 	add_child(client)
-
-	for i in 6:
-		await get_tree().process_frame
+	# The house used to be drawn, and steered, while it was still being built.
+	var platform: DotGameClient = client.get("platform")
+	var covered := platform != null and platform.gate != null and not platform.is_shown() \
+		and platform.is_input_blocked()
+	await _shown(client)
+	_check(covered and platform.is_shown() and not platform.is_input_blocked() and platform.console != null,
+		"the loading cover is up at the start and lifts once the player is in, with the console built",
+		str(platform.describe()) if platform != null else "no platform")
 
 	var settings: Variant = client.get("settings")
 	var camera: Camera3D = client.get("camera")
@@ -536,18 +553,19 @@ func _test_the_client_settings() -> void:
 	_check(settings != null and settings.is_open(), "and Escape opens them")
 	settings.close()
 
-	# The Tab board, held: the menu's, drawn from the local world offline.
+	# The Tab board, held: the menu's, drawn from the local world offline. The platform makes
+	# the menu hold it on this game's own row (DotGameClient.scoreboard_action).
 	var tab := InputEventKey.new()
 	tab.physical_keycode = KEY_TAB
 	tab.pressed = true
-	client.call("_unhandled_input", tab)
+	settings.menu.handle_event(tab)
 	var board: DotMenuScoreboard = client.get("board")
 	_check(board != null and board.is_open() and board.rows().any(func(r: Dictionary) -> bool:
 			return bool(r.get("you", false)) and int(r.get("level", 0)) >= 1),
 		"Tab holds the board up, with this player and the level they are on",
 		str(board.rows()) if board != null else "no board")
 	tab.pressed = false
-	client.call("_unhandled_input", tab)
+	settings.menu.handle_event(tab)
 	_check(board != null and not board.is_open(), "and letting go puts it away")
 
 	# The family's rule since the first play test: H opens help, nothing else in the table is
@@ -802,9 +820,7 @@ func _test_the_mouse_turns_the_view() -> void:
 	_section("the mouse turns the view")
 	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
 	add_child(client)
-
-	for i in 6:
-		await get_tree().process_frame
+	await _shown(client)
 
 	# Headless has no pointer to capture; this says "the pointer is ours" as a window would.
 	client.set("mouse_capture_override", true)

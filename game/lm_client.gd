@@ -82,7 +82,7 @@ var net: DotNetManager = null
 var bridge: LmNetBridge = null
 var link: Node = null
 
-## The Tab board, the menu's. See [method _wire_board].
+## The Tab board, the menu's ([member DotGameClient.board]). See [method _dress_board].
 var board: DotMenuScoreboard = null
 
 ## When this client started, for an offline board's "time".
@@ -124,14 +124,26 @@ var _doors_level := -1
 ## The player's own settings and the screen Escape opens. See [LmSettings].
 var settings: LmSettings = null
 
-## The player's console. See [method DotConsoleKit.build].
+## The player's console ([member DotGameClient.console]).
 var console: DotConsoleController = null
+
+## dot-game's client platform: the loading cover (held until this player exists and the camera
+## is current), the settings' menu, the console, the HUD's theme, Tab, M, the pointer and the
+## input block the samplers follow. See [DotGameClient].
+var platform: DotGameClient = null
 
 
 func _ready() -> void:
+	# First, so the cover is up before anything of the house is drawn: the house used to show
+	# itself, and the player, while it was still being built.
+	platform = DotGameClient.new()
+	platform.name = "Platform"
+	platform.spawned_fn = func() -> bool: return player != null and camera != null and camera.current
+	platform.scoreboard_action = LmBindings.SCOREBOARD
+	add_child(platform)
+	link = platform.link as Node
+	_offline = platform.offline
 	_build_environment()
-	link = DotRegistry.get_node_service(LINK_SERVICE)
-	_offline = link == null or OS.get_cmdline_user_args().has("--offline")
 	game = LmGame.new()
 	game.name = "World"
 	game.authoritative = _offline
@@ -190,10 +202,10 @@ func _ready() -> void:
 	_build_hud()
 	_build_audio()
 	_build_effects()
-	_build_settings()
-	_build_scares()
 	chat = new_chat()
 	add_child(chat)
+	_build_settings()
+	_build_scares()
 
 	if not _offline:
 		DotLog.result(CHANNEL, "the netcode", _build_netcode())
@@ -210,8 +222,6 @@ func _ready() -> void:
 		if key == local_key:
 			_say("SHE SEES YOU", 2.0))
 
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if not DotPlatform.is_web() else Input.MOUSE_MODE_VISIBLE
-
 
 ## The player's settings, bound to the camera and the sampler's tunables. See [LmSettings].
 ##
@@ -219,16 +229,37 @@ func _ready() -> void:
 ## player's, connected the client's); [method _adopt_player] binds them for a later player.
 func _build_settings() -> void:
 	settings = LmSettings.new()
-	settings.name = "Settings"
 	add_child(settings)
+	platform.settings = settings
+	platform.hud = _hud
+	# The lamp's amber over the menu's theme: Christian's first play test asked for a darker HUD
+	# a player can restyle in the menu.
+	platform.hud_accent = piece_theme()
+	platform.chat = chat
+	# The command line has the keyboard while it is open: its Escape is its own.
+	platform.busy_fn = func() -> bool: return _command != null and _command.visible
+	platform.board_snapshot_fn = board_snapshot
+	# M: the house list. Solo a choice opens that house here at once; connected the server
+	# decides, by the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead
+	# (dot-vote's map menu, wired in [LmModule]).
+	platform.maps_rows_fn = func() -> Array: return game.house_rows() if game != null else []
+	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_house(id)
+	platform.maps_title = "Change house"
+	platform.maps_noun = "houses"
+	DotLog.result(CHANNEL, "the platform", platform.setup())
+	# Walking and looking are off while the cover is up, a menu is open or a line is typed. Chat
+	# typing never held them before, so a sentence walked the player into the dark.
+	platform.input_blocked_changed.connect(_suspend_input)
+	_suspend_input(platform.is_input_blocked())
+	# A key may have moved on the Controls page.
+	platform.menu_state_changed.connect(func(any_open: bool) -> void:
+		if not any_open:
+			_refresh_key_line())
 
-	var built: DotResult = settings.setup()
-
-	if not built.ok:
-		DotLog.warn(CHANNEL, "no settings; everything is at its default", {"why": built.error.message})
-		remove_child(settings)
-		settings.free()
-		settings = null
+	settings = platform.settings as LmSettings
+	console = platform.console as DotConsoleController
+	if settings == null:
+		_refresh_key_line()
 		return
 
 	settings.bind_camera(camera)
@@ -242,58 +273,25 @@ func _build_settings() -> void:
 	if player != null and player.controller != null:
 		settings.bind_look(player.controller.tunables)
 
-	if settings.menu != null:
-		# Walking is off while the menu is up, as it is while typing a command; the menu takes
-		# Escape itself now, so the pointer is freed here.
-		settings.menu_state_changed.connect(func(any_open: bool) -> void:
-			for sampler: DotFpsSampler in [_sampler, player.sampler if player != null else null, _held_sampler]:
-				if sampler != null:
-					sampler.suspended = any_open
-			if any_open:
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			elif not DotPlatform.is_web() and not _command.visible:
-				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			# A key may have moved on the Controls page.
-			if not any_open:
-				_refresh_key_line()
-		)
-		# The command line has the keyboard while it is open: its Escape is its own.
-		settings.menu.busy = func() -> bool:
-			return (_command != null and _command.visible) or (chat != null and chat.is_typing())
-		# The console (the key under Escape): net_stat and every other setting by name, and
-		# the server's console when one runs in this process. One of the menu's overlays, so
-		# opening it stops the player and frees the pointer exactly as the menu does.
-		console = DotConsoleKit.build(self, settings.settings, settings.menu)
-		# The HUD in the menu's theme and at the player's HUD size, live (dot-menu's
-		# `follow_hud`, by name for a client shell older than it): Christian's first play test
-		# asked for a darker HUD a player can restyle in the menu.
-		if _hud != null and settings.menu.has_method(&"follow_hud"):
-			settings.menu.call(&"follow_hud", _hud, piece_theme())
-		_wire_board()
-		_wire_maps()
+	board = platform.board as DotMenuScoreboard
+	_dress_board()
 	_refresh_key_line()
+
+
+## Every sampler this client has, held while [method DotGameClient.is_input_blocked].
+func _suspend_input(blocked: bool) -> void:
+	for sampler: DotFpsSampler in [_sampler, player.sampler if player != null else null, _held_sampler]:
+		if sampler != null:
+			sampler.suspended = blocked
 
 
 ## The Tab board: everybody in the house, the level they are on, the furthest they have got
 ## and whether they got out, beside how long they have been on and their ping. Online the
-## levels are the server's (see [LmModule]'s `_game_board_fields`); offline, this world's.
-## M: the house list (dot-menu's map menu). Solo a choice opens that house here at once;
-## connected the server decides, by the owner's `sv_map_menu_flag`, and anybody without it
-## gets a vote instead (dot-vote's map menu, wired in [LmModule]). By name, so a client shell
-## older than the map menu still runs the game without it.
-func _wire_maps() -> void:
-	if not settings.has_method(&"use_maps"):
+## levels are the server's (see [LmModule]'s `_game_board_fields`); offline, this world's
+## ([method board_snapshot]). The platform feeds it and holds it on Tab.
+func _dress_board() -> void:
+	if board == null:
 		return
-	var maps: Variant = settings.call(&"use_maps",
-		func() -> Array: return game.house_rows() if game != null else [],
-		func(id: StringName) -> DotResult: return game.change_house(id))
-	if maps is Object:
-		(maps as Object).set(&"title", "Change house")
-		(maps as Object).set(&"noun", "houses")
-
-
-func _wire_board() -> void:
-	board = settings.menu.scoreboard
 	board.title_text = "Look at Me"
 	board.columns = [
 		{"key": &"name", "title": "Player", "width": 3.0},
@@ -305,19 +303,6 @@ func _wire_board() -> void:
 		{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
 	]
 	board.sort_by = &"best"
-	if not _offline and link != null and link.has_signal(&"scoreboard_received"):
-		board.feed_from(link)
-	else:
-		board.source = board_snapshot
-
-
-func _show_board(on: bool) -> void:
-	if board == null:
-		return
-	if on:
-		board.open()
-	else:
-		board.close()
 
 
 ## The board from this client's own world. Public so a suite can read it.
@@ -344,6 +329,9 @@ func _adopt_player(p: LmPlayer) -> void:
 
 	if settings != null:
 		settings.bind_look(player.controller.tunables)
+
+	if platform != null:
+		_suspend_input(platform.is_input_blocked())
 
 
 ## The netcode, built inside `_ready` (inside the shell's scene load), as every game here does.
@@ -685,15 +673,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _command.visible:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
+	# A click taking the pointer back, Tab and M are the platform's (DotGameClient).
 	var key := event as InputEventKey
-
-	# The Tab board, held: shown while the key is down, released when it comes up.
-	if key != null and key.is_action(LmBindings.SCOREBOARD) and not key.echo and not _command.visible:
-		_show_board(key.pressed)
-		return
 
 	if key == null or not key.pressed or key.echo or _command.visible:
 		return

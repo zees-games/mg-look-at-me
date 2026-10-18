@@ -32,7 +32,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_18, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (20 sections, 150 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
+examples/        headless_run (20 sections, 151 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -67,6 +67,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **A TMC account is its site avatar.** [design](docs/design.md#decision-7-a-tmc-account-walks-the-house-as-its-site-avatar)
 - **Sound is a dot-audio catalogue of files** (`audio/`, written by `tools/make_sounds.py`, every file at a -2 dBFS peak); loudness is each def's `gain_db`, measured in the recorded mix, with a -1 dB hard limiter on master. [horror](docs/horror.md#sound)
 - **Every key is an `LmBindings` row** on the menu's Controls page; nothing is matched by keycode but Enter and Escape. [design](docs/design.md#settings-and-escape-opens-them)
+- **The platform is dot-game's `DotGameClient`** (`LmClient.platform`, added first in `_ready`): the loading cover (held until the player exists and the camera is current), the settings' menu, the console, the HUD's theme, Tab on `lm_scoreboard`, M, the pointer, and `input_blocked_changed`, which suspends every sampler (chat typing included). A suite that boots a client waits for the cover (`headless_run`'s `_shown`); `tools/shot.sh --view=cover` renders it. See dot-game's [client-migration.md](../dot-game/docs/client-migration.md).
 - **The HUD wraps inside the window** (`LmClient.hud_fits`, checked at 640x360 to 1280x720). [horror](docs/horror.md#signs-and-the-hud)
 - **A room's name is a plaque over each door into it**, in front of the wall's face (each room's wall is a whole `WALL` deep inside its edge). [horror](docs/horror.md#signs-and-the-hud)
 
@@ -76,7 +77,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 150 checks: the solver plays all 32 levels, events, stairs, the third floor
+godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 151 checks: the solver plays all 32 levels, events, stairs, the third floor
 godot --headless --path . res://examples/headless_net.tscn   # 9 sections, 38 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
 godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
 godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks
