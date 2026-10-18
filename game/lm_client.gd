@@ -709,7 +709,13 @@ func mouse_drives_view() -> bool:
 ## Offline the player's sampler takes it, connected the client's; while the command line is
 ## open the player's is held aside, so typing never turns the head.
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventMouseMotion) or not mouse_drives_view() or _covered():
+	var motion := event is InputEventMouseMotion
+	# A wheel tick is a press and a release in one frame, so polling misses it; the sampler
+	# latches it (it can be bound to jump), but only if it is handed mouse buttons too.
+	if not (motion or event is InputEventMouseButton) or _covered():
+		return
+
+	if motion and not mouse_drives_view():
 		return
 
 	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)

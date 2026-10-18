@@ -26,6 +26,8 @@ const VOICE_MUTE := &"voice_mute"
 static func make() -> DotMenuBindings:
 	var keys := DotMenuBindings.new()
 	keys.add_movement("Movement", "Ctrl", "Crouch (a witch sees you more slowly)")
+	# The game has no weapon or item switching, so the wheel is free to jump.
+	keys.add_wheel_jump("Movement")
 	keys.add(USE, &"bind_use", "Take, open, use", "E", "Hands")
 	keys.add(FLASHLIGHT, &"bind_flashlight", "Flashlight (and a witch sees you sooner)", "F", "Hands")
 	# F5, the family's view key in every game (it was C here).

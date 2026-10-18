@@ -13,9 +13,10 @@ const LmSettings := preload("res://game/lm_settings.gd")
 const LmServices := preload("res://game/lm_services.gd")
 const LmScares := preload("res://game/lm_scares.gd")
 const LmConfig := preload("res://game/lm_config.gd")
+const LmBindings := preload("res://game/lm_bindings.gd")
 
-const SECTIONS := 20
-const CHECKS := 151
+const SECTIONS := 21
+const CHECKS := 155
 
 var _passed := 0
 var _failed := 0
@@ -60,6 +61,7 @@ func _ready() -> void:
 	_test_witch_senses()
 	await _test_voice()
 	await _test_scares()
+	_test_wheel_jumps()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -1600,6 +1602,27 @@ func _scare_night(seed_value: int, meter: float, seconds: float, config: LmConfi
 			out.append(stamped)
 
 	return out
+
+
+func _test_wheel_jumps() -> void:
+	_section("the wheel jumps")
+	var keys := LmBindings.make()
+	_check(keys.row_for_setting(DotMenuBindings.WHEEL_JUMP_UP_SETTING).get("action", &"") == DotMenuBindings.JUMP_ACTION, "Wheel up is a row")
+	_check(keys.row_for_setting(DotMenuBindings.WHEEL_JUMP_DOWN_SETTING).get("action", &"") == DotMenuBindings.JUMP_ACTION, "Wheel down is a row")
+	var sampler := DotFpsSampler.new(DotFpsTunables.new())
+	DotFpsSampler.register_default_actions(sampler)
+	var tick := InputEventMouseButton.new()
+	tick.button_index = MOUSE_BUTTON_WHEEL_UP
+	tick.pressed = true
+	InputMap.action_erase_events(DotMenuBindings.JUMP_ACTION)
+	InputMap.action_add_event(DotMenuBindings.JUMP_ACTION, tick)
+	sampler.handle_event(tick)
+	var release := tick.duplicate() as InputEventMouseButton
+	release.pressed = false
+	sampler.handle_event(release)
+	_check(sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "a wheel tick gives the jump bit in the next sample")
+	_check(not sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "and not in the one after")
+	_finished_section()
 
 
 func _section(name: String) -> void:
