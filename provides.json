@@ -1,0 +1,9 @@
+{
+    "schema": 1,
+    "title": "Look At Me",
+    "kinds": ["game"],
+    "accepts": {
+        "kinds": ["map"],
+        "map_kinds": ["lookatme"]
+    }
+}

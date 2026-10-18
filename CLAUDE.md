@@ -32,7 +32,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_18, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (20 sections, 151 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25)
+examples/        headless_run (20 sections, 151 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25), headless_workshop (1, 19)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -63,6 +63,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **A READY before the player is seated is kept** (`_ready_unseated`) and answered by `add_player`: over ENet with loss it overtakes the link's `loaded`. [design](docs/design.md#the-house-on-the-wire)
 - **One account, one player: the newest connection wins** (two tabs of a guest share a device id); the older is taken out and kicked with "You joined from another tab or window", never left on a link whose keys move nothing. [design](docs/design.md#one-account-one-connection)
 - **Movement and doors are predicted**; progress goes to its owner alone. [design](docs/design.md#decision-5-movement-is-predicted-and-so-are-the-doors)
+- **Workshop houses** (`provides.json`: `accepts.kinds` `["map"]`, `map_kinds` `["lookatme"]`): a pack's `map` entry has `map_kind: lookatme` and its `scene` is the pack's `house.json` with the house's level documents beside it; the document's `id` must equal the entry's and the directory must hold a level, or the entry is refused (logged, never listed). `LmGame.follow_content` reads `DotContentIndex.shared()` on every `house_rows()`, `listed_houses()` and `change_house()`, so the M menu, the vote and a change of house see a solo subscription as "Name [Pack]" and an online session none; the game's own ids win. The vote takes `listed_houses` through `entries_fn` and not dot-vote's `follow_content`, which cannot leave out a refused document. `examples/headless_workshop` (19 checks) holds it; `tools/shot.sh --view=mapmenu --workshop` renders the M menu.
 - **A house is a map**, voted between. [design](docs/design.md#decision-6-a-house-is-a-map-and-the-players-vote-between-them)
 - **A TMC account is its site avatar.** [design](docs/design.md#decision-7-a-tmc-account-walks-the-house-as-its-site-avatar)
 - **Sound is a dot-audio catalogue of files** (`audio/`, written by `tools/make_sounds.py`, every file at a -2 dBFS peak); loudness is each def's `gain_db`, measured in the recorded mix, with a -1 dB hard limiter on master. [horror](docs/horror.md#sound)

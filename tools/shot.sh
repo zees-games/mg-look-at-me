@@ -8,6 +8,7 @@
 #   tools/shot.sh --view=above --level=16 --floor=1 --res=1600x1600   # a plan of one floor, labelled
 #   tools/shot.sh --level=2 --room=r3 --yaw=90  # standing in a room
 #   tools/shot.sh --caught=1 --out=res://screenshots/caught.png   # the moment of being caught
+#   tools/shot.sh --view=mapmenu --workshop      # the M house list with a subscribed pack house in it
 #   tools/shot.sh --view=prompt --houses=asylum,house             # the prompt after a house change and back
 #   tools/shot.sh --view=above --houses=asylum --level=17 --floor=1   # a level of another house
 set -euo pipefail

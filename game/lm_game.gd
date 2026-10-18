@@ -117,6 +117,7 @@ func _ready() -> void:
 
 	if authoritative:
 		_find_houses()
+		follow_content(DotContentIndex.shared(), accepted_map_kinds())
 		var start := StringName(config.house) if houses.has(StringName(config.house)) else &"house"
 		var _h := change_house(start)
 		_read_winners()
@@ -172,10 +173,137 @@ func _find_houses() -> void:
 			if meta is Dictionary:
 				houses[StringName(str((meta as Dictionary).get("id", sub)))] = {"name": str((meta as Dictionary).get("name", sub)), "directory": path}
 
+	sync_content()
+
+
+## The Workshop: a subscribed pack's `map` entries of an accepted `map_kind` are houses here,
+## for the index's current session only. Opt-in (see [method follow_content]).
+var content_index: DotContentIndex = null
+var content_kinds := PackedStringArray()
+
+## Pack houses by entry key -> {"ok", "id", "name", "directory", "why"}, so a pack's files are
+## read once and not on every menu draw.
+var _content_houses: Dictionary = {}
+
+## Pack house ids currently in [member houses], so a session change takes exactly those out.
+var _content_ids: Dictionary = {}
+
+
+## The `map_kind`s of subscribed maps this game takes: `accepts.map_kinds` in `provides.json`,
+## so the site's offer and this list cannot drift.
+static func accepted_map_kinds() -> PackedStringArray:
+	var out := PackedStringArray()
+	var path := LmPaths.rebase("res://provides.json")
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path)) if FileAccess.file_exists(path) else null
+	var accepts: Variant = (parsed as Dictionary).get("accepts") if parsed is Dictionary else null
+	var kinds: Variant = (accepts as Dictionary).get("map_kinds") if accepts is Dictionary else null
+
+	if not (kinds is Array):
+		kinds = ["lookatme"]
+
+	for kind: Variant in (kinds as Array):
+		out.append(str(kind))
+
+	return out
+
+
+## Follows [param index]. A pack's entry `scene` is the pack's `house.json`, with the house's
+## levels beside it; its `id` must equal the entry's. [b]Synced on every read[/b] (the menu, the
+## vote, a change of house) rather than copied once: the index filters by its current session,
+## so going online takes them out with no signal to miss. The game's own house ids win.
+func follow_content(index: DotContentIndex, accepted_kinds: PackedStringArray) -> void:
+	content_index = index
+	content_kinds = accepted_kinds
+	sync_content()
+
+
+func sync_content() -> void:
+	for id: StringName in _content_ids:
+		houses.erase(id)
+
+	_content_ids.clear()
+
+	if content_index == null:
+		return
+
+	for entry in content_index.entries(&"map"):
+		var kind := str(entry.raw.get("map_kind", ""))
+
+		if kind == "" or not (content_kinds.has("*") or content_kinds.has(kind)):
+			continue
+
+		var id := StringName(entry.id)
+
+		if houses.has(id):
+			continue
+
+		var found := _content_house(entry)
+
+		if bool(found["ok"]):
+			houses[id] = {"name": str(found["name"]), "directory": str(found["directory"]), "pack": entry.pack_title}
+			_content_ids[id] = true
+
+
+func _content_house(entry: DotContentEntry) -> Dictionary:
+	if _content_houses.has(entry.key):
+		return _content_houses[entry.key]
+
+	var found := {"ok": false, "name": "", "directory": ""}
+	var path := entry.path("scene")
+	var meta: Variant = JSON.parse_string(FileAccess.get_file_as_string(path)) if path != "" and FileAccess.file_exists(path) else null
+	var why := ""
+
+	if not (meta is Dictionary):
+		why = "the scene is not a house document"
+	elif str((meta as Dictionary).get("kind", "")) != "house" or str((meta as Dictionary).get("id", "")) != entry.id:
+		why = "the document is not a house whose id is the entry's"
+	else:
+		var saved_documents := documents
+		var saved_refused := refused
+		documents = {}
+		refused = {}
+
+		if load_directory(path.get_base_dir()) == 0:
+			why = "the house has no levels"
+
+		documents = saved_documents
+		refused = saved_refused
+
+	if why == "":
+		found = {"ok": true, "name": entry.name, "directory": path.get_base_dir()}
+	else:
+		DotLog.warn(CHANNEL, "a Workshop house was refused", {"entry": entry.key, "why": why})
+
+	_content_houses[entry.key] = found
+	return found
+
+
+func _shown_name(id: StringName) -> String:
+	var house: Dictionary = houses[id]
+	return "%s [%s]" % [house["name"], house["pack"]] if house.has("pack") else str(house["name"])
+
+
+## Whether [param id] came from a subscribed pack.
+func is_workshop(id: StringName) -> bool:
+	return _content_ids.has(id)
+
+
+## Every house, as `[id, name]` pairs, a pack's as "Name [Pack]": what the vote lists.
+func listed_houses() -> Array:
+	sync_content()
+	var out: Array = []
+
+	for id: StringName in houses:
+		out.append([id, _shown_name(id)])
+
+	return out
+
 
 ## Plays house [param id]: its levels replace these, and everybody starts again in its lobby.
 ## What the vote does, and what `lm_house` does for an operator.
 func change_house(id: StringName) -> DotResult:
+	sync_content()
+
 	if not houses.has(id):
 		return DotResult.fail(DotError.CODE_INVALID, "There is no house '%s'." % id)
 
@@ -204,6 +332,7 @@ func change_house(id: StringName) -> DotResult:
 ## under the name. Solo the client's list, online the server's (the module hands it to
 ## dot-vote's map menu), so both say the same.
 func house_rows() -> Array:
+	sync_content()
 	var out: Array = []
 	var ids := houses.keys()
 	ids.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
@@ -214,7 +343,7 @@ func house_rows() -> Array:
 			for f in dir.get_files():
 				if f.ends_with(".json") and f != "house.json":
 					levels_in += 1
-		out.append({"id": String(id), "name": str(houses[id]["name"]), "current": id == house_id,
+		out.append({"id": String(id), "name": _shown_name(id), "current": id == house_id,
 			"detail": "%d levels" % levels_in if levels_in > 0 else ""})
 	return out
 

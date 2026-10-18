@@ -67,6 +67,12 @@ func setup() -> DotResult:
 	source.label = "houses"
 	source.apply_fn = func(id: StringName) -> DotResult:
 		return apply_fn.call(id) if apply_fn.is_valid() else DotResult.success(id)
+	# Every house the game lists, its Workshop ones included and labelled "Name [Pack]" by the
+	# game, read again before each ballot. Not dot-vote's follow_content: that merges every
+	# entry of an accepted kind, with no way to leave out a pack document the game refused (a
+	# house whose id is not the entry's, or with no levels), and a ballot must not offer a house
+	# that then cannot open. The game syncs the same shared index, so online lists none.
+	source.entries_fn = _own_houses
 	refresh_houses()
 
 	director = DotVoteDirector.new()
@@ -152,12 +158,22 @@ func refresh_houses() -> void:
 
 	source.entries.clear()
 
+	for choice in _own_houses():
+		var _added := source.add(choice)
+
+
+## The houses the game lists, as choices.
+func _own_houses() -> Array:
+	var out: Array = []
+
 	if not houses_fn.is_valid():
-		return
+		return out
 
 	for pair: Variant in houses_fn.call():
 		var row: Array = pair
-		var _added := source.add(DotVoteChoice.of(StringName(str(row[0])), str(row[1])))
+		out.append(DotVoteChoice.of(StringName(str(row[0])), str(row[1])))
+
+	return out
 
 
 ## A house opened (by the vote or an operator): the director's clock starts over on it.

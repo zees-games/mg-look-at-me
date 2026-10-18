@@ -13,6 +13,9 @@ func _ready() -> void:
 		if arg.begins_with("--") and arg.contains("="):
 			_args[arg.substr(2, arg.find("=") - 2)] = arg.substr(arg.find("=") + 1)
 
+	if _args.has("workshop") or "--workshop" in OS.get_cmdline_user_args():
+		_add_workshop_fixture()
+
 	var client := LmClient.new()
 	client.start_level = int(_args.get("level", "1"))
 	add_child(client)
@@ -35,6 +38,17 @@ func _ready() -> void:
 	if _args.has("houses") and client.start_level > 1:
 		client.game.send_to(client.player, client.start_level)
 		await get_tree().physics_frame
+
+	if view == "mapmenu":
+		var maps: Object = client.get("settings").menu.maps
+		var rows: Array = maps.rows_fn.call()
+		print("house rows: ", rows.map(func(r: Dictionary) -> String: return str(r["name"])))
+		maps.call("open_rows", rows, true, "solo")
+		await get_tree().create_timer(0.6).timeout
+		for _i in 3:
+			await RenderingServer.frame_post_draw
+		_save(client)
+		return
 
 	# Somewhere worth looking: facing the nearest witch, a few metres away, or a room by id.
 	var player = client.player
@@ -128,6 +142,25 @@ func _ready() -> void:
 			her.global_position if her != null else Vector3.ZERO, player.global_position])
 
 	_save(client)
+
+
+## `--workshop`: a solo subscription pack holding one house, in the shared content index, the way
+## the client shell's Workshop sync leaves one. For `--view=mapmenu`.
+func _add_workshop_fixture() -> void:
+	var root := "user://lm_shot_fixture/"
+	DirAccess.make_dir_recursive_absolute(root + "ws_cellar")
+	var meta := FileAccess.open(root + "ws_cellar/house.json", FileAccess.WRITE)
+	meta.store_string(JSON.stringify({"kind": "house", "id": "ws_cellar", "name": "Cellar"}))
+	meta.close()
+	var level := FileAccess.open(root + "ws_cellar/ws_01.json", FileAccess.WRITE)
+	level.store_string(FileAccess.get_file_as_string("res://levels/lm_01.json"))
+	level.close()
+	var _added := DotContentIndex.shared().add_pack({
+		"content_id": "tester/cellar-houses", "version": "1.0.0", "prefix": root,
+		"session": "solo", "source": "subscription",
+		"provides": {"title": "Cellar Pack", "kinds": ["map"], "entries": [
+			{"kind": "map", "id": "ws_cellar", "name": "Cellar", "scene": "ws_cellar/house.json", "map_kind": "lookatme"}]},
+	})
 
 
 func _save(client: Node) -> void:

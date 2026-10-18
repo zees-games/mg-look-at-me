@@ -65,3 +65,7 @@ Every level is built at once, side by side in rows of eight (`LmGame.LEVELS_PER_
 ## Looking at one
 
 `tools/shot.sh --view=above --level=8 --floor=1 --res=1400x1400` renders a plan of one floor: ceilings and other floors hidden, an orthographic camera, every room, item, station, event and witch point written where it is, and the doors in their colours.
+
+## Workshop houses
+
+A subscribed pack can offer houses in solo: the entry's `scene` is the pack's `house.json` and the level documents sit beside it, in the format above. Online none are listed. Not done: a pack house is only checked to be a house of the entry's id with at least one level document; the builder's `--check` proofs (clear furniture, reachable doors) are the author's to run.

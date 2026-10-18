@@ -245,12 +245,7 @@ func _build_vote(world: LmGame) -> void:
 	vote.name = "HouseVote"
 	vote.house_minutes = world.config.house_minutes
 	vote.houses_fn = func() -> Array:
-		var out: Array = []
-
-		for id: StringName in world.houses:
-			out.append([id, str(world.houses[id]["name"])])
-
-		return out
+		return world.listed_houses()
 	vote.apply_fn = func(id: StringName) -> DotResult:
 		return world.change_house(id)
 	vote.voters_fn = func() -> Array:
