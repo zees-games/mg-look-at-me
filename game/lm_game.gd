@@ -740,10 +740,23 @@ func _physics_process(delta: float) -> void:
 	step(delta)
 
 
+## Asked every tick of a world that ticks itself: true while a cover is up (the client's load
+## gate). Only the bodies are stepped then, so the meter, catches, events and exits do not act on
+## anybody in front of a picture. Unset, never held.
+var hold_clock: Callable = Callable()
+
+
 func step(delta: float) -> void:
 	tick += 1
 
 	if not authoritative:
+		return
+
+	if hold_clock.is_valid() and bool(hold_clock.call()):
+		for key: StringName in players:
+			var body: LmPlayer = players[key]
+			_apply_doors(body)
+			body.simulate(tick, delta)
 		return
 
 	var seconds := float(tick) / float(maxi(tick_rate, 1))

@@ -143,18 +143,22 @@ func _ready() -> void:
 	add_child(platform)
 	link = platform.link as Node
 	_offline = platform.offline
+	_hold_gate()
 	_build_environment()
 	game = LmGame.new()
 	game.name = "World"
 	game.authoritative = _offline
 	game.register_service = _offline
 	game.self_tick = _offline
+	# Before the world is added: a world that ticks itself must not run in front of a picture.
+	game.hold_clock = _covered
 	add_child(game)
 
 	if _offline:
 		_adopt_player(game.join(local_key, local_name))
 		game.house_changed.connect(func(_id: StringName) -> void:
 			_forget_witches()
+			_hold_rebuild()
 			_say(game.house_name().to_upper(), 3.0))
 
 		if start_level > 1 and game.levels.has(start_level):
@@ -214,6 +218,8 @@ func _ready() -> void:
 		return
 
 	DotLog.result(CHANNEL, "chat, offline", chat.attach(null))
+	# The house is built and the player stands in it; the gate now settles the body and lifts.
+	_release_map()
 
 	game.said.connect(func(key: StringName, text: String) -> void:
 		if key == local_key:
@@ -221,6 +227,37 @@ func _ready() -> void:
 	game.caught.connect(func(key: StringName) -> void:
 		if key == local_key:
 			_say("SHE SEES YOU", 2.0))
+
+
+## The load gate is dot-game's ([member DotGameClient.gate]); this holds the house on it. Released
+## by [method _release_map] when the house stands.
+func _hold_gate() -> void:
+	var gate := platform.gate if platform != null else null
+
+	if gate != null:
+		gate.hold(&"map", "Loading the house")
+
+
+## True while the load gate covers the screen or settles the body: no input, no round clock,
+## no catches. False without a gate (a suite that adopts without this node's `_ready`).
+func _covered() -> bool:
+	var gate := platform.gate if platform != null else null
+	return gate != null and is_instance_valid(gate) and not gate.is_open()
+
+
+func _release_map() -> void:
+	if platform != null and platform.gate != null:
+		platform.gate.release(&"map")
+
+
+## The house was rebuilt (a new house offline or from a HELLO): covered again until the end of
+## this frame, when the new levels' collision is in.
+func _hold_rebuild() -> void:
+	var gate := platform.gate if platform != null else null
+
+	if gate != null:
+		gate.hold(&"map", "Loading the house")
+		gate.release.call_deferred(&"map")
 
 
 ## The player's settings, bound to the camera and the sampler's tunables. See [LmSettings].
@@ -320,6 +357,10 @@ func board_snapshot() -> Dictionary:
 func _adopt_player(p: LmPlayer) -> void:
 	player = p
 
+	# Stopped while the gate is closed; settles under the cover with its input off, then opens.
+	if platform != null and platform.gate != null:
+		platform.gate.freeze(player)
+
 	if _offline:
 		player.sampler = DotFpsSampler.new(player.controller.tunables)
 		DotFpsSampler.register_default_actions(player.sampler)
@@ -376,6 +417,9 @@ func _build_netcode() -> DotResult:
 	# A new house (or the first): the witches drawn for the old one go with it.
 	bridge.hello_received.connect(func(_key: StringName) -> void:
 		_forget_witches()
+		# The levels were built just now (the first house or a new one): covered until the end
+		# of this frame, by which time their collision is in.
+		_hold_rebuild()
 		_say(game.house_name().to_upper(), 3.0))
 	bridge.said.connect(func(text: String) -> void: _say(text))
 	bridge.notice_received.connect(func(text: String) -> void: _say(text))
@@ -400,7 +444,9 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var typing := _command.visible or (chat != null and chat.is_typing())
-	var move := _sampler.sample(delta) if _sampler != null and not typing else DotFpsCommand.new()
+	# Under the cover the keys are not read (the sampler is suspended too), so the server and the
+	# prediction see an idle body: the clock still runs and the predicted body settles.
+	var move := _sampler.sample(delta) if _sampler != null and not typing and not _covered() else DotFpsCommand.new()
 
 	if command_override != null:
 		move = command_override
@@ -663,7 +709,7 @@ func mouse_drives_view() -> bool:
 ## Offline the player's sampler takes it, connected the client's; while the command line is
 ## open the player's is held aside, so typing never turns the head.
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventMouseMotion) or not mouse_drives_view():
+	if not (event is InputEventMouseMotion) or not mouse_drives_view() or _covered():
 		return
 
 	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
@@ -680,6 +726,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if chat != null and chat.is_typing():
+		return
+
+	# Nothing below acts while the cover is up: no use, flashlight or command.
+	if _covered():
 		return
 
 	if key.is_action_pressed(USE_ACTION):
@@ -794,6 +844,10 @@ func _build_effects() -> void:
 
 ## Sound and effects, once a frame, after the camera is placed.
 func _present(delta: float) -> void:
+	# Scares, sounds and the stinger wait: the cover shows nothing and they would be spent.
+	if _covered():
+		return
+
 	var caught := player.caught_left > 0.0
 
 	if caught and not _was_caught:
@@ -1233,7 +1287,7 @@ func _glimpse_at(level: LmLevel, event: Dictionary) -> void:
 ## The player's own footfalls, and the doors they open, heard. Both from what the world already
 ## says (where the player is drawn, what they have opened), so offline and connected alike.
 func _hear_player(level: LmLevel) -> void:
-	if audio == null:
+	if audio == null or _covered():
 		return
 
 	var at := player.drawn_eye_position()

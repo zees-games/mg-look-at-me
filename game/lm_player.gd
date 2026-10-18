@@ -104,9 +104,15 @@ static func tunables_for(config: LmConfig) -> DotFpsTunables:
 
 
 func simulate(tick: int, delta: float) -> void:
+	# The world calls this by name, so a body the load gate froze is skipped here.
+	if is_inside_tree() and not can_process():
+		return
+
 	# Offline the keys; on a server, whatever the bridge last applied from this player's input.
+	# Settling under the cover runs the body with its input off: it falls and lands, no keys.
 	if sampler != null:
-		controller.apply_command(sampler.sample(delta))
+		var gate := DotLoadGate.of(self) if is_inside_tree() else null
+		controller.apply_command(sampler.sample(delta) if gate == null or gate.is_open() else DotFpsCommand.new())
 
 	controller.simulate_tick(tick, delta)
 	global_position = controller.state.position
