@@ -848,6 +848,9 @@ func spook(key: StringName, amount: float) -> bool:
 	if player == null or player.caught_left > 0.0 or amount <= 0.0:
 		return false
 
+	if not can_be_harmed(key):
+		return false
+
 	if not config.demons_enabled and not config.look_behind_enabled:
 		return false
 
@@ -873,6 +876,17 @@ func _physics_process(delta: float) -> void:
 ## gate). Only the bodies are stepped then, so the meter, catches, events and exits do not act on
 ## anybody in front of a picture. Unset, never held.
 var hold_clock: Callable = Callable()
+
+## `func(key: StringName) -> bool`: whether a player may be caught now, assigned by the module
+## from dot-game's `can_peer_be_harmed` (a client still behind its loading cover cannot be). Unset
+## offline, and a bot is never loading.
+var harm_gate: Callable = Callable()
+
+
+## Whether [param key] may be caught (the meter rising, a scare landing) now. True for anybody
+## the gate does not know.
+func can_be_harmed(key: StringName) -> bool:
+	return not harm_gate.is_valid() or bool(harm_gate.call(key))
 
 
 func step(delta: float) -> void:
@@ -917,6 +931,13 @@ func _watch(player: LmPlayer, seconds: float, delta: float) -> void:
 	var level := level_of(player)
 
 	if level == null:
+		return
+
+	# Behind its client's cover a player sees nothing, so a witch's look must not fill its meter.
+	# The one place a catch starts; the rest of the tick (doors, exits) is not a harm. A catch
+	# already in progress is stepped before this and is not interrupted.
+	if not can_be_harmed(player.player_key):
+		player.seen_by = 0
 		return
 
 	var best_rate := 0.0

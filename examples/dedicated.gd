@@ -6,9 +6,11 @@ extends Node
 ##   godot --headless --path . res://examples/dedicated.tscn
 
 const LmGame := preload("../game/lm_game.gd")
+const LmNetBridge := preload("../game/net/lm_net_bridge.gd")
+const LmNetLink := preload("../game/net/lm_net_link.gd")
 
-const SECTIONS := 7
-const CHECKS := 25
+const SECTIONS := 9
+const CHECKS := 35
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -43,6 +45,8 @@ func _run() -> void:
 		_test_the_console()
 		await _test_stand_ins()
 		_test_an_empty_server()
+		await _test_a_covered_seat_is_not_caught()
+		await _test_a_reload_leaves_one_link()
 		await _test_it_unloads()
 
 	_test_no_message_preloads_itself()
@@ -241,6 +245,125 @@ func _test_an_empty_server() -> void:
 	_check(is_equal_approx(director.clock.remaining, director.clock.duration),
 		"with the house's whole time limit ahead of it", director.clock.formatted_remaining())
 	_finished_section()
+
+
+## [b]A seat whose client has not lifted its loading cover cannot be caught, and can once it does[/b]
+## (dot-game's "still loading"), over a real ENet socket. A client joins and says nothing, as one
+## still loading its level; a fright it reports (the one way the meter is raised by a client) is
+## refused and a witch's look leaves the meter alone. It then sends `game.cover` on the wire and
+## the same fright lands. Stand-ins never reach this: a bot is never loading.
+func _test_a_covered_seat_is_not_caught() -> void:
+	_section("a client behind its loading cover is not caught, and is once it lifts")
+
+	var module := _module()
+	var bridge := module.get("bridge") as LmNetBridge if module != null else null
+	var side := Node.new()
+	side.name = "CoverClient"
+	add_child(side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
+	var link := DotClientLink.new()
+	link.name = "Server"
+	link.player_name = "Covered"
+	link.transport_preference = "udp"
+	link.udp_address = "127.0.0.1:%d" % PORT
+	# RPC paths are relative to the multiplayer root, so the link must sit at the path the
+	# server's does: "Dedicated/Server" under the root.
+	var mirror := Node.new()
+	mirror.name = "Dedicated"
+	side.add_child(mirror)
+	mirror.add_child(link)
+	# The link retires whatever the game left under it when it signs on, so a sink for the
+	# server's snapshots is put back at each phase change (a real game scene does this itself).
+	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
+		if link.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) == null:
+			var _sink := LmNetLink.attached_to(link, null, false)
+	attach.call()
+	link.phase_changed.connect(attach)
+	var spawned := [false]
+	link.spawned.connect(func() -> void: spawned[0] = true)
+	link.connect_to_server("127.0.0.1:%d" % PORT)
+	var joined := await _until(func() -> bool:
+		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
+	joined = joined and spawned[0]
+	var peer := side.multiplayer.get_unique_id() if joined else 0
+	var key: StringName = &""
+	if bridge != null and joined:
+		var _seated := await _until(func() -> bool: return bridge.key_of_peer(peer) != &"", 10.0)
+		key = bridge.key_of_peer(peer)
+	var victim: Object = game.players.get(key)
+	_check(victim != null, "a client joins over the socket and is seated", "peer %d key %s" % [peer, key])
+
+	if victim == null:
+		for what in [
+			"the server holds it as loading", "a reported fright does not raise its meter",
+			"a witch's look (and the drain) leaves its meter alone", "its cover report crosses the wire",
+			"and the same fright now lands", "and the meter is stepped again",
+		]:
+			_check(false, what)
+		link.disconnect_from_server("done")
+		side.queue_free()
+		_finished_section()
+		return
+
+	game.config.demons_enabled = true
+	victim.meter = 0.0
+	victim.spooked_at = -100.0
+	_check(bool(module.call("is_peer_loading", peer)) and not game.can_be_harmed(key),
+		"the server holds it as loading from its spawn")
+	_check(not game.spook(key, 0.4) and victim.meter == 0.0, "a reported fright does not raise its meter",
+		"meter %s" % victim.meter)
+	# Left to itself an unseen meter drains, so a meter that stays put was not stepped at all.
+	victim.meter = 0.5
+	victim.unseen_for = 999.0
+	game._watch(victim, game.seconds_now(), 0.5)
+	_check(is_equal_approx(victim.meter, 0.5), "a witch's look (and the drain) leaves its meter alone",
+		"meter %s" % victim.meter)
+
+	DotGameClient.report_cover(link, false)
+	var lifted := await _until(func() -> bool: return not bool(module.call("is_peer_loading", peer)), 10.0)
+	_check(lifted and game.can_be_harmed(key), "its cover report crosses the wire and ends the loading state")
+	victim.spooked_at = -100.0
+	_check(game.spook(key, 0.4) and victim.meter > 0.0, "and the same fright now lands", "meter %s" % victim.meter)
+	victim.meter = 0.5
+	victim.unseen_for = 999.0
+	game._watch(victim, game.seconds_now(), 0.5)
+	_check(victim.meter < 0.5, "and the meter is stepped again", "meter %s" % victim.meter)
+
+	link.disconnect_from_server("done")
+	side.queue_free()
+	_finished_section()
+
+
+## [b]A module loaded again leaves one link under the server[/b], the live one still named
+## `LookAtMe`. The link is the server's child, not the bridge's, so the bridge going away left it
+## and the next one was named `@Node@n`, and a client's RPCs addressed a path nothing had.
+func _test_a_reload_leaves_one_link() -> void:
+	_section("a module loaded again leaves one net link")
+	server.modules.unload_all()
+	await get_tree().process_frame
+	var stale := 0
+	for child in server.get_children():
+		if child is LmNetLink:
+			stale += 1
+	_check(stale == 0, "unloading takes the link off the server", "%d left" % stale)
+	var loaded: DotResult = await server.modules.load_module("res://game/lm_module.gd")
+	_check(loaded.ok, "and the module loads again", loaded.error.message if not loaded.ok else "")
+	var links := 0
+	for child in server.get_children():
+		if child is LmNetLink:
+			links += 1
+	_check(links == 1 and server.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) is LmNetLink,
+		"leaving one link, under its own name", "%d links" % links)
+	_finished_section()
+
+
+func _until(condition: Callable, seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if bool(condition.call()):
+			return true
+		await get_tree().physics_frame
+	return bool(condition.call())
 
 
 func _test_it_unloads() -> void:

@@ -114,6 +114,13 @@ func _game_load() -> DotResult:
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
 
+	# dot-game's "still loading": a seat behind its client's cover is not caught (LmGame.harm_gate).
+	world.harm_gate = func(key: StringName) -> bool:
+		if bridge == null:
+			return true
+		var peer: int = bridge.call("peer_of", key)
+		return peer <= 0 or can_peer_be_harmed(peer)
+
 	_wire_voice(world)
 	_wire_scares(world)
 

@@ -32,7 +32,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_18, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (20 sections, 151 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (7, 25), headless_workshop (1, 19)
+examples/        headless_run (20 sections, 151 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (9, 35), headless_workshop (1, 19)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -69,6 +69,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **Sound is a dot-audio catalogue of files** (`audio/`, written by `tools/make_sounds.py`, every file at a -2 dBFS peak); loudness is each def's `gain_db`, measured in the recorded mix, with a -1 dB hard limiter on master. [horror](docs/horror.md#sound)
 - **Every key is an `LmBindings` row** on the menu's Controls page; nothing is matched by keycode but Enter and Escape. [design](docs/design.md#settings-and-escape-opens-them)
 - **The platform is dot-game's `DotGameClient`** (`LmClient.platform`, added first in `_ready`): the loading cover (held until the player exists and the camera is current), the settings' menu, the console, the HUD's theme, Tab on `lm_scoreboard`, M, the pointer, and `input_blocked_changed`, which suspends every sampler (chat typing included). A suite that boots a client waits for the cover (`headless_run`'s `_shown`); `tools/shot.sh --view=cover` renders it. See dot-game's [client-migration.md](../dot-game/docs/client-migration.md).
+- **A seat behind its client's loading cover cannot be caught** (dot-game's "still loading"): `LmGame.harm_gate`, set by the module from `can_peer_be_harmed`, is asked by `_watch` (the one place the meter rises from a witch) and `spook` (a reported fright); a catch in progress and the server's own commands are not affected, and offline or bot suites have no gate. There is no round, role draw or living count here. The bridge frees its link (a child of the server) on `_exit_tree`: a module loaded again otherwise left a second `@Node@` link and lost every RPC. `dedicated` holds both over a real socket; `tools/render_cover.sh` renders a real client's cover and the frame after it lifts (the stock cover is not replaced here, so none is orphaned).
 - **The HUD wraps inside the window** (`LmClient.hud_fits`, checked at 640x360 to 1280x720). [horror](docs/horror.md#signs-and-the-hud)
 - **A room's name is a plaque over each door into it**, in front of the wall's face (each room's wall is a whole `WALL` deep inside its edge). [horror](docs/horror.md#signs-and-the-hud)
 
@@ -81,7 +82,7 @@ find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read
 godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 151 checks: the solver plays all 32 levels, events, stairs, the third floor
 godot --headless --path . res://examples/headless_net.tscn   # 9 sections, 38 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
 godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
-godot --headless --path . res://examples/dedicated.tscn      # 7 sections, 25 checks
+godot --headless --path . res://examples/dedicated.tscn      # 9 sections, 35 checks: also a real ENet client behind its cover is not caught and is once it lifts, and a module loaded again leaves one net link
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
 tools/shot.sh --view=above --level=8 --floor=1 --res=1400x1400   # a plan of one floor; look at it after any builder change
