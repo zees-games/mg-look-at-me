@@ -161,19 +161,11 @@ func open_link(parent: Node) -> void:
 
 	link = LmNetLink.attached_to(parent, self, net != null and net.is_server)
 
-
-## The link lives under the server, not under this node, so dropping the bridge left it there.
-## A module loaded again then opened a second link, which Godot named `@Node@…` because
-## `LookAtMe` was taken, and a client's RPCs addressed a path the new one did not have.
-func _exit_tree() -> void:
-	if link != null and is_instance_valid(link) and link.get_parent() != self:
-		# Out of the tree now, not at the end of the frame: a module loaded again in the same
-		# frame would otherwise find the name still taken.
-		if link.get_parent() != null:
-			link.get_parent().remove_child(link)
-		link.queue_free()
-
-	link = null
+	# Not parent.add_child: the link sits under the server (RPCs route by path) but must die
+	# with this bridge. A bare add_child left a second link after a module reload and Godot
+	# renamed the live one `@Node@n`, so RPCs to clients were lost. DotGameLink frees it with
+	# the bridge without remove_child, which errors on a busy parent.
+	DotGameLink.attach(link, parent, self, LmNetLink.NODE_NAME)
 
 
 func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:

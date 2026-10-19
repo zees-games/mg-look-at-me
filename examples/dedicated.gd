@@ -276,7 +276,9 @@ func _test_a_covered_seat_is_not_caught() -> void:
 	# server's snapshots is put back at each phase change (a real game scene does this itself).
 	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
 		if link.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) == null:
-			var _sink := LmNetLink.attached_to(link, null, false)
+			var sink := LmNetLink.attached_to(link, null, false)
+			sink.name = LmNetLink.NODE_NAME
+			link.add_child(sink)
 	attach.call()
 	link.phase_changed.connect(attach)
 	var spawned := [false]
