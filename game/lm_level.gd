@@ -1001,6 +1001,9 @@ func door_rid(door_id: String) -> RID:
 func _build_item(item: Dictionary, at: Vector3) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Item_%s" % item["id"]
+	# Picked up at arm's length by interacting, never collided with: a solid stand would block
+	# the room's walk lanes (the builder proves them clear) and the witches' paths.
+	root.set_meta(DotCollisionAudit.META, true)
 	add_child(root)
 	root.position = at
 
@@ -1020,6 +1023,9 @@ func _build_item(item: Dictionary, at: Vector3) -> Node3D:
 func _build_station(station: Dictionary, at: Vector3) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Station_%s" % station["id"]
+	# Used by interacting from beside it; the builder keeps its surroundings clear and it is
+	# passable by design, as the witches' lanes may cross it.
+	root.set_meta(DotCollisionAudit.META, true)
 	add_child(root)
 	root.position = at
 

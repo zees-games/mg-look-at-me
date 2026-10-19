@@ -15,8 +15,8 @@ const LmScares := preload("res://game/lm_scares.gd")
 const LmConfig := preload("res://game/lm_config.gd")
 const LmBindings := preload("res://game/lm_bindings.gd")
 
-const SECTIONS := 21
-const CHECKS := 155
+const SECTIONS := 22
+const CHECKS := 157
 
 var _passed := 0
 var _failed := 0
@@ -62,6 +62,7 @@ func _ready() -> void:
 	await _test_voice()
 	await _test_scares()
 	_test_wheel_jumps()
+	await _test_collision_audit()
 
 	print("")
 	print("%d sections entered, %d finished" % [_entered, _finished])
@@ -1622,6 +1623,46 @@ func _test_wheel_jumps() -> void:
 	sampler.handle_event(release)
 	_check(sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "a wheel tick gives the jump bit in the next sample")
 	_check(not sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "and not in the one after")
+	_finished_section()
+
+
+## dot-core's [DotCollisionAudit] over every level of both houses, built drawn as a client
+## builds it: visible geometry nothing collides with is walked through. Strict.
+func _test_collision_audit() -> void:
+	_section("nothing drawn is walked through")
+
+	for house_id: StringName in [&"house", &"asylum"]:
+		var _changed := game.change_house(house_id)
+		var examined := 0
+		var found := 0
+		var failed_levels: Array = []
+
+		for n: int in game.levels:
+			var drawn := LmLevel.new()
+			add_child(drawn)
+			var _b := drawn.build((game.levels[n] as LmLevel).doc, true)
+			var res := DotCollisionAudit.audit(drawn, true)
+
+			if res.ok:
+				var report: DotCollisionAudit = res.value
+				examined += report.examined
+				found += report.count()
+
+				if report.count() > 0:
+					failed_levels.append(n)
+					print("  %s level %d: %d findings" % [house_id, n, report.count()])
+
+					for line in report.describe_lines().slice(1, 8):
+						print("    %s" % line)
+			else:
+				failed_levels.append(n)
+
+			drawn.queue_free()
+
+		print("  %s collision audit: %d findings in %d meshes" % [house_id, found, examined])
+		_check(found == 0 and failed_levels.is_empty(), "%s: no drawn geometry without a shape" % house_id, str(failed_levels))
+
+	var _back := game.change_house(&"house")
 	_finished_section()
 
 
