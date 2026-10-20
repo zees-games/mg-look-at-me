@@ -216,6 +216,13 @@ extends DotConfig
 ## The house a server opens with.
 @export var house: String = "house"
 
+## The file that says which houses this server ROTATES: `cfg/maps.yml` (dot-map's
+## `DotMapRotationFile`: named rotations, `random` or `cycle`, wildcards, command names), looked
+## for in the `--config` directory. Empty, or no such file, rotates every house. A house it
+## leaves out stays installed (`lm_house` and the map menu load it); it is only never drawn,
+## balloted or nominated. `sv_map_rotation_file`.
+@export var map_rotation_file: String = "cfg/maps.yml"
+
 ## Minutes a house is played before the players vote on the next (the same house is on the
 ## ballot). 0 is no limit: the house changes only when players rock the vote.
 @export_range(0.0, 600.0, 1.0) var house_minutes: float = 45.0

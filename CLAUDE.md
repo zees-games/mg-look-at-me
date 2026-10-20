@@ -34,7 +34,7 @@ houses/forgotten/ The Forgotten Wing: one 51-room level laid over a Workshop map
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (22 sections, 166 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (9, 35), headless_workshop (1, 19)
+examples/        headless_run (22 sections, 166 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (10, 50), headless_workshop (1, 19)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -86,7 +86,7 @@ find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read
 godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 151 checks: the solver plays all 32 levels, events, stairs, the third floor
 godot --headless --path . res://examples/headless_net.tscn   # 9 sections, 38 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
 godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
-godot --headless --path . res://examples/dedicated.tscn      # 9 sections, 35 checks: also a real ENet client behind its cover is not caught and is once it lifts, and a module loaded again leaves one net link
+godot --headless --path . res://examples/dedicated.tscn      # 10 sections, 50 checks: cfg/maps.yml (rotation file), also a real ENet client behind its cover is not caught and is once it lifts, and a module loaded again leaves one net link
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
 tools/shot.sh --view=above --level=8 --floor=1 --res=1400x1400   # a plan of one floor; look at it after any builder change

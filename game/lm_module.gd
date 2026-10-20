@@ -127,7 +127,20 @@ func _game_load() -> DotResult:
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
 	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
 	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")
-	add_command("lm_house", _cmd_house, "Play another house now: lm_house <id>, or the list with none", DotAdminFlags.CHANGEMAP)
+	# Renameable from maps.yml's `commands:` block, like dot-vote's. An admin's lm_house loads
+	# any house, in the rotation or not.
+	for name in world.command_names("lm_house"):
+		add_command(name, _cmd_house, "Play another house now: lm_house <id>, or the list with none", DotAdminFlags.CHANGEMAP)
+	add_command("lm_rotation", _cmd_rotation,
+		"lm_rotation [name]: switch to a rotation in maps.yml, or list them", DotAdminFlags.CHANGEMAP)
+	add_command("lm_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP)
+	var _file_cvar := add_cvar("sv_map_rotation_file", world.config.map_rotation_file,
+		"maps.yml: the houses that rotate, in named rotations. Unlisted houses stay installed.")
+	_file_cvar.changed.connect(func(_old: String, new_value: String) -> void:
+		world.config.map_rotation_file = new_value.strip_edges()
+		var _read := world.load_rotation()
+		if vote != null:
+			vote.refresh_houses())
 
 	if bridge != null:
 		bridge.connect("say_requested", _on_say_requested)
@@ -250,9 +263,10 @@ func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> vo
 func _build_vote(world: LmGame) -> void:
 	vote = LmVote.new()
 	vote.name = "HouseVote"
+	vote.commands_spec_fn = world.rotation_commands
 	vote.house_minutes = world.config.house_minutes
 	vote.houses_fn = func() -> Array:
-		return world.listed_houses()
+		return world.rotating_houses()
 	vote.apply_fn = func(id: StringName) -> DotResult:
 		return world.change_house(id)
 	vote.voters_fn = func() -> Array:
@@ -352,6 +366,41 @@ func _cmd_house(ctx: DotCmdContext) -> void:
 		return
 
 	ctx.reply("Now playing %s." % world.house_name())
+
+
+func _cmd_rotation(ctx: DotCmdContext) -> void:
+	var world := game as LmGame
+
+	if world == null or not world.has_rotation_file():
+		ctx.reply("There is no maps.yml; every house rotates.")
+		return
+
+	var file := world.rotation_file
+
+	if ctx.argc() == 0:
+		ctx.reply("Rotations: %s (active: %s)" % [", ".join(file.rotation_names()), file.active_name()])
+		return
+
+	var switched := world.switch_rotation(ctx.arg(0))
+
+	if not switched.ok:
+		ctx.reply(switched.error.message)
+		return
+
+	if vote != null:
+		vote.refresh_houses()
+
+	ctx.reply("Rotation: %s" % ctx.arg(0))
+
+
+func _cmd_maps_reload(ctx: DotCmdContext) -> void:
+	var world := game as LmGame
+	var read := world.load_rotation()
+
+	if vote != null:
+		vote.refresh_houses()
+
+	ctx.reply("maps.yml read." if read.ok else read.error.message)
 
 
 func _cmd_status(ctx: DotCmdContext) -> void:

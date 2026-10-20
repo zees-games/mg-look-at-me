@@ -53,6 +53,10 @@ var ballot_fn: Callable = Callable()
 ## [code]func(voter: StringName) -> Dictionary[/code]: a voter's name and avatar, for the ballot.
 var people_fn: Callable = Callable()
 
+## `() -> Dictionary`: maps.yml's `commands:` block, so an operator renames vote, rtv and
+## nominate without this game naming any of them. Unset renames nothing.
+var commands_spec_fn: Callable = Callable()
+
 var director: DotVoteDirector = null
 var source: DotVoteListSource = null
 var commands: DotVoteCommands = null
@@ -214,7 +218,9 @@ func install_commands(host: Object) -> DotResult:
 
 	commands = DotVoteCommands.new()
 	commands.director = director
-	commands.names = COMMAND_NAMES
+	commands.names = COMMAND_NAMES.duplicate()
+	# maps.yml's `commands:` block, read on every bind.
+	commands.spec_fn = commands_spec_fn
 	commands.voter_fn = func(ctx: Object) -> StringName:
 		var session: Variant = ctx.get("session")
 

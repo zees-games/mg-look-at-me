@@ -120,6 +120,7 @@ func _ready() -> void:
 	if authoritative:
 		_find_houses()
 		follow_content(DotContentIndex.shared(), accepted_map_kinds())
+		var _rotation := load_rotation()
 		var start := StringName(config.house) if houses.has(StringName(config.house)) else &"house"
 		var _h := change_house(start)
 		_read_winners()
@@ -153,6 +154,7 @@ func add_house_roots(roots: PackedStringArray) -> void:
 			extra_house_roots.append(root)
 
 	_find_houses()
+	apply_rotation()
 
 
 ## The built-in house, and every directory under [member LmConfig.houses_directory] with a
@@ -301,6 +303,187 @@ func listed_houses() -> Array:
 	return out
 
 
+## The server's maps.yml, or null when there is none (every house rotates, as it always did).
+## dot-map's rotation file speaks DotMapDef; this game holds house records, so [member _defs]
+## mirrors the ids and the file marks `in_rotation` on the mirror. See [method rotating_houses].
+var rotation_file: DotMapRotationFile = null
+var _defs: DotMapCatalogue = DotMapCatalogue.new()
+var _rotation: DotMapRotation = DotMapRotation.of(_defs)
+
+
+## Whether maps.yml names rotations, so that it decides which houses rotate and in what order.
+func has_rotation_file() -> bool:
+	return rotation_file != null and rotation_file.has_rotations()
+
+
+## Brings the mirror up to date with [member houses] and lets the file mark who rotates.
+## Without a file every house is in.
+func apply_rotation() -> void:
+	sync_content()
+
+	for id: StringName in houses:
+		if _defs.get_map(id) == null:
+			var def := DotMapDef.new()
+			def.id = id
+			def.scene_path = "lm:%s" % id
+			def.display_name = str(houses[id]["name"])
+			var _added := _defs.add(def)
+
+	for def: DotMapDef in _defs.maps.duplicate():
+		if not houses.has(def.id):
+			var _gone := _defs.remove(def.id)
+
+	if has_rotation_file():
+		rotation_file.fallback_in = func(_def: DotMapDef) -> bool: return true
+		var _applied := rotation_file.apply(_rotation)
+		return
+
+	_rotation.order = []
+
+	for def: DotMapDef in _defs.maps:
+		def.in_rotation = true
+
+
+## Reads maps.yml (the `--config` directory first) and applies it. Called at boot and by
+## `sv_map_rotation_file`. A file that is present and unreadable is an ERROR and changes nothing:
+## rotating every house is a better failure than rotating none.
+func load_rotation() -> DotResult:
+	var stem := config.map_rotation_file
+	var dir := DotMapRotationFile.config_dir_arg()
+	var found := DotMapRotationFile.find(stem, dir)
+
+	if found == "" and stem != "" and (dir != "" or stem != LmConfig.new().map_rotation_file):
+		# The default name being absent is an install with no maps.yml; a name or a directory
+		# somebody chose that finds nothing is a typo they would otherwise never hear about.
+		DotLog.warn(CHANNEL, "the map rotation file was not found; every house rotates", {
+			"file": stem, "config_dir": dir,
+		})
+
+	var paths := PackedStringArray()
+
+	if found != "":
+		paths.append(found)
+
+	var read := DotMapRotationFile.load_files(paths, "mg-look-at-me")
+
+	if not read.ok:
+		DotLog.error(CHANNEL, "the map rotation file could not be read; every house rotates", {
+			"why": read.error.message,
+		})
+		rotation_file = null
+		apply_rotation()
+		return read
+
+	rotation_file = read.value
+	apply_rotation()
+
+	if has_rotation_file():
+		DotLog.info(CHANNEL, "the map rotation file", {
+			"paths": ", ".join(rotation_file.sources), "active": rotation_file.active_name(),
+		})
+
+	return read
+
+
+## `lm_rotation <name>`: the live switch to another named rotation in the file.
+func switch_rotation(rotation_name: String) -> DotResult:
+	if not has_rotation_file():
+		return DotResult.fail(DotError.CODE_STATE, "There is no maps.yml to switch rotations in.")
+
+	apply_rotation()
+	return rotation_file.switch(_rotation, rotation_name)
+
+
+## Whether [param id] is in the active rotation. A house this game does not hold is not.
+func in_rotation(id: StringName) -> bool:
+	sync_content()
+
+	if not houses.has(id):
+		return false
+
+	if not has_rotation_file():
+		return true
+
+	apply_rotation()
+	var def := _defs.get_map(id)
+	return def != null and def.in_rotation
+
+
+## What the ballot, a nomination and [method next_house] may offer: every house less the ones
+## maps.yml leaves out, in the file's order. A house left out stays [i]playable[/i] (`lm_house`
+## and the map menu load it). With no file, or a file that leaves nothing, every house.
+func rotating_ids() -> Array[StringName]:
+	sync_content()
+	var every: Array[StringName] = []
+
+	for id: StringName in houses:
+		every.append(id)
+
+	if not has_rotation_file():
+		return every
+
+	apply_rotation()
+	var out: Array[StringName] = []
+
+	for def: DotMapDef in _rotation.pool(0):
+		if houses.has(def.id):
+			out.append(def.id)
+
+	return out if not out.is_empty() else every
+
+
+## [method listed_houses] less the houses maps.yml leaves out: what the vote's ballot lists.
+func rotating_houses() -> Array:
+	var out: Array = []
+
+	for id in rotating_ids():
+		out.append([id, _shown_name(id)])
+
+	return out
+
+
+## The house after this one: the file's rotation (its mode, cooldown and written order, so a
+## `cycle` walks in turn) or, with no file, the next in id order. Never an out-of-rotation house.
+## Does not change anything: the same call twice answers the same, [method change_house] records
+## the play.
+func next_house() -> StringName:
+	if has_rotation_file():
+		apply_rotation()
+
+		if _rotation.seed_value == 0:
+			_rotation.seed_value = maxi(1, config.seed_value) if config.seed_value != 0 else randi_range(1, 0x3fffffff)
+
+		var chosen := _rotation.choose(0)
+
+		if chosen != null and houses.has(chosen.id):
+			return chosen.id
+
+	var ids := rotating_ids()
+	ids.sort()
+
+	if ids.is_empty():
+		return house_id
+
+	var at := ids.find(house_id)
+	return ids[(at + 1) % ids.size()]
+
+
+## `lm_house` and `lm_houses` answer to the names maps.yml's `commands:` block gives them.
+func rotation_commands() -> Dictionary:
+	return rotation_file.commands() if rotation_file != null else {}
+
+
+## Every name a role of this game's own answers to (the first is the one help shows); the
+## role's own name with no file.
+func command_names(role: String) -> PackedStringArray:
+	var names: Dictionary = rotation_commands().get("names", {})
+
+	if not names.has(role):
+		return PackedStringArray([role])
+
+	return DotCommandNames.all_of("", names, {}, role)
+
+
 ## Plays house [param id]: its levels replace these, and everybody starts again in its lobby.
 ## What the vote does, and what `lm_house` does for an operator.
 func change_house(id: StringName) -> DotResult:
@@ -325,6 +508,9 @@ func change_house(id: StringName) -> DotResult:
 		player.best = 1
 		send_to(player, 1)
 
+	if has_rotation_file() and _defs.get_map(id) != null:
+		_rotation.note_played(id)
+
 	DotLog.info(CHANNEL, "a house opened", {"house": String(id), "levels": levels.size()})
 	house_changed.emit(id)
 	return DotResult.success(id)
@@ -345,7 +531,9 @@ func house_rows() -> Array:
 			for f in dir.get_files():
 				if f.ends_with(".json") and f != "house.json":
 					levels_in += 1
-		out.append({"id": String(id), "name": _shown_name(id), "current": id == house_id,
+		var rotates := in_rotation(id)
+		out.append({"id": String(id), "name": _shown_name(id) + ("" if rotates else " (not in rotation)"),
+			"in_rotation": rotates, "current": id == house_id,
 			"detail": "%d levels" % levels_in if levels_in > 0 else ""})
 	return out
 

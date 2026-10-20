@@ -43,3 +43,4 @@ Thumbs.db
 .vscode/
 /addons/dot_player_char
 tools/__pycache__/
+/addons/dot_map

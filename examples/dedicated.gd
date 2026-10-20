@@ -9,8 +9,8 @@ const LmGame := preload("../game/lm_game.gd")
 const LmNetBridge := preload("../game/net/lm_net_bridge.gd")
 const LmNetLink := preload("../game/net/lm_net_link.gd")
 
-const SECTIONS := 9
-const CHECKS := 35
+const SECTIONS := 10
+const CHECKS := 50
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -46,6 +46,7 @@ func _run() -> void:
 		await _test_stand_ins()
 		_test_an_empty_server()
 		await _test_a_covered_seat_is_not_caught()
+		_test_rotation_file()
 		await _test_a_reload_leaves_one_link()
 		await _test_it_unloads()
 
@@ -356,6 +357,128 @@ func _test_a_reload_leaves_one_link() -> void:
 			links += 1
 	_check(links == 1 and server.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) is LmNetLink,
 		"leaving one link, under its own name", "%d links" % links)
+	_finished_section()
+
+
+## Stands in for the module a vote's commands are registered on, recording the names.
+class CommandHost extends Node:
+	var added: Dictionary = {}
+
+	func add_command(full: String, fn: Callable, _help: String, _permission: String) -> Object:
+		added[full] = fn
+		return null
+
+
+## `cfg/maps.yml`: which houses rotate. The format is dot-map's selftest's; this is what the GAME
+## does with it: a house left out is installed and loadable and is never drawn, never on a
+## ballot, never nominated, marked in the map list; a switch of rotation takes effect; a renamed
+## command is registered; no file means every house.
+func _test_rotation_file() -> void:
+	_section("rotation file")
+	var module := _module()
+	var vote: Node = module.get("vote") if module != null else null
+	var dir: String = str(game.houses[&"asylum"]["directory"])
+	var made: Array[StringName] = []
+
+	for n in 4:
+		var id := StringName("rot_%d" % n)
+		game.houses[id] = {"name": "Rotation %d" % n, "directory": dir}
+		made.append(id)
+
+	var keep_a: Array = ["house", "rot_0"]
+	var keep_b: Array = ["rot_2", "rot_3"]
+	var parsed := DotMapRotationFile.from_trees([{"defaults": {
+		"rotation": "a",
+		"rotations": {"a": {"maps": keep_a, "mode": "random"}, "b": {"maps": keep_b, "mode": "cycle"}},
+		"commands": {"names": {"rtv": "rockit", "lm_house": "gohouse"}},
+	}}], "mg-look-at-me")
+	_check(parsed.ok, "a rotation file parses", str(parsed.error))
+	var kept = game.rotation_file
+	game.rotation_file = parsed.value
+	game.apply_rotation()
+
+	var drawn := {}
+	for _i in 30:
+		var id := game.next_house()
+		drawn[String(id)] = true
+		game._rotation.note_played(id)
+		game._rotation.seed_value += 1
+	var strays := drawn.keys().filter(func(id: String) -> bool: return not keep_a.has(id))
+	_check(not drawn.is_empty() and strays.is_empty(), "a house outside the rotation is never drawn", str(strays))
+	_check(game.houses.has(&"rot_2") and not game.rotating_ids().has(&"rot_2") and not game.in_rotation(&"rot_2"),
+		"and stays installed but is not what the rotation offers")
+
+	if vote != null:
+		vote.call("refresh_houses")
+		var ballot: Array = []
+		for choice in (vote.get("source") as DotVoteListSource).entries:
+			ballot.append(String(choice.id))
+		_check(ballot.has("rot_0") and not ballot.has("rot_2") and not ballot.has("asylum"),
+			"never on a ballot", str(ballot))
+		var refused := _run_command("nominate rot_2")
+		_check(not _said(refused, "Nominated"), "refused by nominate", ", ".join(refused))
+		var accepted := _run_command("nominate rot_0")
+		# A ballot may be running already, which refuses any nomination; what matters is that a
+		# house in the rotation is known to nominate and an unlisted one is not.
+		_check(not _said(accepted, "nothing called"), "while one in the rotation is known to it", ", ".join(accepted))
+	else:
+		_check(false, "never on a ballot", "no vote")
+		_check(false, "refused by nominate", "no vote")
+		_check(false, "while one in the rotation is known to it", "no vote")
+
+	var out_row: Dictionary = {}
+	var in_row: Dictionary = {}
+	for row: Dictionary in game.house_rows():
+		if row["id"] == "rot_2":
+			out_row = row
+		elif row["id"] == "rot_0":
+			in_row = row
+	_check(not out_row.is_empty() and not bool(out_row["in_rotation"])
+			and str(out_row["name"]).contains("not in rotation"), "the house list marks it")
+	_check(not in_row.is_empty() and bool(in_row["in_rotation"])
+			and not str(in_row["name"]).contains("not in rotation"), "and leaves the rotating ones alone")
+
+	var before := game.house_id
+	_check(game.change_house(&"rot_2").ok and game.house_id == &"rot_2",
+		"while an admin's house change still loads it", str(game.house_id))
+
+	_check(game.switch_rotation("b").ok and game.rotating_ids().size() == 2
+			and game.rotating_ids().has(&"rot_2") and game.rotating_ids().has(&"rot_3"),
+		"a rotation switch takes effect")
+	_check(not game.switch_rotation("nowhere").ok, "and an unknown rotation changes nothing")
+
+	var seen: Array = []
+	for _i in 4:
+		var id := game.next_house()
+		seen.append(String(id))
+		game._rotation.note_played(id)
+	_check(seen[0] != seen[1] and seen[0] == seen[2] and seen[1] == seen[3]
+			and keep_b.has(seen[0]) and keep_b.has(seen[1]), "a cycle walks the rotation in turn", str(seen))
+
+	_check(game.command_names("lm_house") == PackedStringArray(["gohouse"])
+			and game.command_names("lm_winners") == PackedStringArray(["lm_winners"]),
+		"the game's own map command is renameable from the file")
+
+	var host := CommandHost.new()
+	var bound: DotResult = vote.call("install_commands", host) if vote != null else null
+	_check(bound != null and bound.ok and host.added.has("rockit") and not host.added.has("rtv"),
+		"and a renamed rtv is registered under its new name", ", ".join(host.added.keys().slice(0, 6)))
+	host.free()
+
+	# No file: every house rotates, as it always did.
+	game.rotation_file = null
+	game.apply_rotation()
+	_check(game.rotating_ids().size() == game.houses.size() and game.in_rotation(&"rot_2"),
+		"with no file every house is in the rotation")
+
+	# Put the world back: the later sections share this house.
+	for id in made:
+		var _gone: bool = game.houses.erase(id)
+	game.rotation_file = kept
+	game.apply_rotation()
+	var _back := game.change_house(before if game.houses.has(before) else &"house")
+	if vote != null:
+		vote.call("refresh_houses")
 	_finished_section()
 
 
