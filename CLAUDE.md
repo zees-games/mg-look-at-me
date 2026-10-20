@@ -30,10 +30,11 @@ game/
   lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_18, the same builder
+houses/forgotten/ The Forgotten Wing: one 51-room level laid over a Workshop map's plan (tools/layouts/forgotten.json, tools/bsp_layout.py, docs/map-bases.md)
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (22 sections, 163 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (9, 35), headless_workshop (1, 19)
+examples/        headless_run (22 sections, 166 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (9, 35), headless_workshop (1, 19)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 

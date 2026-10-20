@@ -94,6 +94,14 @@ HOUSES = {
     "asylum": ("houses/asylum", 18, 5000, ASYLUM_NAMES, "Reception", "The Asylum", ASYLUM_ROOMS, ASYLUM_CORRIDORS, ASYLUM_STAIRS),
 }
 
+# Houses laid out by hand over a Workshop map's plan (tools/bsp_layout.py reads the plan; the layout
+# is a JSON of rooms on the 4 m grid). id -> (directory, layout file, seed base, the difficulty the
+# level is dealt at: witches, locks and the rest come from plan(difficulty)). One level each: a layout
+# is one big map, not a house of thirty-two.
+LAYOUTS = {
+    "forgotten": ("houses/forgotten", "tools/layouts/forgotten.json", 7000, 24),
+}
+
 # 8 to 16 m a side: the first build's 12 to 20 m rooms were too big (full game review).
 ROOM_SHAPES = [(2, 2), (3, 2), (2, 3), (3, 3), (3, 3), (4, 3), (3, 4)]
 DIRS = {"n": (0, -1), "s": (0, 1), "w": (-1, 0), "e": (1, 0)}
@@ -424,6 +432,86 @@ def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_
         if len(compact(doc)) <= MAX_BYTES and not prove(doc):
             return doc
     raise SystemExit("level %d of %s: no house grew that fits its plan" % (n, prefix))
+
+
+def layout_grower(rng, layout):
+    """A Grower filled from a layout instead of grown: the rooms are where the layout puts them, and
+    the doors are a tree through the walls they share, walked from the first room (the start)."""
+    g = Grower(rng)
+    specs = layout["rooms"]
+    cells = {}
+    for i, sp in enumerate(specs):
+        for c in g.cells(sp["x"], sp["z"], sp["w"], sp["d"]):
+            if c in cells:
+                raise SystemExit("layout: %s overlaps %s" % (sp["name"], specs[cells[c]]["name"]))
+            cells[c] = i
+    # Neighbours: for each pair, the cells on the shared wall, as (cell of a, side, cell of b).
+    edges = {i: {} for i in range(len(specs))}
+    for (cx, cz), i in cells.items():
+        for side, (dx, dz) in DIRS.items():
+            j = cells.get((cx + dx, cz + dz))
+            if j is not None and j != i:
+                edges[i].setdefault(j, []).append(((cx, cz), side))
+    seen = {0: None}
+    order = [0]
+    queue = [0]
+    while queue:
+        i = queue.pop(0)
+        for j in sorted(edges[i]):
+            if j not in seen:
+                seen[j] = i
+                order.append(j)
+                queue.append(j)
+    if len(order) != len(specs):
+        lost = [specs[i]["name"] for i in range(len(specs)) if i not in seen]
+        raise SystemExit("layout: not joined to the start room: %s" % ", ".join(lost))
+    ids = {}
+    for i in order:
+        sp = specs[i]
+        parent = None if seen[i] is None else ids[seen[i]]
+        room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], 0, parent)
+        room["light"] = sp.get("light", 0.0)
+        ids[i] = room["id"]
+        if seen[i] is not None:
+            shared = sorted(edges[seen[i]][i])
+            cell, side = shared[len(shared) // 2]
+            room["door"] = {"at": door_at(cell, side), "floor": 0}
+    return g
+
+
+def layout_level(house_id, layout_path, seed_base, difficulty):
+    """The one level of a laid-out house, dealt and proven like a grown one."""
+    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
+    p = plan(difficulty)
+    p["floors"] = 1
+    for attempt in range(200):
+        rng = random.Random(seed_base * 1000 + attempt)
+        g = layout_grower(rng, layout)
+        if not glimpse_corridors(g) or exit_of(g) is None:
+            continue
+        # n is the difficulty (speeds, sight, glimpses read it); the document is level 1 of 1.
+        doc = furnish_puzzles(rng, g, difficulty, p, [layout["name"]] * difficulty, 1, house_id)
+        doc["id"] = "%s_01" % house_id
+        doc["number"] = 1
+        doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
+        if not solve(doc):
+            continue
+        # A room whose furniture fails the proof is dealt again with a salt in its seed, the rest
+        # stay as they were. The salts are not in the document: the props are.
+        salts = {}
+        for _ in range(60):
+            doc["furnish_salt"] = {k: "#%d" % v for k, v in salts.items()}
+            furnish(doc)
+            bad = prove(doc)
+            if not bad:
+                break
+            for line in bad:
+                rid = line.split(": ")[1].split("'")[0]
+                salts[rid] = salts.get(rid, 0) + 1
+        doc.pop("furnish_salt", None)
+        if len(compact(doc)) <= MAX_BYTES and not prove(doc):
+            return doc
+    raise SystemExit("layout %s: no dealing of its puzzles fits" % layout_path)
 
 
 def top_floor(g):
@@ -849,6 +937,33 @@ def main():
                 f.write(text)
             written += 1
 
+    for house_id, (directory, layout_path, seed_base, difficulty) in LAYOUTS.items():
+        out = os.path.join(HERE, "..", directory)
+        os.makedirs(out, exist_ok=True)
+        title = json.load(open(os.path.join(HERE, "..", layout_path)))["title"]
+        meta = os.path.join(out, "house.json")
+        meta_text = json.dumps({"kind": "house", "id": house_id, "name": title}, indent="\t") + "\n"
+        if check:
+            if not os.path.exists(meta) or open(meta).read() != meta_text:
+                stale.append(house_id + "/house.json")
+        elif not stats:
+            with open(meta, "w") as f:
+                f.write(meta_text)
+        doc = layout_level(house_id, layout_path, seed_base, difficulty)
+        unfit.extend(prove(doc))
+        if stats:
+            print(stats_line(doc))
+            continue
+        path = os.path.join(out, doc["id"] + ".json")
+        text = text_of(doc)
+        if check:
+            if not os.path.exists(path) or open(path).read() != text:
+                stale.append(doc["id"])
+            continue
+        with open(path, "w") as f:
+            f.write(text)
+        written += 1
+
     if unfit:
         print("furniture that breaks a rule:", *unfit, sep="\n  ")
         return 1
@@ -859,7 +974,7 @@ def main():
         print("not what tools/build_levels.py writes:", ", ".join(stale))
         return 1
     if not check and not stats:
-        print("wrote %d levels in %d houses, every one finishable" % (written, len(HOUSES)))
+        print("wrote %d levels in %d houses, every one finishable" % (written, len(HOUSES) + len(LAYOUTS)))
     return 0
 
 

@@ -1,0 +1,466 @@
+{
+ "format": 1,
+ "name": "The Forgotten Wing",
+ "title": "Forgotten Wing",
+ "rooms": [
+  {
+   "name": "Vestibule",
+   "kind": "room",
+   "x": 10,
+   "z": 15,
+   "w": 4,
+   "d": 3,
+   "light": 0.45
+  },
+  {
+   "name": "Great Hall",
+   "kind": "room",
+   "x": 6,
+   "z": 10,
+   "w": 12,
+   "d": 5,
+   "light": 0.0
+  },
+  {
+   "name": "Back Passage",
+   "kind": "corridor",
+   "x": 10,
+   "z": 18,
+   "w": 4,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "West Landing",
+   "kind": "corridor",
+   "x": 6,
+   "z": 15,
+   "w": 4,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "East Landing",
+   "kind": "corridor",
+   "x": 14,
+   "z": 15,
+   "w": 4,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Kitchen",
+   "kind": "room",
+   "x": 6,
+   "z": 16,
+   "w": 4,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Laundry",
+   "kind": "room",
+   "x": 14,
+   "z": 16,
+   "w": 4,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Service Passage West",
+   "kind": "corridor",
+   "x": 2,
+   "z": 19,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Service Passage",
+   "kind": "corridor",
+   "x": 8,
+   "z": 19,
+   "w": 8,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Service Passage East",
+   "kind": "corridor",
+   "x": 16,
+   "z": 19,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Boiler Room",
+   "kind": "room",
+   "x": 2,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Coal Store",
+   "kind": "room",
+   "x": 6,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Cellar Hall",
+   "kind": "room",
+   "x": 10,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Pantry",
+   "kind": "room",
+   "x": 14,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Workshop",
+   "kind": "room",
+   "x": 18,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Boiler Passage",
+   "kind": "corridor",
+   "x": 22,
+   "z": 19,
+   "w": 8,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Generator Room",
+   "kind": "room",
+   "x": 22,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Cold Store",
+   "kind": "room",
+   "x": 26,
+   "z": 20,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "West Gallery",
+   "kind": "corridor",
+   "x": 6,
+   "z": 9,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "East Gallery",
+   "kind": "corridor",
+   "x": 12,
+   "z": 9,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Ward A",
+   "kind": "room",
+   "x": 6,
+   "z": 5,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Ward B",
+   "kind": "room",
+   "x": 10,
+   "z": 5,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Ward C",
+   "kind": "room",
+   "x": 14,
+   "z": 5,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Ward Passage West",
+   "kind": "corridor",
+   "x": 6,
+   "z": 4,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Ward Passage East",
+   "kind": "corridor",
+   "x": 12,
+   "z": 4,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "Ward D",
+   "kind": "room",
+   "x": 6,
+   "z": 0,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Ward E",
+   "kind": "room",
+   "x": 10,
+   "z": 0,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Isolation",
+   "kind": "room",
+   "x": 14,
+   "z": 0,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "West Cloister",
+   "kind": "corridor",
+   "x": 5,
+   "z": 10,
+   "w": 1,
+   "d": 5,
+   "light": 0.0
+  },
+  {
+   "name": "Chapel",
+   "kind": "room",
+   "x": 1,
+   "z": 10,
+   "w": 4,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Vestry",
+   "kind": "room",
+   "x": 1,
+   "z": 13,
+   "w": 4,
+   "d": 2,
+   "light": 0.0
+  },
+  {
+   "name": "Old Stair Passage",
+   "kind": "corridor",
+   "x": 5,
+   "z": 4,
+   "w": 1,
+   "d": 6,
+   "light": 0.0
+  },
+  {
+   "name": "Padded Cell",
+   "kind": "room",
+   "x": 1,
+   "z": 4,
+   "w": 4,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Linen Room",
+   "kind": "room",
+   "x": 1,
+   "z": 7,
+   "w": 4,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "East Passage",
+   "kind": "corridor",
+   "x": 18,
+   "z": 12,
+   "w": 6,
+   "d": 1,
+   "light": 0.0
+  },
+  {
+   "name": "North Link",
+   "kind": "corridor",
+   "x": 24,
+   "z": 5,
+   "w": 1,
+   "d": 7,
+   "light": 0.0
+  },
+  {
+   "name": "South Link",
+   "kind": "corridor",
+   "x": 24,
+   "z": 12,
+   "w": 1,
+   "d": 7,
+   "light": 0.0
+  },
+  {
+   "name": "Dispensary",
+   "kind": "room",
+   "x": 25,
+   "z": 5,
+   "w": 5,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Infirmary",
+   "kind": "room",
+   "x": 25,
+   "z": 8,
+   "w": 5,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Operating Room",
+   "kind": "room",
+   "x": 25,
+   "z": 11,
+   "w": 5,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Morgue",
+   "kind": "room",
+   "x": 25,
+   "z": 14,
+   "w": 5,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Records",
+   "kind": "room",
+   "x": 20,
+   "z": 5,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Pharmacy",
+   "kind": "room",
+   "x": 20,
+   "z": 14,
+   "w": 4,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Day Room",
+   "kind": "room",
+   "x": 20,
+   "z": 9,
+   "w": 4,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Outer Corridor North",
+   "kind": "corridor",
+   "x": 30,
+   "z": 5,
+   "w": 1,
+   "d": 6,
+   "light": 0.0
+  },
+  {
+   "name": "Outer Corridor South",
+   "kind": "corridor",
+   "x": 30,
+   "z": 11,
+   "w": 1,
+   "d": 7,
+   "light": 0.0
+  },
+  {
+   "name": "Solarium",
+   "kind": "room",
+   "x": 31,
+   "z": 5,
+   "w": 5,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Art Room",
+   "kind": "room",
+   "x": 31,
+   "z": 9,
+   "w": 5,
+   "d": 4,
+   "light": 0.0
+  },
+  {
+   "name": "Mortuary Annex",
+   "kind": "room",
+   "x": 31,
+   "z": 13,
+   "w": 5,
+   "d": 5,
+   "light": 0.0
+  },
+  {
+   "name": "Drain Hall",
+   "kind": "room",
+   "x": 10,
+   "z": 24,
+   "w": 8,
+   "d": 3,
+   "light": 0.0
+  },
+  {
+   "name": "Culvert",
+   "kind": "room",
+   "x": 2,
+   "z": 24,
+   "w": 8,
+   "d": 3,
+   "light": 0.0
+  }
+ ]
+}

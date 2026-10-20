@@ -16,7 +16,7 @@ const LmConfig := preload("res://game/lm_config.gd")
 const LmBindings := preload("res://game/lm_bindings.gd")
 
 const SECTIONS := 22
-const CHECKS := 163
+const CHECKS := 166
 
 var _passed := 0
 var _failed := 0
@@ -177,6 +177,23 @@ func _test_every_level_finishes() -> void:
 	var _asylum := game.change_house(&"asylum")
 	var asylum_stuck := _solve_house(solver)
 	_check(game.levels.size() == 18 and asylum_stuck.is_empty(), "and out of all 18 of the Asylum's", ", ".join(asylum_stuck))
+	# The Forgotten Wing: one big level laid out over a Workshop map's plan (51 rooms, about 10,800 m2).
+	var _forgotten := game.change_house(&"forgotten")
+	var forgotten_stuck := _solve_house(solver)
+	_check(game.levels.size() == 1 and forgotten_stuck.is_empty(), "and out of the Forgotten Wing", ", ".join(forgotten_stuck))
+	var wing: LmLevel = game.levels[1]
+	# Much larger than any level of the other houses (level 32 is about 5,200 m2), nine witches walking
+	# rounds that stay on the floor, and a long straight run she can be seen down.
+	var wing_floating := 0
+	for i in wing.witches.size():
+		var round_s := float(wing.witches[i]["total"]) / float(wing.witches[i]["speed"])
+		for k in 120:
+			var at: Vector3 = wing.witch_pose(i, round_s * float(k) / 120.0)["at"]
+			var room := wing.room_at(at)
+			if room != "" and absf(at.y - wing.floor_at(room, at)) > 0.05:
+				wing_floating += 1
+	_check(wing.floor_area() > 10000.0 and wing.rooms.size() >= 50 and wing.witches.size() >= 9 and wing_floating == 0,
+		"the Forgotten Wing is much larger: %d rooms, %d m2, %d witches" % [wing.rooms.size(), int(wing.floor_area()), wing.witches.size()])
 	var _home := game.change_house(&"house")
 	game.leave(&"solver")
 	_finished_section()
@@ -496,7 +513,7 @@ func _furthest_from(level: LmLevel, room_id: String, from: Vector3) -> Vector3:
 
 func _test_houses() -> void:
 	_section("houses")
-	_check(game.houses.size() == 2 and game.houses.has(&"asylum") and game.house_id == &"house", "two houses, playing the House (%s)" % [game.houses.keys()])
+	_check(game.houses.size() == 3 and game.houses.has(&"asylum") and game.houses.has(&"forgotten") and game.house_id == &"house", "three houses, playing the House (%s)" % [game.houses.keys()])
 	var a: LmPlayer = game.players[&"a"]
 	a.best = 9
 	game.send_to(a, 9)
@@ -1748,7 +1765,7 @@ func _test_wheel_jumps() -> void:
 func _test_collision_audit() -> void:
 	_section("nothing drawn is walked through")
 
-	for house_id: StringName in [&"house", &"asylum"]:
+	for house_id: StringName in [&"house", &"asylum", &"forgotten"]:
 		var _changed := game.change_house(house_id)
 		var examined := 0
 		var found := 0

@@ -410,7 +410,9 @@ def furnish(doc):
     for room in doc["rooms"]:
         if room["kind"] != "room":
             continue
-        rng = random.Random("%s|%s" % (doc["id"], room["id"]))
+        # A per-room salt is for a hand-laid level whose first dealing of a big room left two pieces
+        # 0.05 m apart before rounding and touching after it (the builder deals that room again).
+        rng = random.Random("%s|%s%s" % (doc["id"], room["id"], doc.get("furnish_salt", {}).get(room["id"], "")))
         for (m, x, z, rot, y) in furnish_room(rng, doc, room):
             used.add(m)
             row = [m, room["id"], x, z, rot]
