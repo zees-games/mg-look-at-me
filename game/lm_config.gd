@@ -92,11 +92,32 @@ extends DotConfig
 ## Seconds from a sound or the light first being perceived to her starting to turn, and how
 ## fast her head turns after that, in degrees a second. A person takes about this long and
 ## turns about this fast; a witch that turned at once would never miss.
-@export_range(0.0, 5.0, 0.05) var witch_reaction_seconds: float = 0.7
-@export_range(10.0, 720.0, 5.0) var witch_turn_rate: float = 100.0
+@export_range(0.0, 5.0, 0.05) var witch_reaction_seconds: float = 1.1
+@export_range(10.0, 720.0, 5.0) var witch_turn_rate: float = 75.0
 
 ## Seconds she keeps looking where it came from after it stops, before her head goes back.
 @export_range(0.0, 30.0, 0.5) var witch_alert_seconds: float = 4.0
+
+## Listening. A witch that suspects somebody behind her (a faint sound, or a glimpse at the edge of
+## her view for `witch_reaction_seconds`) stops dead for `witch_listen_seconds`, head tilted, and
+## hears `witch_listen_hearing` times as far while she does. Hearing the player for
+## `witch_listen_confirm` seconds in that window, she looks back (`witch_turn_delay`) and runs at the
+## sound at `witch_chase_speed` times her walk for up to `witch_chase_seconds`; hearing nothing she
+## walks on and will not stop to listen again for `witch_listen_cooldown`. A player standing
+## still makes no sound, which is the whole of the answer.
+@export var witch_listens: bool = true
+@export_range(0.5, 10.0, 0.25) var witch_listen_seconds: float = 3.5
+@export_range(1.0, 4.0, 0.1) var witch_listen_hearing: float = 1.8
+@export_range(0.05, 2.0, 0.05) var witch_listen_confirm: float = 0.35
+@export_range(0.0, 3.0, 0.05) var witch_turn_delay: float = 0.6
+@export_range(1.0, 4.0, 0.1) var witch_chase_speed: float = 2.4
+@export_range(1.0, 20.0, 0.5) var witch_chase_seconds: float = 6.0
+@export_range(0.0, 60.0, 1.0) var witch_listen_cooldown: float = 10.0
+
+## The first levels are gentler: she sees `opening_ease` as fast on level 1, rising to full speed
+## by level `opening_levels` + 1. Out of the box a new player meets her at her least sharp.
+@export_range(0.1, 1.0, 0.05) var opening_ease: float = 0.55
+@export_range(1, 12, 1) var opening_levels: int = 4
 
 ## Seconds a witch stands at a closed door, opening it, before she walks through. 0 is the old
 ## walk, through the door as if it were not there.

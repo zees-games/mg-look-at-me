@@ -101,6 +101,15 @@ var effects: DotFxManager = null
 var _flash_rect: ColorRect = null
 ## The catch already shown, so a catch is flashed once and not every frame it lasts.
 var _was_caught := false
+var _dread_level := 0.0
+var _flicker_left := 0.0
+var _flicker_rng := RandomNumberGenerator.new()
+const FOG_CALM := 0.05
+const FOG_AFRAID := 0.085
+const FLASH_ENERGY := 3.2
+## Witch views (by key) that are standing listening this frame: their hum stops, which is the tell.
+var _witch_listening: Dictionary = {}
+var _rest_level := -1
 ## Whether any witch saw the local player last frame, for the stinger on the first sight.
 var _was_seen := false
 ## How long the witch that has you is in your face.
@@ -186,7 +195,7 @@ func _ready() -> void:
 	# and over is an even disc with a hard rim.
 	flashlight.spot_angle_attenuation = 0.55
 	flashlight.spot_attenuation = 0.6
-	flashlight.light_energy = 3.2
+	flashlight.light_energy = FLASH_ENERGY
 	flashlight.light_color = Color(1.0, 0.93, 0.8)
 	flashlight.shadow_enabled = true
 	flashlight.light_volumetric_fog_energy = 0.0
@@ -471,7 +480,7 @@ func _build_environment() -> void:
 	_env.ambient_light_energy = 0.05
 	_env.fog_enabled = true
 	_env.fog_light_color = Color(0.015, 0.015, 0.025)
-	_env.fog_density = 0.05
+	_env.fog_density = FOG_CALM
 	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	_env.tonemap_exposure = 1.1
 	# A little glow, so a lamp, a fire and a witch's eyes bloom out of the dark.
@@ -848,6 +857,51 @@ func _build_effects() -> void:
 	_hud.move_child(_flash_rect, _vignette.get_index() + 1)
 
 
+## Everything the sanity meter drives goes back to rest: audio layers, pending jump scare, demons,
+## the dot-fx flash and shake. The HUD's meter and vignette follow `player.meter`, which the server
+## resets with the player.
+func rest_sanity() -> void:
+	if audio != null:
+		audio.rest()
+
+	if scare_view != null:
+		scare_view.rest()
+
+	if effects != null:
+		effects.clear()
+
+	if _flash_rect != null:
+		_flash_rect.color = Color(0, 0, 0, 0)
+
+
+## The house closes in as the meter rises: the fog thickens and goes faintly red, and the
+## flashlight stutters. Cheap, and all of it the client's own. The stutter is a flash, so
+## "allow flashes" off keeps the beam steady.
+func _dread(delta: float, caught: bool) -> void:
+	var fear := 0.0 if caught else clampf(player.meter, 0.0, 1.0)
+	_dread_level = move_toward(_dread_level, fear, delta * 0.5)
+
+	if _env != null:
+		_env.fog_density = lerpf(FOG_CALM, FOG_AFRAID, _dread_level)
+		_env.fog_light_color = Color(0.015, 0.015, 0.025).lerp(Color(0.07, 0.008, 0.008), _dread_level)
+
+	if flashlight == null:
+		return
+
+	_flicker_left -= delta
+
+	if _flicker_left > 0.0:
+		flashlight.light_energy = FLASH_ENERGY * 0.12
+		return
+
+	flashlight.light_energy = FLASH_ENERGY
+	var allowed: bool = settings == null or settings.settings.get_bool(&"allow_flashes", true)
+
+	# From a third of the meter up, a dip now and then, more often as it fills.
+	if allowed and _dread_level > 0.3 and _flicker_rng.randf() < delta * lerpf(0.1, 1.2, _dread_level):
+		_flicker_left = _flicker_rng.randf_range(0.05, 0.16)
+
+
 ## Sound and effects, once a frame, after the camera is placed.
 func _present(delta: float) -> void:
 	# Scares, sounds and the stinger wait: the cover shows nothing and they would be spent.
@@ -855,6 +909,12 @@ func _present(delta: float) -> void:
 		return
 
 	var caught := player.caught_left > 0.0
+
+	# Dying, coming back and leaving the level each put the madness to rest: the heartbeat, the
+	# whispers, a jump scare half shown, the flash and the shake. Before the catch's own scream.
+	if caught != _was_caught or player.level != _rest_level:
+		rest_sanity()
+		_rest_level = player.level
 
 	if caught and not _was_caught:
 		if effects != null:
@@ -872,8 +932,11 @@ func _present(delta: float) -> void:
 	if scare_view != null:
 		var _told := scare_view.present(delta, scare_view_state())
 
+	_dread(delta, caught)
+
 	if audio != null:
-		audio.meter = player.meter
+		# A caught player's meter is pinned at full for the length of the catch: no heartbeat.
+		audio.meter = 0.0 if caught else player.meter
 		audio.listen_from(camera.global_position)
 
 	if effects != null:
@@ -1089,6 +1152,19 @@ func _draw_witches() -> void:
 
 			var pose := game.witch_pose_for(player, level, i, drawn_seconds)
 			var walking := float(level.witches[i]["speed"]) * game.config.witch_speed_scale
+			var listening := bool(pose.get("listening", false))
+
+			if bool(pose.get("running", false)):
+				walking *= game.config.witch_chase_speed
+			elif bool(pose.get("still", false)):
+				walking = 0.0
+
+			view.call(&"set_listening", listening, delta)
+
+			if listening and not bool(_witch_listening.get(key, false)) and audio != null:
+				var _cued := audio.listen_cue(view.global_position + Vector3(0, 1.9, 0))
+
+			_witch_listening[key] = listening
 			var _moved: float = view.call(&"place", level.position + (pose["at"] as Vector3), float(pose["facing"]), float(pose["head"]), delta, walking)
 			var sees := player.caught_left <= 0.0 and game.exposure(player, level, i, seconds) > 0.0
 			view.call(&"set_seeing", sees, delta)
@@ -1111,7 +1187,8 @@ func _draw_witches() -> void:
 		var view := _witch_views[key] as Node3D
 		view.visible = n == player.level
 
-		if view.visible and audio != null:
+		# Breathing stops: a witch listening makes no sound of her own, and the hush is the tell.
+		if view.visible and audio != null and not bool(_witch_listening.get(key, false)):
 			# Her hum is hung where she is, at her head.
 			audio.witch(key, view.global_position + Vector3(0, 1.9, 0))
 			heard[key] = true

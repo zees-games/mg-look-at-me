@@ -78,6 +78,15 @@ func reseed(seed_value: int, p_level: int, who: int) -> void:
 	behind = {}
 
 
+## Rest: whatever was hunting the player, and the build-up to the next scare, is gone. The night's
+## seed and level are kept, so only this one night's progress is lost.
+func rest() -> void:
+	charge = 0.0
+	since_event = 1000.0
+	demons.clear()
+	behind = {}
+
+
 ## Seconds a sanity scare takes to come at [param meter] (0 to 1): the long wait at an empty
 ## meter, the short one at a full one. Static, so a check can ask it without a night.
 static func interval_for(cfg: LmConfig, meter: float) -> float:

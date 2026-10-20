@@ -64,6 +64,26 @@ func _on_event(event: Dictionary, eye: Vector3) -> void:
 			_fright(float(event["spike"]))
 
 
+## Rest: no jump scare pending or showing, no demon standing, no flash.
+func rest() -> void:
+	director.rest()
+	_scare_left = 0.0
+	_flash_alpha = 0.0
+	_jump = {}
+
+	if _scare_figure != null:
+		_scare_figure.queue_free()
+		_scare_figure = null
+
+	if _scare_witch != null:
+		_scare_witch.visible = false
+
+	if flash != null:
+		flash.color = Color(0, 0, 0, 0)
+
+	_sync_demons(Vector3.ZERO)
+
+
 func _fright(amount: float) -> void:
 	if spook.is_valid() and amount > 0.0:
 		spook.call(amount)

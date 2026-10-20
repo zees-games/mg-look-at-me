@@ -93,6 +93,60 @@ func _ready() -> void:
 					break
 			break
 		client.game.set_flashlight(player.player_key, false)
+	elif view == "range":
+		# --view=range --dist=20: that far from a wall, looking straight at it down the longest
+		# clear line the level has (every door open), for judging how surfaces hold up at range.
+		# The cover lifts first; the player is moved after, so nothing falls while it is up.
+		await get_tree().create_timer(1.5).timeout
+		for door_id: String in level.doors:
+			# Not the exit: standing past the house's edge would be leaving the level.
+			if door_id != "exit":
+				player.opened[door_id] = true
+		client.game._apply_doors(player)
+		await get_tree().physics_frame
+		var space: PhysicsDirectSpaceState3D = client.get_world_3d().direct_space_state
+		var wanted := float(_args.get("dist", "20"))
+		var best_len := 0.0
+		var best_from := Vector3.ZERO
+		var best_dir := Vector3.FORWARD
+		var best_wall := Vector3.ZERO
+		var best_hits: Array[Node] = []
+
+		# The longest line through the house, walls and all: where it ends is the wall to look at,
+		# and what it passes through is taken away (the house never gives a straight 40 m).
+		for rid: String in level.rooms:
+			var base: Vector3 = level.position + level.room_centre(rid) + Vector3(0, 1.5, 0)
+			for k in 16:
+				var dir := Vector3(sin(TAU * k / 16.0), 0, cos(TAU * k / 16.0))
+				var skip: Array[RID] = []
+				var hits: Array[Node] = []
+				var end := base
+
+				for _n in 30:
+					var query := PhysicsRayQueryParameters3D.create(base, base + dir * 80.0, 1)
+					query.exclude = skip
+					var hit := space.intersect_ray(query)
+					if hit.is_empty():
+						break
+					skip.append(hit["rid"])
+					hits.append(hit["collider"])
+					end = hit["position"]
+
+				if base.distance_to(end) > best_len and hits.size() > 0:
+					best_len = base.distance_to(end)
+					best_from = base
+					best_dir = dir
+					best_wall = end
+					best_hits = hits
+
+		var stand := best_wall - best_dir * minf(wanted, best_len)
+		# The last hit is the wall looked at; the rest between are cleared.
+		for blocker in best_hits.slice(0, best_hits.size() - 1):
+			var at: Vector3 = (blocker as Node3D).global_position
+			if (at - stand).dot(best_dir) > 0.0 and (best_wall - at).dot(best_dir) > 0.3:
+				blocker.queue_free()
+		print("range: longest line %.1f m, standing %.1f m from the wall" % [best_len, stand.distance_to(best_wall)])
+		player.place_at(stand - Vector3(0, 1.5 - 0.1, 0), rad_to_deg(atan2(-best_dir.x, -best_dir.z)))
 	elif view == "witch" and not level.witches.is_empty():
 		var pose: Dictionary = level.witch_pose(0, client.game.seconds_now())
 		var at: Vector3 = level.position + (pose["at"] as Vector3)
@@ -116,6 +170,11 @@ func _ready() -> void:
 		player.meter = 0.3
 		if view == "demon":
 			player.place_at(player.global_position, 0.0)
+
+	# --meter=0.8: the fear the house closes in with (fog, red tint, a stuttering light), held there.
+	if _args.has("meter"):
+		player.meter = float(_args["meter"])
+		player.unseen_for = -1000.0
 
 	if view != "glimpse":
 		client.game.set_flashlight(player.player_key, str(_args.get("light", "on")) != "off")

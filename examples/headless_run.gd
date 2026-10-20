@@ -16,7 +16,7 @@ const LmConfig := preload("res://game/lm_config.gd")
 const LmBindings := preload("res://game/lm_bindings.gd")
 
 const SECTIONS := 22
-const CHECKS := 157
+const CHECKS := 163
 
 var _passed := 0
 var _failed := 0
@@ -810,10 +810,120 @@ func _test_sound_and_effects() -> void:
 		"and not when the player has turned flashes off")
 	settings.settings.set_value(&"allow_flashes", true)
 
+	# Driven insane, then dying: the meter, the madness's audio and a pending jump scare are at
+	# rest, and so are the post-effects once the player is back. (The soundtrack of a death is
+	# the scream; the heartbeat and whispers are not part of it.)
+	player.caught_left = 0.0
+	await get_tree().process_frame
+	var view: Node = client.get("scare_view")
+	player.meter = 0.9
+
+	for i in 60:
+		await get_tree().process_frame
+
+	var beats := sink.count_of(&"heartbeat")
+	view.call("_startle", "demon", 0.0, 2.0, player.global_position)
+	view.get("director").demons.append({"id": 99, "at": Vector3(3, 0, 3), "age": 0.0, "looked": false, "whisper": 5.0})
+	var _w: bool = audio.call("whisper", Vector3(2, 1, 2))
+	player.meter = 1.0
+	player.caught_left = 1.0
+
+	for i in 40:
+		await get_tree().process_frame
+
+	_check(
+		float(audio.get("meter")) == 0.0 and sink.count_of(&"heartbeat") == beats
+			and float(view.get("_scare_left")) == 0.0 and view.get("director").demons.is_empty()
+			and not (sink.get("_playing") as Dictionary).values().any(func(r: Dictionary) -> bool:
+				return str(r.get("id", "")) in ["scare_hit", "whisper", "whisper_behind", "heartbeat"]),
+		"dying puts the insane audio, the demons and a pending jump scare to rest",
+		"meter %s beats %d/%d scare %s" % [str(audio.get("meter")), sink.count_of(&"heartbeat"), beats, str(view.get("_scare_left"))]
+	)
+	player.caught_left = 0.0
+	player.meter = 0.0
+
+	for i in 3:
+		await get_tree().process_frame
+
+	_check(effects.flash_colour.a == 0.0 and effects.shake.trauma() == 0.0 and float(audio.get("meter")) == 0.0,
+		"and back in the house the flash and the shake are gone and the meter is at rest")
+
 	remove_child(client)
 	client.free()
 	await get_tree().process_frame
 	_finished_section()
+
+
+## A witch that suspects somebody behind her stops and listens. A player who goes quiet then is not
+## found; one who keeps making a noise is looked back at and run down.
+func _test_listening(level: LmLevel, delta: float) -> void:
+	var p: LmPlayer = game.players[&"a"]
+	var config := game.config
+	var t0 := 41.0
+	var results: Array = []
+
+	p.gaze.clear()
+	# A moment when somebody four metres behind her has a clear line to her, and keeps it for the
+	# seconds she walks on before she stops (she must not walk past them or round a wall).
+	for tenth in 2400:
+		var candidate := 5.0 + float(tenth) * 0.5
+		var there := game.witch_pose_for(p, level, 0, candidate)
+		var back := float(there["facing"])
+		var behind: Vector3 = level.position + (there["at"] as Vector3) + Vector3(sin(back), 0, cos(back)) * 4.0
+		p.place_at(behind, 0.0)
+		var ok := level.room_at(behind - level.position) != ""
+
+		for step in 8:
+			var later := game.witch_pose_for(p, level, 0, candidate + float(step) * 0.25)
+			var gap := (level.position + (later["at"] as Vector3)).distance_to(behind)
+			ok = ok and gap > 2.0 and gap < 9.0 \
+				and game._clear_between(level.position + (later["at"] as Vector3) + Vector3(0, 2.0, 0), p.eye_position(), p)
+
+		if ok:
+			t0 = candidate
+			break
+
+	for noisy in [false, true]:
+		p.gaze.clear()
+		p.meter = 0.0
+		p.caught_left = 0.0
+		var start := game.witch_pose_for(p, level, 0, t0)
+		var facing := float(start["facing"])
+		var spot: Vector3 = level.position + (start["at"] as Vector3) + Vector3(sin(facing), 0, cos(facing)) * 4.0
+		var seen_modes := {}
+		var closest := 99.0
+		var stopped := false
+		var moved_while_listening := 0.0
+		var held_at := Vector3.INF
+		var seconds := t0
+
+		for tick in 900:
+			seconds += delta
+			p.place_at(spot, 0.0)
+			# Noise to start the suspicion; the quiet player then keeps still, the other does not.
+			p.noise_left = 1.0 if (noisy or float(tick) * delta < config.witch_reaction_seconds + 0.3) else 0.0
+			game.tick += 1
+			game._listen(p, level, seconds, delta)
+			var state: Dictionary = p.gaze[0]
+			seen_modes[int(state["mode"])] = true
+			var pose := game.witch_pose_for(p, level, 0, seconds)
+			closest = minf(closest, (level.position + (pose["at"] as Vector3)).distance_to(spot))
+
+			if int(state["mode"]) == LmGame.MODE_LISTEN:
+				if held_at == Vector3.INF:
+					held_at = pose["at"]
+
+				moved_while_listening = maxf(moved_while_listening, (pose["at"] as Vector3).distance_to(held_at))
+				stopped = true
+
+		results.append({"modes": seen_modes, "closest": closest, "stopped": stopped, "last": p.gaze[0].duplicate(), "t0": t0, "spot": spot, "slid": moved_while_listening, "mode": int(p.gaze[0]["mode"])})
+
+	var quiet: Dictionary = results[0]
+	var loud: Dictionary = results[1]
+	_check(quiet["stopped"] and float(quiet["slid"]) < 0.01, "a witch that suspects somebody behind her stops dead to listen", str(quiet["slid"]))
+	_check(not quiet["modes"].has(LmGame.MODE_CHASE) and not quiet["modes"].has(LmGame.MODE_TURN), "a quiet player behind her survives the listen: she hears nothing and walks on", str(quiet["modes"].keys()))
+	_check(loud["modes"].has(LmGame.MODE_TURN) and loud["modes"].has(LmGame.MODE_CHASE) and float(loud["closest"]) < 2.0, "a noisy one is looked back at and run down", "%s, closest %.1f m, %s" % [str(loud["modes"].keys()), float(loud["closest"]), str(loud["last"]) + str(loud["t0"])])
+	_check(float(quiet["closest"]) > 3.0, "and the quiet one is never approached", "%.1f m" % float(quiet["closest"]))
 
 
 ## Real mouse motion, through Input the way a mouse delivers it, turns the camera. Nothing fed
@@ -1207,9 +1317,11 @@ func _test_witch_senses() -> void:
 	var first := true
 	var delta := 1.0 / 60.0
 
-	for _i in 240:
+	var widest := 0.0
+
+	for _i in 480:
 		var seconds := game.seconds_now() + delta
-		var pose := level.witch_pose(0, seconds, config.witch_speed_scale, config.witch_head_sweep, dwell)
+		var pose := game.witch_pose_for(p, level, 0, seconds)
 		var facing := float(pose["facing"])
 		p.place_at(level.position + (pose["at"] as Vector3) + Vector3(sin(facing), 0, cos(facing)) * 4.0, 0.0)
 		p.noise_left = 1.0
@@ -1221,11 +1333,15 @@ func _test_witch_senses() -> void:
 		if state.is_empty():
 			continue
 
+		if int(state["mode"]) >= LmGame.MODE_CHASE:
+			break
+
 		if not first:
 			worst_turn = maxf(worst_turn, absf(wrapf(float(state["head"]) - last_head, -PI, PI)))
 
 		first = false
 		last_head = float(state["head"])
+		widest = maxf(widest, absf(last_head))
 
 		if alerted_at < 0 and bool(state["alert"]):
 			alerted_at = steps
@@ -1233,7 +1349,8 @@ func _test_witch_senses() -> void:
 	_check(alerted_at > 0, "a noise behind her is heard", str(alerted_at))
 	_check(float(alerted_at) * delta >= config.witch_reaction_seconds - 0.02, "but not at once: she takes her reaction time", "%.2f s" % (float(alerted_at) * delta))
 	_check(worst_turn <= deg_to_rad(config.witch_turn_rate) * delta * 1.02, "and her head never turns faster than the turn rate", "%.2f deg a tick" % rad_to_deg(worst_turn))
-	_check(absf(last_head) > deg_to_rad(90.0), "she ends up looking round at where it came from", "%.0f deg" % rad_to_deg(last_head))
+	_check(widest > deg_to_rad(90.0), "she looks round at where it came from", "%.0f deg" % rad_to_deg(widest))
+	_test_listening(level, delta)
 
 	# Silence is not heard: standing still, light off, in the same place.
 	p.gaze.clear()

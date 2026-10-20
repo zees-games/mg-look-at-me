@@ -23,6 +23,7 @@ game/
   lm_settings.gd the player's settings and the screen Escape opens
   lm_audio.gd    the sounds as a dot-audio catalogue of audio/ files: ambience, creaks, steps, a witch's hum and steps, door, latch, stinger, shriek, heartbeat, slam, lights out; a -1 dB limiter on master
   lm_scares.gd   sanity scares, demons and the look-behind whisper decided as pure scheduling (lm_* cvars, seeded); lm_scare_view.gd draws and plays them; see docs/horror.md
+  lm_surfaces.gd the wallpaper, floorboards and ceiling painted into mipmapped, tileable images (world-space triplanar, anisotropic); LM_FLAT=1 in the environment draws the old flat colours for a before/after (tools/shot.sh --view=range --dist=N)
   lm_witch.gd    a witch drawn: the kit's zombie recoloured, skirt, hat, glowing eyes, head turned with her sight, the floor fan; flares while she sees you
   net/           lm_events (JSON kinds), lm_event/lm_request, lm_net_link, lm_net_command (the move), lm_player_net (movement + level/flashlight/won, meter/caught to the owner), lm_net_bridge
   lm_figure.gd   a player drawn as one of the family's animated people (dot-player-char's DotHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
@@ -32,7 +33,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_18, the same builder
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
-examples/        headless_run (22 sections, 157 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (9, 35), headless_workshop (1, 19)
+examples/        headless_run (22 sections, 163 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (9, 35), headless_workshop (1, 19)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -49,6 +50,8 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 
 - **Doors are per player**: one solid body, opened by an exclusion in that player's controller; the opener's client swings its drawing open (`LmClient._swing_doors`). [design](docs/design.md#decision-1-doors-are-per-player-and-that-is-an-exclusion-list)
 - **A witch's walk is a pure function of time** (`LmLevel.witch_pose`); never send her. Draw her at the interpolated time and animate her from her loop's speed, never a measured one. [design](docs/design.md#decision-2-a-witchs-walk-is-a-pure-function-of-time), [horror](docs/horror.md#the-witch)
+- **A witch listens before she hunts** (`LmGame._listen`, per player and witch: WALK, LISTEN, TURN, CHASE, BACK). A faint sound or a glimpse at the edge of her view for `witch_reaction_seconds` stops her clock (`gaze.stall`: her walk stays a function of time, only a time that did not pass), head cocked, hum cut, a low sting; her ears are `witch_listen_hearing` times sharper for `witch_listen_seconds`. Heard for `witch_listen_confirm` she looks back, then runs at the sound along a clear line and walks back to her path. A player standing still makes no sound. The first levels are gentler (`opening_ease`). Chasing is per-player server state like the head turn.
+- **The madness rests** on death, respawn and a level change (`LmClient.rest_sanity`: heartbeat, scare sounds, demons, a jump scare in progress, the dot-fx flash and shake).
 - **Being seen is a meter**, out of her fan she cannot see you; the client asks `LmGame.exposure` for the local player only to draw and play it. [design](docs/design.md#decision-3-being-seen-is-a-meter)
 - **Levels are generated and proven** by `tools/build_levels.py` (`--check`); a witch starts in a room with somewhere to walk. [design](docs/design.md#decision-4-levels-are-generated-and-proven)
 - **A level is 14 + n rooms on a 4 m grid, on two floors from level 2 and three from level 16**; a stairwell is the only way up and is placed only with a room off its head; a room upstairs stands over rooms below. Three-floor levels grow a floor at a time (`grow_floors`); two-floor ones keep `grow()`'s order so their houses do not change. [levels](docs/levels.md#size)

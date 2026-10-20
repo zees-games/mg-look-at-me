@@ -44,6 +44,8 @@ signal said(key: StringName, text: String)
 signal took(key: StringName, item_id: String)
 signal opened_door(key: StringName, door_id: String)
 signal caught(key: StringName)
+## A witch has stopped to listen for this player: the client's cue for the tell.
+signal listened(key: StringName, witch: int)
 signal level_done(key: StringName, number: int)
 ## One of the level's events happened to [param key] (a slam when the door actually shuts).
 signal event_fired(key: StringName, event_id: String)
@@ -996,6 +998,7 @@ func exposure(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> f
 		return 0.0
 
 	var rate := config.exposure_rate * clampf(1.0 - distance / sight, 0.15, 1.0)
+	rate *= lerpf(config.opening_ease, 1.0, clampf(float(player.level - 1) / float(maxi(config.opening_levels, 1)), 0.0, 1.0))
 
 	if player.flashlight:
 		rate *= config.flashlight_exposure
@@ -1010,11 +1013,33 @@ func exposure(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> f
 ## Witch [param index]'s pose for [param player]: the clock's, with her head where she has turned
 ## it to look at a sound or the light ([method _listen]) when she has.
 func witch_pose_for(player: LmPlayer, level: LmLevel, index: int, seconds: float) -> Dictionary:
-	var pose := level.witch_pose(index, seconds, config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
-	var state: Dictionary = player.gaze.get(index, {})
+	return _pose_of(level, index, seconds, player.gaze.get(index, {}))
 
-	if not state.is_empty():
-		pose["head"] = float(state["head"])
+
+## The clock's pose, held back by the seconds she has stood listening or run (`stall`: her walk
+## is still a function of time, only a time that did not pass while she stood), her head where
+## she has turned it, and where she is while she runs at a sound or walks back to her path.
+func _pose_of(level: LmLevel, index: int, seconds: float, state: Dictionary) -> Dictionary:
+	var stall := float(state.get("stall", 0.0))
+	var pose := level.witch_pose(index, maxf(seconds - stall, 0.0), config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
+	pose["listening"] = false
+	pose["running"] = false
+
+	if state.is_empty():
+		return pose
+
+	pose["head"] = float(state["head"])
+	var mode := int(state["mode"])
+	pose["listening"] = mode == MODE_LISTEN
+	# Facing a sound, not walking: both the listen and the turn stand still.
+	pose["still"] = mode == MODE_LISTEN or mode == MODE_TURN
+
+	if mode == MODE_CHASE or mode == MODE_BACK:
+		pose["at"] = state["pos"]
+		pose["facing"] = float(state["face"])
+		pose["running"] = mode == MODE_CHASE
+		pose["door"] = ""
+		pose["open"] = 0.0
 
 	return pose
 
@@ -1061,66 +1086,191 @@ func _listen(player: LmPlayer, level: LmLevel, seconds: float, delta: float) -> 
 	var target := player.eye_position()
 
 	for i in level.witches.size():
-		var pose := level.witch_pose(i, seconds, config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
 		var state: Dictionary = player.gaze.get(i, {})
 
 		if state.is_empty():
-			state = {"head": float(pose["head"]), "notice": 0.0, "alert": false, "hold": 0.0, "at": target}
+			var first := level.witch_pose(i, seconds, config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)
+			state = {"head": float(first["head"]), "notice": 0.0, "alert": false, "hold": 0.0, "at": target,
+				"mode": MODE_WALK, "t": 0.0, "heard": 0.0, "stall": 0.0, "cool": 0.0, "pos": Vector3.ZERO, "face": 0.0}
 
+		var pose := _pose_of(level, i, seconds, state)
+		var mode := int(state["mode"])
 		var eye: Vector3 = level.position + (pose["at"] as Vector3) + Vector3(0, 2.0, 0)
 		var to := target - eye
 		var distance := to.length()
-		var perceived := false
+		var open_door := str(pose["door"]) if float(pose["open"]) > 0.5 else ""
+		var live := distance > 0.01 and player.caught_left <= 0.0
+		var heard := false
+		var light := false
+		var glimpse := false
+		var clear := false
+		# Sharper ears while she stands listening, and only then.
+		var ears := noise * (config.witch_listen_hearing if mode == MODE_LISTEN else 1.0)
 
-		if distance > 0.01 and player.caught_left <= 0.0:
-			var open_door := str(pose["door"]) if float(pose["open"]) > 0.5 else ""
-			var in_range := (noise > 0.0 and distance <= noise) or (player.flashlight and distance <= config.witch_light_range)
+		if live:
+			var facing := float(pose["facing"]) + float(state["head"])
+			var forward := Vector3(-sin(facing), 0.0, -cos(facing))
+			var half_cone := deg_to_rad(float((level.witches[i] as Dictionary)["cone"]) * config.witch_cone_scale * 0.5)
+			var flat := Vector3(to.x, 0.0, to.z).normalized()
+			var in_cone := forward.dot(flat) >= cos(half_cone)
+			var reach := maxf(ears, config.witch_light_range if player.flashlight else 0.0)
 
-			if in_range:
-				var clear := _clear_between(eye, target, player, open_door)
+			if distance <= maxf(reach, float((level.witches[i] as Dictionary)["sight"]) * config.witch_sight_scale):
+				clear = _clear_between(eye, target, player, open_door)
 
-				# A sound goes round and through walls, quieter; a beam is seen only in the open,
-				# by a witch looking roughly its way.
-				if noise > 0.0 and distance <= noise * (1.0 if clear else config.witch_hear_walls):
-					perceived = true
+			# A sound goes round and through walls, quieter; a beam is seen only in the open, by a
+			# witch looking roughly its way; the edge of her view is a movement or a light seen
+			# from the corner of her eye.
+			heard = ears > 0.0 and distance <= ears * (1.0 if clear else config.witch_hear_walls)
+			light = clear and player.flashlight and distance <= config.witch_light_range and in_cone
 
-				if not perceived and clear and player.flashlight and distance <= config.witch_light_range:
-					var facing := float(pose["facing"]) + float(state["head"])
-					var forward := Vector3(-sin(facing), 0.0, -cos(facing))
-					var half_cone := deg_to_rad(float((level.witches[i] as Dictionary)["cone"]) * config.witch_cone_scale * 0.5)
-					perceived = forward.dot(Vector3(to.x, 0.0, to.z).normalized()) >= cos(half_cone)
+			if clear and not in_cone and (player.horizontal_speed() > 0.3 or player.flashlight):
+				var edge := deg_to_rad(float((level.witches[i] as Dictionary)["cone"]) * config.witch_cone_scale * 0.5 + 35.0)
+				glimpse = forward.dot(flat) >= cos(edge) and distance <= float((level.witches[i] as Dictionary)["sight"]) * config.witch_sight_scale
 
-		if perceived:
-			state["notice"] = float(state["notice"]) + delta
-			state["at"] = target
-
-			if float(state["notice"]) >= config.witch_reaction_seconds:
-				state["alert"] = true
-				state["hold"] = config.witch_alert_seconds
-		else:
-			state["notice"] = maxf(float(state["notice"]) - delta, 0.0)
-
-			if bool(state["alert"]):
-				state["hold"] = float(state["hold"]) - delta
-
-				if float(state["hold"]) <= 0.0:
-					state["alert"] = false
-
+		state["cool"] = maxf(float(state["cool"]) - delta, 0.0)
 		var wanted := float(pose["head"])
 
-		if bool(state["alert"]):
+		match mode:
+			MODE_WALK:
+				if light:
+					state["notice"] = float(state["notice"]) + delta
+					state["at"] = target
+
+					if float(state["notice"]) >= config.witch_reaction_seconds:
+						state["alert"] = true
+						state["hold"] = config.witch_alert_seconds
+				elif (heard or glimpse) and config.witch_listens and float(state["cool"]) <= 0.0:
+					state["notice"] = float(state["notice"]) + delta
+					state["at"] = target
+
+					if float(state["notice"]) >= config.witch_reaction_seconds:
+						state["notice"] = 0.0
+						state["mode"] = MODE_LISTEN
+						state["t"] = config.witch_listen_seconds
+						state["heard"] = 0.0
+						state["alert"] = false
+						listened.emit(player.player_key, i)
+				elif heard and not config.witch_listens:
+					state["notice"] = float(state["notice"]) + delta
+					state["at"] = target
+
+					if float(state["notice"]) >= config.witch_reaction_seconds:
+						state["alert"] = true
+						state["hold"] = config.witch_alert_seconds
+				else:
+					state["notice"] = maxf(float(state["notice"]) - delta, 0.0)
+
+				if bool(state["alert"]) and not light and not heard:
+					state["hold"] = float(state["hold"]) - delta
+
+					if float(state["hold"]) <= 0.0:
+						state["alert"] = false
+			MODE_LISTEN:
+				# The clock stops: she stands where she is.
+				state["stall"] = float(state["stall"]) + delta
+				state["t"] = float(state["t"]) - delta
+				wanted = float(state["head"])
+
+				if heard:
+					state["heard"] = float(state["heard"]) + delta
+					state["at"] = target
+				else:
+					state["heard"] = maxf(float(state["heard"]) - delta * 0.5, 0.0)
+
+				if float(state["heard"]) >= config.witch_listen_confirm:
+					state["mode"] = MODE_TURN
+					state["t"] = config.witch_turn_delay
+					state["alert"] = true
+					state["hold"] = config.witch_alert_seconds
+				elif float(state["t"]) <= 0.0:
+					state["mode"] = MODE_WALK
+					state["cool"] = config.witch_listen_cooldown
+					state["notice"] = 0.0
+			MODE_TURN:
+				state["stall"] = float(state["stall"]) + delta
+				state["t"] = float(state["t"]) - delta
+
+				if heard:
+					state["at"] = target
+
+				# She looks back first, her head all the way round, then runs.
+				var wanted_turn := wrapf(atan2(-((state["at"] as Vector3) - eye).x, -((state["at"] as Vector3) - eye).z) - float(pose["facing"]), -PI, PI)
+				var looked := absf(wrapf(clampf(wanted_turn, -MAX_HEAD, MAX_HEAD) - float(state["head"]), -PI, PI)) < 0.35
+
+				if float(state["t"]) <= 0.0 and (looked or float(state["t"]) < -3.0):
+					# Run only along a clear line; round a wall she looks and walks on.
+					if live and _clear_between(eye, (state["at"] as Vector3), player, open_door):
+						state["mode"] = MODE_CHASE
+						state["t"] = config.witch_chase_seconds
+						state["pos"] = pose["at"]
+						var look: Vector3 = (state["at"] as Vector3) - eye
+						state["face"] = float(pose["facing"]) + float(state["head"])
+						state["head"] = 0.0
+						wanted = 0.0
+					else:
+						state["mode"] = MODE_WALK
+						state["cool"] = config.witch_listen_cooldown
+
+			MODE_CHASE:
+				state["stall"] = float(state["stall"]) + delta
+				state["t"] = float(state["t"]) - delta
+				wanted = 0.0
+
+				if heard or light:
+					state["at"] = target
+
+				var here: Vector3 = state["pos"]
+				var aim: Vector3 = (state["at"] as Vector3) - (level.position + here + Vector3(0, 2.0, 0))
+				var flat_aim := Vector3(aim.x, 0.0, aim.z)
+				var face := atan2(-aim.x, -aim.z)
+				var turn := deg_to_rad(config.witch_turn_rate) * 3.0 * delta
+				state["face"] = float(state["face"]) + clampf(wrapf(face - float(state["face"]), -PI, PI), -turn, turn)
+				var step := float((level.witches[i] as Dictionary)["speed"]) * config.witch_speed_scale * config.witch_chase_speed * delta
+				var next: Vector3 = here + flat_aim.normalized() * minf(step, flat_aim.length())
+
+				if flat_aim.length() < 1.0 or float(state["t"]) <= 0.0 or player.caught_left > 0.0 \
+						or not _clear_between(level.position + here + Vector3(0, 2.0, 0), level.position + next + Vector3(0, 2.0, 0), player):
+					state["mode"] = MODE_BACK
+					state["alert"] = false
+					state["cool"] = config.witch_listen_cooldown
+				else:
+					state["pos"] = next
+			MODE_BACK:
+				state["stall"] = float(state["stall"]) + delta
+				wanted = 0.0
+				var home: Vector3 = (level.witch_pose(i, seconds - float(state["stall"]), config.witch_speed_scale, config.witch_head_sweep, config.witch_door_seconds)["at"] as Vector3)
+				var here: Vector3 = state["pos"]
+				var way := Vector3(home.x - here.x, 0.0, home.z - here.z)
+				var step := float((level.witches[i] as Dictionary)["speed"]) * config.witch_speed_scale * delta
+
+				if way.length() <= maxf(step, 0.2):
+					state["mode"] = MODE_WALK
+				else:
+					state["pos"] = here + way.normalized() * step
+					state["face"] = atan2(-way.x, -way.z)
+
+		if bool(state["alert"]) and int(state["mode"]) != MODE_CHASE and int(state["mode"]) != MODE_BACK:
 			var look: Vector3 = (state["at"] as Vector3) - eye
 			var heading := atan2(-look.x, -look.z) - float(pose["facing"])
 			wanted = clampf(wrapf(heading, -PI, PI), -MAX_HEAD, MAX_HEAD)
 
-		var step := deg_to_rad(config.witch_turn_rate) * delta
+		var turn_step := deg_to_rad(config.witch_turn_rate) * delta
 		var head := float(state["head"])
-		state["head"] = head + clampf(wrapf(wanted - head, -PI, PI), -step, step)
+		state["head"] = head + clampf(wrapf(wanted - head, -PI, PI), -turn_step, turn_step)
 		player.gaze[i] = state
 
 
 ## A head turns about this far off the shoulders and no further.
 const MAX_HEAD := deg_to_rad(140.0)
+
+## A witch's state toward one player: walking her path, standing to listen, turning to a sound she
+## heard, running at it, walking back to her path.
+const MODE_WALK := 0
+const MODE_LISTEN := 1
+const MODE_TURN := 2
+const MODE_CHASE := 3
+const MODE_BACK := 4
 
 
 ## Nothing solid between a witch's eye and a player's: walls, and doors still shut for THAT

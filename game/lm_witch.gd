@@ -281,6 +281,11 @@ func _fan(sight: float, cone: float) -> MeshInstance3D:
 ## frame between two ticks (any display faster than the tick rate) measured her standing still,
 ## so she flickered between her walk and her idle. A negative [param speed] measures it (the
 ## caught player's witch, who is placed by the camera).
+## How far she is into listening, 0 to 1 (see [method set_listening]).
+var listening := 0.0
+const LISTEN_TILT := 0.45
+
+
 func place(at: Vector3, facing: float, head: float, delta: float, speed: float = -1.0) -> float:
 	var moved := 0.0 if _last_at == Vector3.INF else Vector2(at.x - _last_at.x, at.z - _last_at.z).length()
 	_last_at = at
@@ -321,10 +326,17 @@ func _turn_head(angle: float) -> void:
 		return
 
 	var pose := _skeleton.get_bone_pose_rotation(_head_bone)
-	_skeleton.set_bone_pose_rotation(_head_bone, pose * Quaternion(Vector3.UP, angle))
+	# The listening tilt: the head cocked to one side, as a person's is toward a sound.
+	var cock := Quaternion(Vector3.BACK, listening * LISTEN_TILT)
+	_skeleton.set_bone_pose_rotation(_head_bone, pose * Quaternion(Vector3.UP, angle) * cock)
 
 
 ## Whether she sees the local player now. Eased, so the flare comes up fast and dies slowly.
+## Whether she stands listening: eased, so the head cocks over a moment and comes back slowly.
+func set_listening(on: bool, delta: float) -> void:
+	listening = move_toward(listening, 1.0 if on else 0.0, delta * (2.5 if on else 1.0))
+
+
 func set_seeing(on: bool, delta: float) -> void:
 	seeing = move_toward(seeing, 1.0 if on else 0.0, delta * (6.0 if on else 1.2))
 

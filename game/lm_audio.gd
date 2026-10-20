@@ -78,6 +78,9 @@ const HEART_DB_QUIET := -20.0
 const HEART_DB_LOUD := -5.0
 
 ## Seconds between creaks: somewhere in this range, rolled each time.
+## Seconds between the far-off doors.
+const FAR_GAP_MIN := 35.0
+const FAR_GAP_MAX := 90.0
 const CREAK_GAP_MIN := 6.0
 const CREAK_GAP_MAX := 16.0
 ## How far from the ears a creak is put: close enough to hear, far enough to be somewhere else.
@@ -96,6 +99,7 @@ var house_sounds: bool = true
 var _until_beat := 0.0
 var _beat_second := false
 var _until_creak := 4.0
+var _until_far := 30.0
 var _ambience := 0
 var _rng := RandomNumberGenerator.new()
 ## Witch key ("level|index") -> the handle of her drone.
@@ -322,6 +326,15 @@ func _house(delta: float) -> void:
 	if _ambience == 0 or not manager.is_playing(_ambience):
 		_ambience = manager.play(AMBIENCE)
 
+	_until_far -= delta
+
+	if _until_far <= 0.0:
+		# Far off, once in a long while: a door slammed on the other side of the house, low. It
+		# says the house is bigger than what you can see, and that something moves in it.
+		_until_far = _rng.randf_range(FAR_GAP_MIN, FAR_GAP_MAX)
+		var way := _rng.randf() * TAU
+		var _slammed := manager.play_at(SLAM, manager.listener_position + Vector3(sin(way) * 24.0, 0.5, cos(way) * 24.0), 0.45, 0.8)
+
 	_until_creak -= delta
 
 	if _until_creak > 0.0:
@@ -370,6 +383,12 @@ func stinger() -> bool:
 	return manager != null and manager.play(STINGER) != 0
 
 
+## A witch has stopped to listen: a low, soft sting from where she stands (the scare hit, lower; the
+## stinger's cooldown is for being seen), and her hum is cut by the caller.
+func listen_cue(at: Vector3) -> bool:
+	return manager != null and manager.play_at(SCARE_HIT, at, 0.4, 0.6) != 0
+
+
 ## A door slamming at [param at].
 func slam(at: Vector3) -> bool:
 	return manager != null and manager.play_at(SLAM, at) != 0
@@ -393,6 +412,21 @@ func whisper(at: Vector3) -> bool:
 ## "Look behind you", from [param at], behind where the player faces.
 func whisper_behind(at: Vector3) -> bool:
 	return manager != null and manager.play_at(WHISPER_BEHIND, at) != 0
+
+
+## Back to rest: the heartbeat, the scare hit and both whispers cut off mid-sound and the meter
+## forgotten, so a player who died or moved on does not keep hearing the madness. The house bed,
+## the witches' drones and a scream in progress are not the madness's and play on.
+func rest() -> void:
+	meter = 0.0
+	_until_beat = 0.0
+	_beat_second = false
+
+	if manager == null:
+		return
+
+	for id: StringName in [HEARTBEAT, SCARE_HIT, WHISPER, WHISPER_BEHIND]:
+		manager.stop_id(id)
 
 
 ## She has you.

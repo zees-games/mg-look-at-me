@@ -20,6 +20,7 @@ extends Node3D
 
 const LmPaths := preload("lm_paths.gd")
 const LmWeatherHash := preload("lm_hash.gd")
+const LmSurfaces := preload("lm_surfaces.gd")
 
 const CHANNEL := "lookatme.level"
 
@@ -529,6 +530,29 @@ func _material(key: String, colour: Color, emission: float = 0.0) -> StandardMat
 	return m
 
 
+## A [method _material] with one of [LmSurfaces]'s textures laid on in world space ([param metres]
+## across one tile), mipmapped and filtered anisotropically, offset by [param shift] so rooms
+## sharing a texture do not share its pattern. Without drawing there is nothing to texture.
+func _surface(key: String, colour: Color, kind: String, metres: float, shift: float) -> StandardMaterial3D:
+	var full := "%s|%s|%.2f" % [key, kind, shift]
+
+	if _materials.has(full):
+		return _materials[full]
+
+	var m := _material(full, colour)
+
+	if draws and OS.get_environment("LM_FLAT") == "":
+		m.albedo_texture = LmSurfaces.texture(kind)
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		m.texture_repeat = true
+		m.uv1_triplanar = true
+		m.uv1_world_triplanar = true
+		m.uv1_scale = Vector3.ONE / metres
+		m.uv1_offset = Vector3(shift, shift * 0.37, shift * 0.71)
+
+	return m
+
+
 func _box(parent: Node, size: Vector3, at: Vector3, material: Material, solid: bool) -> Node3D:
 	var node: Node3D
 
@@ -572,12 +596,15 @@ func _build_room(room_id: String) -> void:
 	root.set_meta(&"floor", int(room["floor"]))
 	root.set_meta(&"top_floor", int(room["floor"]) + floors - 1)
 	add_child(root)
-	var floor_mat := _material("floor", Color(0.22, 0.17, 0.13))
+	var shift := float(room_id.hash() % 13) / 13.0
+	var floor_mat := _surface("floor", Color(0.4, 0.31, 0.24), "floor", 2.0, shift)
 	var paper: Color = WALLPAPERS[room_id.hash() % WALLPAPERS.size()]
-	var wall_mat := _material("wall_%d" % (room_id.hash() % WALLPAPERS.size()), paper)
+	# Each room's own paper and its own share of the pattern; the tint is brighter than the old
+	# flat colour because the texture carries the darker stripes and stains.
+	var wall_mat := _surface("wall_%d" % (room_id.hash() % WALLPAPERS.size()), paper * 1.25, "wall", 2.5, shift)
 	var centre := rect.get_center()
 	_box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, base - SLAB * 0.5, centre.y), floor_mat, true)
-	var ceiling := _box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, top + height + SLAB * 0.5, centre.y), _material("ceiling", Color(0.12, 0.11, 0.1)), true)
+	var ceiling := _box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, top + height + SLAB * 0.5, centre.y), _surface("ceiling", Color(0.17, 0.155, 0.14), "ceiling", 3.0, shift), true)
 	ceiling.name = "Ceiling"
 
 	# A wall a storey at a time, each cut for the doors on that storey; every storey but the
