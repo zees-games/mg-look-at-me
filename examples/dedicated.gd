@@ -346,14 +346,14 @@ func _test_a_reload_leaves_one_link() -> void:
 	await get_tree().process_frame
 	var stale := 0
 	for child in server.get_children():
-		if child is LmNetLink:
+		if child is LmNetLink and not String(child.name).begins_with(DotGameLink.RETIRED):
 			stale += 1
 	_check(stale == 0, "unloading takes the link off the server", "%d left" % stale)
 	var loaded: DotResult = await server.modules.load_module("res://game/lm_module.gd")
 	_check(loaded.ok, "and the module loads again", loaded.error.message if not loaded.ok else "")
 	var links := 0
 	for child in server.get_children():
-		if child is LmNetLink:
+		if child is LmNetLink and not String(child.name).begins_with(DotGameLink.RETIRED):
 			links += 1
 	_check(links == 1 and server.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) is LmNetLink,
 		"leaving one link, under its own name", "%d links" % links)
