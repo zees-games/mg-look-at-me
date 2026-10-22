@@ -1,4 +1,3 @@
-class_name LmBot
 extends RefCounted
 
 ## A stand-in player: plays its level with real movement and E, server side, off unless a test or
