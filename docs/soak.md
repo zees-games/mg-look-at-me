@@ -1,0 +1,7 @@
+# Bot soak
+
+`./game.sh soak [house] [minutes]` runs `tools/soak.tscn`: two stand-ins (`game/lm_bot.gd`) play the real `LmGame` on one house (a map here is a house id: `house`, `asylum`, `forgotten`) through dot-bot's `DotBotSoak`, with dot-spawn's `DotSpawnWatch` for stuck and fell-out verdicts, ticked externally at 60 Hz. The report is `.godot/test-logs/soak-<house>.json` plus one `SOAK {...}` line (with `levels_done`, `deepest`, `interactions`, `gave_up`, `idle_sec`), and the exit code is 1 on failure or when nothing was taken, used or opened. `--trace` prints each stand-in once a second.
+
+**A stand-in** is a player who plays its level: each tick it picks the nearest thing it can usefully do from the rooms it can walk through (an item to take, a station it can use, a door it can open, the way out), walks door to door and along stairwell ramps with real movement commands, aims and presses E. It ignores witches (a catch puts it back at the start and it begins again), sidesteps for 0.8 s when it stops making progress and gives a goal up after 4 s. It is the house's own puzzle format, so it is game code and not dot-bot: there is no navigation mesh. Off by default; only tests and the soak create one.
+
+**Needs the linked `addons/dot_bot` and `addons/dot_spawn`** (gitignored links, tool-only; the game never uses them), and an `--import` after adding them. A level takes a stand-in about 75 s, so a one-minute soak shows `levels_done` 0; `headless_run` ("a stand-in plays a level") holds a whole level 1.

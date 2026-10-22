@@ -14,9 +14,10 @@ const LmServices := preload("res://game/lm_services.gd")
 const LmScares := preload("res://game/lm_scares.gd")
 const LmConfig := preload("res://game/lm_config.gd")
 const LmBindings := preload("res://game/lm_bindings.gd")
+const LmBot := preload("res://game/lm_bot.gd")
 
-const SECTIONS := 22
-const CHECKS := 166
+const SECTIONS := 23
+const CHECKS := 169
 
 var _passed := 0
 var _failed := 0
@@ -43,6 +44,7 @@ func _ready() -> void:
 
 	_test_levels()
 	_test_every_level_finishes()
+	await _test_a_stand_in_plays()
 	await _test_doors_are_per_player()
 	_test_sight()
 	await _test_caught()
@@ -245,6 +247,29 @@ func _stand_before(player: LmPlayer, level: LmLevel, at: Vector3) -> void:
 	var to := (world_at - eye).normalized()
 	player.controller.state.pitch = rad_to_deg(asin(clampf(to.y, -1.0, 1.0)))
 	player.controller.state.yaw = 0.0
+
+
+## The stand-in (LmBot) walks level 1 with real movement and E, through doors, and gets out.
+func _test_a_stand_in_plays() -> void:
+	_section("a stand-in plays a level")
+	var body := game.join(&"stand_in", "Stand-in")
+	var bot := LmBot.new(game, &"stand_in")
+	game.send_to(body, 1)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var delta := 1.0 / float(game.tick_rate)
+	var ticks := 0
+
+	while body.level == 1 and ticks < game.tick_rate * 240:
+		bot.drive(delta)
+		game.step(delta)
+		ticks += 1
+
+	_check(body.level == 2 and bot.levels_done == 1, "it gets out of level 1 on its own legs", "level %d after %d s" % [body.level, ticks / game.tick_rate])
+	_check(bot.interacted > 5, "pressing E on the way (%d times)" % bot.interacted)
+	_check(bot.gave_up == 0, "and never gives up on a thing it set out for", "%d given up" % bot.gave_up)
+	game.leave(&"stand_in")
+	_finished_section()
 
 
 func _test_doors_are_per_player() -> void:
