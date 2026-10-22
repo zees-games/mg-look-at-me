@@ -1,0 +1,26 @@
+# frame-hazards
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+game/lm_client.gd::_draw_witches::alloc_dict	1
+game/lm_client.gd::_draw_witches::string_build	1
+game/lm_client.gd::_glimpse_at::string_build	1
+game/lm_client.gd::_hear_player::duplicate	1
+game/lm_client.gd::_hold_names::string_build	4
+game/lm_client.gd::_process::string_build	3
+game/lm_client.gd::_show_events::string_build	8
+game/lm_client.gd::_swing_doors::alloc_dict	1
+game/lm_client.gd::_swing_doors::string_build	2
+game/lm_game.gd::_apply_doors::alloc_array	1
+game/lm_game.gd::_apply_doors::duplicate	1
+game/lm_game.gd::_apply_doors::string_build	2
+game/lm_game.gd::_check_exit::string_build	1
+game/lm_game.gd::_clear_between::alloc_array	1
+game/lm_game.gd::_done::string_build	4
+game/lm_game.gd::_fire::string_build	1
+game/lm_game.gd::_given::string_build	1
+game/lm_game.gd::_listen::string_build	1
+game/lm_game.gd::_put_back::duplicate	5
+game/lm_game.gd::exposure::string_build	1
+game/lm_game.gd::fire_events::duplicate	1
+game/lm_game.gd::fire_events::string_build	2
+tools/load_probe.gd::_process::string_build	2
+tools/probe.gd::_physics_process::string_build	1
