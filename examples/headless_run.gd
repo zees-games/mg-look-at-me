@@ -91,6 +91,7 @@ func _ready() -> void:
 	(load("res://game/lm_surfaces.gd") as GDScript).call(&"clear_cache")
 	DotHumanoidFigure.clear_cache()
 	DotHudPiece.clear_cache()
+	DotMenuKit.clear_cache()
 	LmLevel.clear_cache()
 	DotRegistry.clear()
 	get_tree().quit(code)

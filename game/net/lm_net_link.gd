@@ -1,6 +1,5 @@
 extends Node
 
-const LmNetLink := preload("lm_net_link.gd")
 
 ## The five remote calls this game needs, on one node that exists on both ends.
 ##
@@ -66,8 +65,9 @@ var voice_received: int = 0
 
 
 ## Makes the link; the caller places it (see [DotGameLink]).
-static func attached_to(parent: Node, p_bridge: Node, server: bool) -> LmNetLink:
-	var link := LmNetLink.new()
+static func attached_to(parent: Node, p_bridge: Node, server: bool) -> Node:
+	# new() and not a self-preload: a script holding itself is never freed at exit.
+	var link = new()
 	link.bridge = p_bridge
 	link.is_server = server
 	return link

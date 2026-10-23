@@ -68,6 +68,11 @@ func _ready() -> void:
 		push_error("%d checks ran, %d declared." % [_passed + _failed, CHECKS])
 		code = 1
 
+	if _server_bridge != null and _server_bridge.link != null:
+		_server_bridge.link.loopback = Callable()
+	if _client_bridge != null and _client_bridge.link != null:
+		_client_bridge.link.loopback = Callable()
+		_client_bridge.rtt_source = Callable()
 	for child in get_children():
 		remove_child(child)
 		child.free()
@@ -81,6 +86,7 @@ func _ready() -> void:
 	_to_server.clear()
 	DotHumanoidFigure.clear_cache()
 	DotHudPiece.clear_cache()
+	DotMenuKit.clear_cache()
 	LmLevel.clear_cache()
 	DotRegistry.clear()
 	get_tree().quit(code)
