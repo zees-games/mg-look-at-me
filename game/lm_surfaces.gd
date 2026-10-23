@@ -75,3 +75,8 @@ static func texture(kind: String) -> Texture2D:
 		_cache[kind] = _make(kind)
 
 	return _cache[kind]
+
+
+## Drops the cached textures; a process that ends with them held reports them as leaked.
+static func clear_cache() -> void:
+	_cache.clear()

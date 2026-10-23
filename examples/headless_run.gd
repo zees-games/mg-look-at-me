@@ -83,6 +83,12 @@ func _ready() -> void:
 		push_error("%d checks ran, %d declared." % [_passed + _failed, CHECKS])
 		code = 1
 
+	# Freed here so its resources and RIDs are released before the engine's leak report.
+	for child in get_children():
+		remove_child(child)
+		child.free()
+	game = null
+	(load("res://game/lm_surfaces.gd") as GDScript).call(&"clear_cache")
 	get_tree().quit(code)
 
 
