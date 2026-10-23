@@ -1497,7 +1497,7 @@ func _test_voice() -> void:
 	var router := DotVoiceRouter.new()
 	var format := LmServices.voice_format()
 	router.config = format
-	router.default_channel = LmServices.new()._voice_default_channel()
+	router.default_channel = services._voice_default_channel()
 	services.configure_voice(router)
 	_check(router.default_channel == DotVoiceRouter.Channel.PROXIMITY, "voice is proximity by default")
 	_check(router.proximity_range == LmServices.PROXIMITY_RANGE and router.proximity_range <= 20.0, "with a short radius", str(router.proximity_range))
