@@ -223,7 +223,6 @@ func _ready() -> void:
 	if not _offline:
 		DotLog.result(CHANNEL, "the netcode", _build_netcode())
 		DotLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
-		_build_look_mute()
 		return
 
 	DotLog.result(CHANNEL, "chat, offline", chat.attach(null))
@@ -282,6 +281,9 @@ func _build_settings() -> void:
 	# a player can restyle in the menu.
 	platform.hud_accent = piece_theme()
 	platform.chat = chat
+	# dot-game's look-to-gag on the keys LmBindings binds (G, K: H is help); this game aims with a ray.
+	platform.look_target_fn = voice_target
+	platform.look_chat_mute_fn = _chat_mute
 	# The command line has the keyboard while it is open: its Escape is its own.
 	platform.busy_fn = func() -> bool: return _command != null and _command.visible
 	platform.board_snapshot_fn = board_snapshot
@@ -293,6 +295,7 @@ func _build_settings() -> void:
 	platform.maps_title = "Change house"
 	platform.maps_noun = "houses"
 	DotLog.result(CHANNEL, "the platform", platform.setup())
+	look_mute = platform.look_mute as DotVoiceLookMute
 	# Walking and looking are off while the cover is up, a menu is open or a line is typed. Chat
 	# typing never held them before, so a sentence walked the player into the dark.
 	platform.input_blocked_changed.connect(_suspend_input)
@@ -1485,27 +1488,6 @@ func _forget_witches() -> void:
 			view.queue_free()
 
 	_witch_views.clear()
-
-
-## dot-voice's look-to-gag and look-to-mute on the keys [LmBindings] binds. The server's
-## sv_voice_gag_* and sv_voice_mute_allowed are followed from the shell's link, so an owner can
-## switch them off. A mute also drops that player's chat through the box's block list.
-func _build_look_mute() -> void:
-	if chat == null or chat.voice == null:
-		return
-
-	look_mute = DotVoiceLookMute.new()
-	look_mute.name = "LookMute"
-	look_mute.manager = chat.voice as DotVoiceManager
-	look_mute.separate_keys = true
-	look_mute.gag_action = LmBindings.VOICE_GAG
-	look_mute.mute_action = LmBindings.VOICE_MUTE
-	look_mute.target_fn = voice_target
-	look_mute.chat_mute_fn = _chat_mute
-	add_child(look_mute)
-
-	var source: Object = link if link != null else DotRegistry.get_service(LINK_SERVICE)
-	var _following := look_mute.follow_cvars(source) if source != null else false
 
 
 ## The peer under the crosshair, 0 for nobody: the player whose head is nearest the view axis
