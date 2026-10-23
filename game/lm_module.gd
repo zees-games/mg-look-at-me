@@ -179,14 +179,9 @@ func _game_load() -> DotResult:
 
 
 ## Voice's server side beyond what dot-game binds (sv_voice_enable, _mode and the proximity
-## cvars, which [LmServices] gave this game's defaults): the look-to-gag and look-to-mute
-## switches, so every client follows them, and the witches hearing a talker.
+## cvars, which [LmServices] gave this game's defaults): the witches hearing a talker.
+## The look-to-gag switches are registered by dot-game's module.
 func _wire_voice(world: LmGame) -> void:
-	var flags := DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-
-	for spec in DotVoiceLookMute.cvar_specs():
-		var _made := add_cvar(String(spec["name"]), String(spec["value"]), String(spec["description"]), flags)
-
 	var hear := add_cvar(
 		"lm_witch_hear_voice", "1" if world.config.witch_hear_voice else "0",
 		"Witches hear players talking as a sound: 1 yes, 0 no", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
