@@ -89,6 +89,8 @@ func _ready() -> void:
 
 static func tunables_for(config: LmConfig) -> DotFpsTunables:
 	var t := DotFpsTunables.new()
+	# Friction only bites below stop_speed; classic's 1.43 lets a body coast past a doorway and the bot overshoots every waypoint.
+	t.stop_speed = 4.0
 	t.max_speed = config.run_speed if config != null else 4.6
 	t.gravity = config.gravity if config != null else 18.0
 	t.jump_height = config.jump_height if config != null else 0.9
