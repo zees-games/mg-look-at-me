@@ -1,0 +1,8 @@
+# Per-house rules for every house (the file name is the house id: house, asylum, forgotten; a
+# house-specific file may sit beside this one). Everything is commented, so nothing changes until a
+# line is uncommented; an operator overrides in cfg/server/game/mg-look-at-me/dot_map/map/.
+# Keys: lm_witch_hear_voice lm_scares_enabled lm_scare_interval_min lm_scare_interval_max
+# lm_scare_cooldown lm_scare_meter_cap lm_demons_enabled lm_demon_max lm_demon_spawn_min
+# lm_demon_spawn_max lm_look_behind_enabled lm_look_behind_min lm_look_behind_max
+# lm_demon_max: 1
+# lm_scares_enabled: 1

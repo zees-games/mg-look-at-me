@@ -15,6 +15,7 @@ const LmPlayer := preload("lm_player.gd")
 const LmProgress := preload("lm_progress.gd")
 const LmVote := preload("lm_vote.gd")
 const LmAvatars := preload("lm_avatars.gd")
+const LmMapConfig := preload("lm_map_config.gd")
 
 ## The players' vote for the next house, or null.
 var vote: LmVote = null
@@ -25,6 +26,15 @@ var progress: LmProgress = null
 
 func _module_name() -> String:
 	return "lookatme"
+
+
+## The rules a house's `cfg/game/mg-look-at-me/dot_map/map/<house>.yml` may set (see docs/map-config.md in dot-game).
+func _map_config_keys() -> Dictionary:
+	return LmMapConfig.KEYS
+
+
+func _map_config_game() -> String:
+	return LmMapConfig.GAME_ID
 
 
 func _game_service() -> StringName:
@@ -174,6 +184,9 @@ func _game_load() -> DotResult:
 
 	if not world.levels.is_empty():
 		var _reported := report_map(str((world.levels[1] as Node).get("doc").get("id", "lm_01")))
+		# The house is this game's map: its yml applies when one opens, the old house's values go back.
+		world.house_changed.connect(func(id: StringName) -> void:
+			var _again := report_map(String(id)))
 
 	return DotResult.success(null)
 
