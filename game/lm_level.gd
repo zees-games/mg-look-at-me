@@ -49,6 +49,12 @@ const ROOM_THEMES := {
 static var _furniture_scenes: Dictionary = {}
 static var _furniture_bounds: Dictionary = {}
 
+
+## Drops the shared furniture scenes so a process can exit without leaking them.
+static func clear_cache() -> void:
+	_furniture_scenes.clear()
+	_furniture_bounds.clear()
+
 const DOOR_WIDTH := 1.5
 const DOOR_HEIGHT := 2.3
 const WALL := 0.15

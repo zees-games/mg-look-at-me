@@ -68,6 +68,21 @@ func _ready() -> void:
 		push_error("%d checks ran, %d declared." % [_passed + _failed, CHECKS])
 		code = 1
 
+	for child in get_children():
+		remove_child(child)
+		child.free()
+	_server_game = null
+	_client_game = null
+	_server_net = null
+	_client_net = null
+	_server_bridge = null
+	_client_bridge = null
+	_to_client.clear()
+	_to_server.clear()
+	DotHumanoidFigure.clear_cache()
+	DotHudPiece.clear_cache()
+	LmLevel.clear_cache()
+	DotRegistry.clear()
 	get_tree().quit(code)
 
 

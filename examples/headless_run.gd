@@ -89,6 +89,10 @@ func _ready() -> void:
 		child.free()
 	game = null
 	(load("res://game/lm_surfaces.gd") as GDScript).call(&"clear_cache")
+	DotHumanoidFigure.clear_cache()
+	DotHudPiece.clear_cache()
+	LmLevel.clear_cache()
+	DotRegistry.clear()
 	get_tree().quit(code)
 
 
