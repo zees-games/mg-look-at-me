@@ -16,4 +16,6 @@ module: game/lm_module.gd
 # map packs its server owner names BEFORE the game loads (into the server-only packs)
 # rather than on a map change: nobody is admitted to a server playing only the built-in map.
 metadata:
+  # Plays with no server (offline mode), so the site may grant the app a direct Play button.
+  solo: true
   maps_delivery: server
