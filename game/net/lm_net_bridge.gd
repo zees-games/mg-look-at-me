@@ -351,7 +351,12 @@ func _send_house(peer_id: int) -> void:
 		"config": {"allow_third_person": game.config.allow_third_person, "witch_speed_scale": game.config.witch_speed_scale,
 			"witch_sight_scale": game.config.witch_sight_scale, "witch_cone_scale": game.config.witch_cone_scale,
 			"witch_head_sweep": game.config.witch_head_sweep, "reach": game.config.reach,
-			"flashlight_range": game.config.flashlight_range, "flashlight_angle": game.config.flashlight_angle}.merged(_scare_settings()),
+			"flashlight_range": game.config.flashlight_range, "flashlight_angle": game.config.flashlight_angle,
+			"darkness_ambient": game.config.darkness_ambient, "witch_door_seconds": game.config.witch_door_seconds,
+			"witch_chase_speed": game.config.witch_chase_speed, "run_speed": game.config.run_speed,
+			"walk_speed_scale": game.config.walk_speed_scale, "jump_height": game.config.jump_height,
+			"gravity": game.config.gravity, "accelerate": game.config.accelerate, "friction": game.config.friction,
+			"stop_speed": game.config.stop_speed, "crouch_speed_scale": game.config.crouch_speed_scale}.merged(_scare_settings()),
 	})
 
 	var wires: Array = []

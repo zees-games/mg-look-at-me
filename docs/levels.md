@@ -45,7 +45,7 @@ What the house does to you on the way, in the document's `events`: `{id, when, d
 | `do` | When | What happens |
 | --- | --- | --- |
 | `lights` | you take the thing that was in a lit room (the builder lights the room for it) | the room's lamps stutter for 1.25 s with a buzz (`lights_out`) and go out, bulbs and all, until the next go at the level |
-| `slam` | you enter the room past a door | once you are 3 m clear of the doorway (`LmGame.SLAM_CLEAR`), the door slams shut for you (`slam`) and you open it again to go back. Only a door that opens again: unlocked, or locked by something nothing uses up |
+| `slam` | you enter the room past a door | once you are 3 m clear of the doorway (`slam_clear`), the door slams shut for you (`slam`) and you open it again to go back. Only a door that opens again: unlocked, or locked by something nothing uses up |
 | `glimpse` | you enter a long corridor | she stands at its far end (at least 8 m away), looking back at you, with a stinger, for 2.5 s or until you are within 6 m, and is gone. She is drawn only (`LmClient._glimpse`): she sees nothing and fills no meter |
 
 The lights and the glimpse are the owner's client's to show (`LmClient._show_events`); a slam is the server's, because it changes which doors are open, and the client's prediction shuts it with progress like any door. Per level: 1 + n/10 lights, 1 + n/6 slams, 1 + n/8 glimpses.

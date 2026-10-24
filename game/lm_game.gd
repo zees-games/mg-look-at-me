@@ -26,10 +26,6 @@ const SERVICE := &"lookatme.game"
 const LEVEL_GAP := 40.0
 const LEVELS_PER_ROW := 8
 
-## Metres from a door a player must be before it slams behind them: never shut on somebody
-## standing in the doorway.
-const SLAM_CLEAR := 3.0
-
 ## The physics layer walls and doors are on, and the one players are on.
 const LAYER_WORLD := 1
 const LAYER_PLAYERS := 2
@@ -67,6 +63,18 @@ var config: LmConfig = null
 ## each other). Bound by the module (REPLICATED) and followed by a client through its link.
 var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
 var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+
+## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made in [method _ready] unless a caller set one.
+var config_binder: DotGameConfigBinder = null
+
+## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `DotGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
+var block_rules: Object = null:
+	set(value):
+		if block_rules != null and block_rules.has_signal(&"changed") and block_rules.is_connected(&"changed", body_rules.refresh):
+			block_rules.disconnect(&"changed", body_rules.refresh)
+		block_rules = value
+		if block_rules != null and block_rules.has_signal(&"changed"):
+			block_rules.connect(&"changed", body_rules.refresh)
 
 ## level number -> LmLevel, and the documents by number.
 var levels: Dictionary = {}
@@ -106,10 +114,31 @@ func _apply_body_mask(player: LmPlayer) -> void:
 func _on_body_rules_changed() -> void:
 	for key in players:
 		_apply_body_mask(players[key] as LmPlayer)
+	apply_pass_through()
+
+
+## The side a player is on for dot-team's block rules: everybody is one, because the house is played together.
+func team_of_side(_key: Variant) -> Variant:
+	return "1"
+
+
+## Hands every controller the bodies it passes through under `block_rules`; the same call on every machine, or a client predicts a wall.
+func apply_pass_through() -> void:
+	var entries := {}
+	for key: Variant in players:
+		var who := players[key] as LmPlayer
+		if who != null and who.controller != null:
+			entries[key] = {"body": who, "controller": who.controller}
+	body_rules.apply_exceptions(entries)
 
 
 func _ready() -> void:
-	var _loaded := config.load_layered("user://cfg/lookatme.json")
+	if config_binder == null:
+		config_binder = DotGameConfigBinder.create(config, "mg-look-at-me", "lm", "user://cfg/lookatme.json")
+	var loaded := config_binder.load_layers()
+	if not loaded.ok:
+		DotGameConfigBinder.fail_boot(get_tree(), loaded)
+		return
 	tick_rate = Engine.physics_ticks_per_second
 	# The config's old switch is the server rule's first value until a cvar says otherwise.
 	if not config.allow_third_person:
@@ -640,6 +669,7 @@ func join(key: StringName, name_text: String, avatar: DotAvatar = null) -> LmPla
 	add_child(player)
 	players[key] = player
 	_apply_body_mask(player)
+	apply_pass_through()
 	player.won = winners.has(String(key))
 	send_to(player, 1)
 	player_joined.emit(key)
@@ -653,7 +683,10 @@ func leave(key: StringName) -> void:
 		return
 
 	players.erase(key)
+	if block_rules != null:
+		block_rules.call(&"forget", key)
 	player.queue_free()
+	apply_pass_through()
 	player_left.emit(key)
 
 
@@ -964,7 +997,7 @@ func fire_events(player: LmPlayer) -> void:
 
 		if not door.is_empty():
 			var centre: Vector3 = door["centre"]
-			if Vector2(local.x - centre.x, local.z - centre.z).length() < SLAM_CLEAR and absf(local.y - centre.y) < 2.0:
+			if Vector2(local.x - centre.x, local.z - centre.z).length() < config.slam_clear and absf(local.y - centre.y) < 2.0:
 				continue
 
 		player.slams_waiting.erase(event_id)

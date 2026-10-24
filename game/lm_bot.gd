@@ -15,7 +15,6 @@ const ARRIVE := 0.7
 const STAND_OFF := 1.1
 const STUCK_WIGGLE := 0.8
 const STUCK_GIVE_UP := 4.0
-const SKIP_SECONDS := 20.0
 
 var key: StringName
 var game: LmGame
@@ -121,7 +120,7 @@ func _sig_of(body: LmPlayer) -> int:
 
 
 func _skip() -> void:
-	_skipped[str(_goal["kind"]) + str(_goal["id"])] = _clock + SKIP_SECONDS
+	_skipped[str(_goal["kind"]) + str(_goal["id"])] = _clock + game.config.bot_skip_seconds
 	gave_up += 1
 	_goal = {}
 	_route.clear()

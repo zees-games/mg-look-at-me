@@ -162,6 +162,7 @@ func _ready() -> void:
 	# Before the world is added: a world that ticks itself must not run in front of a picture.
 	game.hold_clock = _covered
 	add_child(game)
+	_env.ambient_light_energy = game.config.darkness_ambient
 
 	if _offline:
 		_adopt_player(game.join(local_key, local_name))
@@ -189,8 +190,8 @@ func _ready() -> void:
 	# flashlight"). It is also what a witch sees you by, which is the game's trade.
 	flashlight = SpotLight3D.new()
 	flashlight.name = "Flashlight"
-	flashlight.spot_range = 20.0
-	flashlight.spot_angle = 36.0
+	flashlight.spot_range = game.config.flashlight_range
+	flashlight.spot_angle = game.config.flashlight_angle
 	# Under 1 the light falls away from the middle at once: a hot centre fading out, where 1
 	# and over is an even disc with a hard rim.
 	flashlight.spot_angle_attenuation = 0.55
@@ -268,6 +269,24 @@ func _hold_rebuild() -> void:
 		gate.release.call_deferred(&"map")
 
 
+## dot-team's block rules followed from the server, and the F9 tuning panel where this process hosts the house.
+func _add_noblock_and_workbench() -> void:
+	if link != null and not _offline:
+		DotLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
+		return
+	var wb := DotGameWorkbench.new()
+	wb.name = "Workbench"
+	wb.listen_host_fn = func() -> bool: return true
+	wb.config = {"enabled": false}
+	wb.add_set(game.config_binder.profile_set(), "Game settings")
+	add_child(wb)
+	var started := wb.start()
+	DotLog.result(CHANNEL, "the workbench", started)
+	if started.ok:
+		game.config_binder.attach(wb.api.runtime)
+	platform.add_workbench(wb)
+
+
 ## The player's settings, bound to the camera and the sampler's tunables. See [LmSettings].
 ##
 ## The look is bound to the controller's own tunables, which both samplers read (offline the
@@ -295,6 +314,7 @@ func _build_settings() -> void:
 	platform.maps_title = "Change house"
 	platform.maps_noun = "houses"
 	DotLog.result(CHANNEL, "the platform", platform.setup())
+	_add_noblock_and_workbench()
 	look_mute = platform.look_mute as DotVoiceLookMute
 	# Walking and looking are off while the cover is up, a menu is open or a line is typed. Chat
 	# typing never held them before, so a sentence walked the player into the dark.
@@ -428,6 +448,7 @@ func _build_netcode() -> DotResult:
 			_adopt_player(game.players[key]))
 	# A new house (or the first): the witches drawn for the old one go with it.
 	bridge.hello_received.connect(func(_key: StringName) -> void:
+		_apply_light_config()
 		_forget_witches()
 		# The levels were built just now (the first house or a new one): covered until the end
 		# of this frame, by which time their collision is in.
@@ -472,6 +493,14 @@ func _physics_process(delta: float) -> void:
 
 ## A command to walk with instead of the keys: what a headless client in a suite has.
 var command_override: DotFpsCommand = null
+
+
+## The server's flashlight and darkness numbers, once its HELLO has set the config.
+func _apply_light_config() -> void:
+	_env.ambient_light_energy = game.config.darkness_ambient
+	if flashlight != null:
+		flashlight.spot_range = game.config.flashlight_range
+		flashlight.spot_angle = game.config.flashlight_angle
 
 
 func _build_environment() -> void:

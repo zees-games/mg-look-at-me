@@ -86,7 +86,7 @@ Console commands:
 | `lm_winners` | Who has finished the house |
 | `lm_house <id>` | Switch to another house (e.g. `lm_house asylum`) |
 
-Everything else is a setting. Put it in `user://cfg/lookatme.json`, or set it with an `LM_*` environment variable or an `--lm-*` argument (the later one wins):
+Everything else is a setting, also an `lm_<name>` console variable and a key in `cfg/game/mg-look-at-me/config/game.yml`. Put it in `user://cfg/lookatme.json`, or set it with an `LM_*` environment variable or an `--lm-*` argument (the later one wins):
 
 | Setting | |
 | --- | --- |

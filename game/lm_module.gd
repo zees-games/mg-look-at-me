@@ -132,7 +132,6 @@ func _game_load() -> DotResult:
 		return peer <= 0 or can_peer_be_harmed(peer)
 
 	_wire_voice(world)
-	_wire_scares(world)
 
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
 	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
@@ -144,13 +143,18 @@ func _game_load() -> DotResult:
 	add_command("lm_rotation", _cmd_rotation,
 		"lm_rotation [name]: switch to a rotation in maps.yml, or list them", DotAdminFlags.CHANGEMAP)
 	add_command("lm_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP)
-	var _file_cvar := add_cvar("sv_map_rotation_file", world.config.map_rotation_file,
+	_file_cvar = add_cvar("sv_map_rotation_file", world.config.map_rotation_file,
 		"maps.yml: the houses that rotate, in named rotations. Unlisted houses stay installed.")
 	_file_cvar.changed.connect(func(_old: String, new_value: String) -> void:
 		world.config.map_rotation_file = new_value.strip_edges()
 		var _read := world.load_rotation()
 		if vote != null:
 			vote.refresh_houses())
+
+	# After the commands: the config's `house` has no cvar where `lm_house` is the command.
+	var configured := _bind_config(world)
+	if not configured.ok:
+		return configured
 
 	if bridge != null:
 		bridge.connect("say_requested", _on_say_requested)
@@ -191,28 +195,90 @@ func _game_load() -> DotResult:
 	return DotResult.success(null)
 
 
+## dot-workbench over the config; the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
+var workbench: DotGameWorkbench = null
+
+var _file_cvar: DotConVar = null
+
+
+## Every config field as an `lm_<field>` cvar (`sv_map_rotation_file` keeps its handler and follows edits), the cfg/ diff commands, the workbench and the block rules.
+func _bind_config(world: LmGame) -> DotResult:
+	var binder := world.config_binder
+	if binder == null:
+		return DotResult.success(null)
+	workbench = DotGameWorkbench.new()
+	workbench.name = "Workbench"
+	workbench.dedicated = DisplayServer.get_name() == "headless"
+	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
+	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
+		return server != null and server.admins != null and actor is String \
+			and bool(server.admins.uid_has_permission(actor, flag))
+	workbench.add_set(binder.profile_set(), "Game settings")
+	add_child(workbench)
+	var started := workbench.start()
+	var runtime: DotProfileRuntime = workbench.api.runtime if started.ok and workbench.api != null else null
+	if not started.ok:
+		log_warn("the workbench did not start", {"why": started.error.message})
+
+	binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY,
+		func(name: String) -> bool: return console.has_name(name))
+	binder.bind_commands(add_command)
+	binder.field_changed.connect(_on_config_field)
+	if runtime != null:
+		binder.attach(runtime)
+	return DotResult.success(null)
+
+
+## Everybody is one side: the house is played together.
+func _noblock_side(id: Variant) -> Variant:
+	return game.call(&"team_of_side", id) if game != null else ""
+
+
+## The workbench's runtime, so its "noblock" kind is listed beside the config.
+func _noblock_runtime() -> Object:
+	return workbench.api.runtime if workbench != null and workbench.api != null else null
+
+
+## The block commands are keyed by the house's player keys (`uid:<uid>`), not the session id.
+func _build_noblock() -> DotResult:
+	var built := super()
+	if built.ok and noblock != null and noblock.commands != null:
+		noblock.commands.set(&"key_fn", func(ctx: Object) -> Variant:
+			var session: Variant = ctx.get("session")
+			if session is Object and (session as Object).has_method("uid"):
+				return StringName("uid:%s" % (session as Object).call("uid"))
+			return null)
+	return built
+
+
+## A workbench or file edit of a field the game also acts on beyond the config.
+func _on_config_field(key: String, _value: Variant, source: String) -> void:
+	var world := game as LmGame
+	if world == null:
+		return
+	if key == "map_rotation_file" and _file_cvar != null and _file_cvar.get_string() != world.config.map_rotation_file:
+		_file_cvar.set_value(world.config.map_rotation_file)
+	if source == "cvar":
+		return
+	match key:
+		"house_minutes":
+			if vote != null:
+				vote.house_minutes = world.config.house_minutes
+
+
+func _game_unload() -> void:
+	if workbench != null:
+		workbench.queue_free()
+		workbench = null
+	if game != null and "block_rules" in game:
+		game.set(&"block_rules", null)
+	noblock = null
+
+
 ## Voice's server side beyond what dot-game binds (sv_voice_enable, _mode and the proximity
 ## cvars, which [LmServices] gave this game's defaults): the witches hearing a talker.
 ## The look-to-gag switches are registered by dot-game's module.
 func _wire_voice(world: LmGame) -> void:
-	var hear := add_cvar(
-		"lm_witch_hear_voice", "1" if world.config.witch_hear_voice else "0",
-		"Witches hear players talking as a sound: 1 yes, 0 no", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
-	)
-
-	if hear != null:
-		hear.changed.connect(func(_old: String, new_value: String) -> void:
-			world.config.witch_hear_voice = new_value.strip_edges() != "0")
-
-	var furniture := add_cvar(
-		"lm_furniture_enabled", "1" if world.config.furniture_enabled else "0",
-		"Furniture in the rooms: 1 yes, 0 bare rooms. Solid, so it takes effect when the house is next built", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
-	)
-
-	if furniture != null:
-		furniture.changed.connect(func(_old: String, new_value: String) -> void:
-			world.config.furniture_enabled = new_value.strip_edges() != "0")
-
 	var router: Object = services.get("voice") if services != null else null
 
 	if router != null and router.has_signal(&"speech_relayed"):
@@ -220,30 +286,6 @@ func _wire_voice(world: LmGame) -> void:
 		# sound; the key is looked up here because the router knows peers and the house keys.
 		router.connect(&"speech_relayed", func(speaker: int, _listeners: int) -> void:
 			world.hear_voice(bridge.call("key_of_peer", speaker)))
-
-
-## Every scare tunable as an `lm_*` cvar of the same name (`lm_demon_max`, `lm_scare_interval_min`),
-## writing straight into the config. The server's own checks (`LmGame.spook`) follow at once; a
-## client takes the numbers when it joins (the HELLO's config), so a change reaches those who join
-## after it, and the next level or house for those already in.
-func _wire_scares(world: LmGame) -> void:
-	for setting in world.config.scare_keys():
-		var current: Variant = world.config.get(setting)
-		var text := ("1" if current else "0") if current is bool else str(current)
-		var cvar := add_cvar("lm_" + setting, text, "Scares: %s (see lm_config.gd)" % setting.replace("_", " "), DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
-
-		if cvar == null:
-			continue
-
-		cvar.changed.connect(func(_old: String, new_value: String) -> void:
-			var now: Variant = world.config.get(setting)
-
-			if now is bool:
-				world.config.set(setting, new_value.strip_edges() != "0")
-			elif now is int:
-				world.config.set(setting, int(new_value))
-			else:
-				world.config.set(setting, float(new_value)))
 
 
 ## A chat line: the house's when it is one of its commands, the chat router's otherwise.

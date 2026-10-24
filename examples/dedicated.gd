@@ -10,7 +10,7 @@ const LmNetBridge := preload("../game/net/lm_net_bridge.gd")
 const LmNetLink := preload("../game/net/lm_net_link.gd")
 
 const SECTIONS := 10
-const CHECKS := 50
+const CHECKS := 57
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -152,7 +152,33 @@ func _test_the_module_loads() -> void:
 	var net: DotNetManager = module.get("net") if module != null else null
 	_check(net != null and net.config.enable_prediction and absf(net.config.world_extent - LmGame.NET_WORLD_EXTENT) < 0.01,
 		"predicting players, against the extent a client decodes with")
+	_noblock_and_config(module)
 	_finished_section()
+
+
+## Config cvars, the workbench, and dot-team's block rules through dot-game's DotGameNoblock.
+func _noblock_and_config(module: DotModule) -> void:
+	var teamblock := server.console.find_cvar("mp_teamblock")
+	var enemyblock := server.console.find_cvar("mp_enemyblock")
+	_check(teamblock != null and teamblock.get_string() == "0" and enemyblock != null and enemyblock.get_string() == "1",
+		"mp_teamblock is 0 and mp_enemyblock is 1 by default")
+	_check(server.console.has_name("lm_run_speed") and server.console.has_name("lm_slam_clear") and server.console.has_name("lm_demon_max"),
+		"config fields are lm_ cvars, the scares' among them")
+	_check(module.get("workbench") != null, "the module hosts the workbench")
+	var rotation := server.console.find_cvar("sv_map_rotation_file")
+	game.config.map_rotation_file = "cfg/other.yml"
+	module.call("_on_config_field", "map_rotation_file", game.config.map_rotation_file, "workbench")
+	_check(rotation.get_string() == "cfg/other.yml", "a workbench edit reaches the hand-written rotation cvar", rotation.get_string())
+	rotation.set_value("cfg/maps.yml")
+	var a := game.join(&"uid:91", "Walker")
+	var b := game.join(&"uid:92", "Other")
+	_check(game.body_rules.solid and not game.body_rules.blocks(&"uid:91", &"uid:92"), "everybody is one side, so with mp_teamblock 0 players pass")
+	teamblock.set_value("1")
+	_check(game.body_rules.blocks(&"uid:91", &"uid:92"), "mp_teamblock 1 makes them block")
+	teamblock.set_value("0")
+	game.leave(&"uid:91")
+	game.leave(&"uid:92")
+	_check(a != null and b != null, "both players were seated")
 
 
 func _test_the_console() -> void:

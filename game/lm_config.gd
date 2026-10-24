@@ -15,6 +15,14 @@ extends DotConfig
 @export_range(0.0, 3.0, 0.05) var jump_height: float = 0.9
 @export_range(1.0, 40.0, 0.5) var gravity: float = 18.0
 
+## Ground movement. Predicted by each client, so they are sent in the HELLO.
+@export_range(0.5, 20.0, 0.5) var accelerate: float = 9.0
+@export_range(0.0, 20.0, 0.5) var friction: float = 7.0
+
+## Friction only bites below this speed; the classic 1.43 lets a body coast past a doorway.
+@export_range(0.0, 10.0, 0.25) var stop_speed: float = 4.0
+@export_range(0.1, 1.0, 0.05) var crouch_speed_scale: float = 0.45
+
 ## Whether a player may switch to third person.
 @export var allow_third_person: bool = true
 
@@ -123,6 +131,12 @@ extends DotConfig
 ## walk, through the door as if it were not there.
 @export_range(0.0, 10.0, 0.1) var witch_door_seconds: float = 1.6
 
+## Metres from a doorway a player must be before a slam event may shut it (server only).
+@export_range(0.5, 10.0, 0.5) var slam_clear: float = 3.0
+
+## Seconds a stand-in player (tests, the soak) gives up on a goal it cannot reach.
+@export_range(1.0, 120.0, 1.0) var bot_skip_seconds: float = 20.0
+
 @export_group("House")
 
 ## The furniture the builder placed in each room (`lm_furniture_enabled`). Solid, so a server and
@@ -200,11 +214,11 @@ extends DotConfig
 @export_group("The world")
 
 ## How dark: the ambient light everywhere a lamp is not.
-@export_range(0.0, 1.0, 0.01) var darkness_ambient: float = 0.04
+@export_range(0.0, 1.0, 0.01) var darkness_ambient: float = 0.05
 
 ## The flashlight's reach in metres, and its cone.
-@export_range(2.0, 60.0, 0.5) var flashlight_range: float = 18.0
-@export_range(5.0, 90.0, 1.0) var flashlight_angle: float = 32.0
+@export_range(2.0, 60.0, 0.5) var flashlight_range: float = 20.0
+@export_range(5.0, 90.0, 1.0) var flashlight_angle: float = 36.0
 
 ## Where the built-in house's level documents are read from.
 @export var level_directory: String = "levels"
