@@ -314,6 +314,8 @@ func _build_settings() -> void:
 	platform.maps_title = "Change house"
 	platform.maps_noun = "houses"
 	DotLog.result(CHANNEL, "the platform", platform.setup())
+	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
+	DotLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_add_noblock_and_workbench()
 	look_mute = platform.look_mute as DotVoiceLookMute
 	# Walking and looking are off while the cover is up, a menu is open or a line is typed. Chat
@@ -442,6 +444,8 @@ func _build_netcode() -> DotResult:
 	# predicts its own player.
 	var _view := game.view_rules.follow_cvars(link)
 	var _solid := game.body_rules.follow_cvars(link)
+	# Before the seal and in the server's order (after the bridge), or the actions stay local.
+	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
 	net.messages.seal()
 	game.player_joined.connect(func(key: StringName) -> void:
 		if key == bridge.local_key:
@@ -1016,6 +1020,16 @@ func _act(action: String, args: Dictionary = {}) -> void:
 
 
 # --- Every frame -------------------------------------------------------------
+
+## The figure an avatar action plays on: that peer's player, or the local one offline.
+func _avatar_figure(peer_id: int) -> Object:
+	var who: LmPlayer = null
+	if bridge != null and peer_id != 0:
+		who = game.players.get(bridge.key_of_peer(peer_id), null)
+	if who == null and player != null and (net == null or peer_id == net.local_peer_id):
+		who = player
+	return who.figure.person if who != null and who.figure != null else null
+
 
 func _process(delta: float) -> void:
 	if net != null and net.is_running():
