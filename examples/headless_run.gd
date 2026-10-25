@@ -848,7 +848,8 @@ func _test_sound_and_effects() -> void:
 
 	if sink != null:
 		for id in sink.played_ids():
-			if catalogue.find(StringName(id)) == null:
+			# The mood director registers its own beds ("ambience/<mood>/..."), not the house catalogue.
+			if catalogue.find(StringName(id)) == null and not String(id).begins_with("ambience/"):
 				unknown.append(id)
 
 	_check(sink != null and sink.played().size() > 0 and unknown.is_empty(),
@@ -1111,7 +1112,7 @@ func _test_the_witch_and_the_house() -> void:
 	_check(witch != null and String(witch.get("clip")) == "attack_idle", "and she reaches for you", String(witch.get("clip")) if witch != null else "")
 	_check(sink.count_of(&"witch_step") >= 1 and int(client.get("audio").call("droning")) >= 1,
 		"her steps and her hum are heard", str(sink.played_ids()))
-	_check(sink.count_of(&"ambience") >= 1, "the house's ambience plays under it all")
+	_check(sink.count_of(&"ambience") >= 1 or Array(sink.played_ids()).any(func(i: Variant) -> bool: return String(i).begins_with("ambience/")), "the house's ambience plays under it all")
 
 	# Caught: she is in your face with a shriek.
 	me.caught_left = 2.0

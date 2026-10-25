@@ -167,6 +167,7 @@ func _ready() -> void:
 	if _offline:
 		_adopt_player(game.join(local_key, local_name))
 		game.house_changed.connect(func(_id: StringName) -> void:
+			_apply_mood()
 			_forget_witches()
 			_hold_rebuild()
 			_say(game.house_name().to_upper(), 3.0))
@@ -215,6 +216,7 @@ func _ready() -> void:
 
 	_build_hud()
 	_build_audio()
+	_apply_mood()
 	_build_effects()
 	chat = new_chat()
 	add_child(chat)
@@ -337,6 +339,9 @@ func _build_settings() -> void:
 
 	if audio != null:
 		settings.bind_audio(audio.manager)
+		# The server's lm_ambient* drive the quiet layer; the player's sliders multiply on top.
+		if audio.ambient != null:
+			audio.ambient.follow_settings(settings.settings, game.ambient_rules)
 
 	if effects != null:
 		settings.bind_fx(effects)
@@ -444,6 +449,7 @@ func _build_netcode() -> DotResult:
 	# predicts its own player.
 	var _view := game.view_rules.follow_cvars(link)
 	var _solid := game.body_rules.follow_cvars(link)
+	var _ambient := game.ambient_rules.follow_cvars(link)
 	# Before the seal and in the server's order (after the bridge), or the actions stay local.
 	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
 	net.messages.seal()
@@ -453,6 +459,7 @@ func _build_netcode() -> DotResult:
 	# A new house (or the first): the witches drawn for the old one go with it.
 	bridge.hello_received.connect(func(_key: StringName) -> void:
 		_apply_light_config()
+		_apply_mood()
 		_forget_witches()
 		# The levels were built just now (the first house or a new one): covered until the end
 		# of this frame, by which time their collision is in.
@@ -832,6 +839,12 @@ func _on_command(text: String) -> void:
 func _listen_for_sounds() -> void:
 	bridge.sound_received.connect(func(id: StringName) -> void:
 		var _heard := audio.play(id) if audio != null else false)
+
+
+## The house just opened picks the quiet mood under it.
+func _apply_mood() -> void:
+	if audio != null and audio.ambient != null and game != null:
+		audio.ambient.on_map(game.house_id, game.houses.get(game.house_id, {}))
 
 
 func _build_audio() -> void:

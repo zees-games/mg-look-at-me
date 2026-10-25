@@ -1,5 +1,6 @@
 extends Node
 
+const LmAmbience := preload("lm_ambience.gd")
 const LmPaths := preload("lm_paths.gd")
 
 ## What the house sounds like, on the client: the house itself breathing under everything, its
@@ -88,6 +89,9 @@ const CREAK_NEAR := 5.0
 const CREAK_FAR := 13.0
 
 var manager: DotAudioManager = null
+
+## Quiet moods under the house (dot-audio's stock set); the old bed plays only when none loaded.
+var ambient: DotAmbienceDirector = null
 
 ## 0 to 1: how close she is to seeing you. Set by the client every frame.
 var meter: float = 0.0
@@ -268,6 +272,16 @@ func setup() -> DotResult:
 		# Silence for those, not an error: a pack still downloading plays what it has.
 		DotLog.warn(CHANNEL, "sound files missing; those sounds are silent", {"missing": missing.size(), "first": missing[0]})
 
+	ambient = DotAmbienceDirector.new()
+	ambient.name = "Ambient"
+	ambient.manager = manager
+	ambient.default_mood = LmAmbience.DEFAULT_MOOD
+	ambient.map_moods = LmAmbience.HOUSE_MOODS
+	ambient.rules = LmAmbience.make_rules()
+	add_child(ambient)
+	var _moods := ambient.setup()
+	ambient.follow_settings(null)
+
 	_rng.seed = 20261012
 	_limit_master()
 	return DotResult.success(null)
@@ -323,7 +337,11 @@ func _house(delta: float) -> void:
 			_ambience = 0
 		return
 
-	if _ambience == 0 or not manager.is_playing(_ambience):
+	if ambient != null and ambient.has_moods():
+		if _ambience != 0:
+			manager.stop(_ambience)
+			_ambience = 0
+	elif _ambience == 0 or not manager.is_playing(_ambience):
 		_ambience = manager.play(AMBIENCE)
 
 	_until_far -= delta

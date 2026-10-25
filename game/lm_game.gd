@@ -12,6 +12,7 @@ extends Node3D
 ## nearer is faster, a lit flashlight faster, a crouch or standing still slower. The meter
 ## climbs while she does and drains after a pause when she does not, and full is caught.
 
+const LmAmbience := preload("lm_ambience.gd")
 const LmConfig := preload("lm_config.gd")
 const LmLevel := preload("lm_level.gd")
 const LmPlayer := preload("lm_player.gd")
@@ -63,6 +64,8 @@ var config: LmConfig = null
 ## each other). Bound by the module (REPLICATED) and followed by a client through its link.
 var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
 var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+## The ambience cvars (`lm_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
+var ambient_rules: DotAmbienceRules = LmAmbience.make_rules()
 
 ## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made in [method _ready] unless a caller set one.
 var config_binder: DotGameConfigBinder = null
