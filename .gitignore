@@ -5,6 +5,7 @@
 # Every dot-* addon is a separate repository. For local development, symlink them.
 # THIS LIST IS ALSO THE DEPENDENCY MANIFEST: dot-bootstrap derives what to link from it.
 /addons/dot_core
+/addons/dot_profile
 /addons/dot_net
 /addons/dot_player
 /addons/dot_player_controller
