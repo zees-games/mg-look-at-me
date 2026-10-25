@@ -1,0 +1,27 @@
+# mg-look-at-me: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/mg-look-at-me/config_world/game.yml. Layers: defaults < this < env < argv.
+
+# --- House
+# The furniture the builder placed in each room (`lm_furniture_enabled`). Solid, so a server and its clients ...
+# furniture_enabled: true
+
+# --- The world
+# How dark: the ambient light everywhere a lamp is not. [0.0..1.0]
+# darkness_ambient: 0.05
+# The flashlight's reach in metres, and its cone. [2.0..60.0]
+# flashlight_range: 20.0
+#  [5.0..90.0]
+# flashlight_angle: 36.0
+# Where the built-in house's level documents are read from.
+# level_directory: "levels"
+# Where other houses are: every subdirectory with a house.json in it is one. An owner's own house is a direct...
+# houses_directory: "houses"
+# The house a server opens with.
+# house: "house"
+# The file that says which houses this server ROTATES: `cfg/maps.yml` (dot-map's `DotMapRotationFile`: named ...
+# map_rotation_file: "cfg/maps.yml"
+# Minutes a house is played before the players vote on the next (the same house is on the ballot). 0 is no li... [0.0..600.0]
+# house_minutes: 45.0
+# Where who has won is kept, so a winner's mark survives a restart.
+# winners_file: "user://lookatme_winners.json"
+# seed_value: 0

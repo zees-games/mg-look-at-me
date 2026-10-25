@@ -16,6 +16,9 @@ const LmProgress := preload("lm_progress.gd")
 const LmVote := preload("lm_vote.gd")
 const LmAvatars := preload("lm_avatars.gd")
 const LmMapConfig := preload("lm_map_config.gd")
+const LmAmbience := preload("lm_ambience.gd")
+## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
+const AMBIENT_KIND := "ambience"
 
 ## The players' vote for the next house, or null.
 var vote: LmVote = null
@@ -218,7 +221,11 @@ func _bind_config(world: LmGame) -> DotResult:
 	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
 		return server != null and server.admins != null and actor is String \
 			and bool(server.admins.uid_has_permission(actor, flag))
-	workbench.add_set(binder.profile_set(), "Game settings")
+	for set: DotProfileSet in binder.profile_sets():
+		workbench.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
+	var ambient_set := DotGameWorkbench.cvar_set(console, LmAmbience.cvar_types(), AMBIENT_KIND)
+	if ambient_set != null:
+		workbench.add_set(ambient_set, "Ambience (lm_ambient*)")
 	add_child(workbench)
 	var started := workbench.start()
 	var runtime: DotProfileRuntime = workbench.api.runtime if started.ok and workbench.api != null else null
@@ -228,6 +235,8 @@ func _bind_config(world: LmGame) -> DotResult:
 	binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY,
 		func(name: String) -> bool: return console.has_name(name))
 	binder.bind_commands(add_command)
+	if ambient_set != null:
+		DotGameWorkbench.bind_cvar_set(ambient_set, runtime, console)
 	binder.field_changed.connect(_on_config_field)
 	if runtime != null:
 		binder.attach(runtime)

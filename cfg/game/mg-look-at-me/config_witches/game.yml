@@ -1,0 +1,60 @@
+# mg-look-at-me: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/mg-look-at-me/config_witches/game.yml. Layers: defaults < this < env < argv.
+
+# --- Witches
+# Each witch's own numbers are the level document's; these scale every one, so an owner can make a whole serv... [0.1..5.0]
+# witch_speed_scale: 1.0
+#  [0.1..5.0]
+# witch_sight_scale: 1.0
+#  [0.1..3.0]
+# witch_cone_scale: 1.0
+# Whether witches turn their heads as they walk, sweeping the cone.
+# witch_head_sweep: true
+
+# --- Witches' senses
+# Metres a witch hears a player at a full run in the open; walking is quieter in proportion, crouching quiete... [0.0..40.0]
+# witch_hear_range: 9.0
+#  [0.0..1.0]
+# witch_hear_walls: 0.5
+# A door opened or something used is this much louder than a run, for `witch_noise_seconds`. [1.0..5.0]
+# witch_noise_boost: 1.4
+#  [0.1..3.0]
+# witch_noise_seconds: 0.6
+# A witch hears a player's voice (a packet the server relayed) as a sound that long after the last packet, as...
+# witch_hear_voice: true
+#  [0.05..2.0]
+# witch_voice_seconds: 0.35
+# Metres a witch sees a lit flashlight at, inside her cone and with nothing between: the beam is seen from mu... [0.0..80.0]
+# witch_light_range: 28.0
+# Seconds from a sound or the light first being perceived to her starting to turn, and how fast her head turn... [0.0..5.0]
+# witch_reaction_seconds: 1.1
+#  [10.0..720.0]
+# witch_turn_rate: 75.0
+# Seconds she keeps looking where it came from after it stops, before her head goes back. [0.0..30.0]
+# witch_alert_seconds: 4.0
+# Listening. A witch that suspects somebody behind her (a faint sound, or a glimpse at the edge of her view f...
+# witch_listens: true
+#  [0.5..10.0]
+# witch_listen_seconds: 3.5
+#  [1.0..4.0]
+# witch_listen_hearing: 1.8
+#  [0.05..2.0]
+# witch_listen_confirm: 0.35
+#  [0.0..3.0]
+# witch_turn_delay: 0.6
+#  [1.0..4.0]
+# witch_chase_speed: 2.4
+#  [1.0..20.0]
+# witch_chase_seconds: 6.0
+#  [0.0..60.0]
+# witch_listen_cooldown: 10.0
+# The first levels are gentler: she sees `opening_ease` as fast on level 1, rising to full speed by level `op... [0.1..1.0]
+# opening_ease: 0.55
+#  [1..12]
+# opening_levels: 4
+# Seconds a witch stands at a closed door, opening it, before she walks through. 0 is the old walk, through t... [0.0..10.0]
+# witch_door_seconds: 1.6
+# Metres from a doorway a player must be before a slam event may shut it (server only). [0.5..10.0]
+# slam_clear: 3.0
+# Seconds a stand-in player (tests, the soak) gives up on a goal it cannot reach. [1.0..120.0]
+# bot_skip_seconds: 20.0

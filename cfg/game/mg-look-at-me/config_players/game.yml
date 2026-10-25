@@ -1,0 +1,26 @@
+# mg-look-at-me: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/mg-look-at-me/config_players/game.yml. Layers: defaults < this < env < argv.
+
+# --- Players
+#  [1.0..15.0]
+# run_speed: 4.6
+#  [0.1..1.0]
+# walk_speed_scale: 0.5
+#  [0.0..3.0]
+# jump_height: 0.9
+#  [1.0..40.0]
+# gravity: 18.0
+# Ground movement. Predicted by each client, so they are sent in the HELLO. [0.5..20.0]
+# accelerate: 9.0
+#  [0.0..20.0]
+# friction: 7.0
+# Friction only bites below this speed; the classic 1.43 lets a body coast past a doorway. [0.0..10.0]
+# stop_speed: 4.0
+#  [0.1..1.0]
+# crouch_speed_scale: 0.45
+# Whether a player may switch to third person.
+# allow_third_person: true
+# Metres a player can reach to take an item, open a door or use something. [0.5..6.0]
+# reach: 2.2
+# Whether objectives are shared by everybody on a level (one key opens the door for all). Off by default, as ...
+# shared_progress: false

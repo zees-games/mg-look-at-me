@@ -1,0 +1,24 @@
+# mg-look-at-me: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/mg-look-at-me/config_meter/game.yml. Layers: defaults < this < env < argv.
+
+# --- The meter
+# How fast the caught meter fills, per second, for a player in full view at point-blank range. [0.05..5.0]
+# exposure_rate: 0.9
+# How fast it drains, per second, out of sight. [0.01..5.0]
+# decay_rate: 0.05
+# Seconds after being seen before it starts to drain. The meter was draining in about four seconds, which let... [0.0..10.0]
+# decay_delay: 2.0
+# A lit flashlight multiplies how fast you are seen, and how far. [1.0..5.0]
+# flashlight_exposure: 1.8
+#  [1.0..3.0]
+# flashlight_sight: 1.5
+# Crouching multiplies how fast you are seen. [0.05..1.0]
+# crouch_exposure: 0.55
+# Standing still multiplies it too: a witch notices movement. [0.05..1.0]
+# still_exposure: 0.6
+
+# --- Being caught
+# What a catch costs: 0 back to the level's start room keeping what you hold, 1 back to the start with the le...
+# caught_penalty: 1
+# Seconds the screen is the witch's before the player is put back. [0.0..10.0]
+# caught_seconds: 2.0

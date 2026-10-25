@@ -137,7 +137,7 @@ func apply_pass_through() -> void:
 
 func _ready() -> void:
 	if config_binder == null:
-		config_binder = DotGameConfigBinder.create(config, "mg-look-at-me", "lm", "user://cfg/lookatme.json")
+		config_binder = LmConfig.make_binder(config, "user://cfg/lookatme.json")
 	var loaded := config_binder.load_layers()
 	if not loaded.ok:
 		DotGameConfigBinder.fail_boot(get_tree(), loaded)

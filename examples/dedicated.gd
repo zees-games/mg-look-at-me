@@ -12,7 +12,7 @@ const LmNetBridge := preload("../game/net/lm_net_bridge.gd")
 const LmNetLink := preload("../game/net/lm_net_link.gd")
 
 const SECTIONS := 11
-const CHECKS := 62
+const CHECKS := 63
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -168,6 +168,8 @@ func _noblock_and_config(module: DotModule) -> void:
 	_check(server.console.has_name("lm_run_speed") and server.console.has_name("lm_slam_clear") and server.console.has_name("lm_demon_max"),
 		"config fields are lm_ cvars, the scares' among them")
 	_check(module.get("workbench") != null, "the module hosts the workbench")
+	var kinds: Array = module.get("workbench").api.kinds() if module.get("workbench") != null and module.get("workbench").api != null else []
+	_check(kinds.has("ambience") and kinds.has("config_witches") and kinds.has("config_scares"), "the workbench lists the ambience cvars and a set per cfg file", str(kinds))
 	var rotation := server.console.find_cvar("sv_map_rotation_file")
 	game.config.map_rotation_file = "cfg/other.yml"
 	module.call("_on_config_field", "map_rotation_file", game.config.map_rotation_file, "workbench")

@@ -1,0 +1,62 @@
+# mg-look-at-me: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/mg-look-at-me/config_scares/game.yml. Layers: defaults < this < env < argv.
+
+# --- Scares
+# Sanity scares: a sudden sound and a brief face, flash or figure, the client's alone. How often one comes de...
+# scares_enabled: true
+#  [1.0..600.0]
+# scare_interval_max: 90.0
+#  [1.0..600.0]
+# scare_interval_min: 14.0
+# Seconds after any scare, jump or whisper-turned scare before the next may start. [0.0..120.0]
+# scare_cooldown: 10.0
+# How long a scare's figure and flash stay. [0.1..3.0]
+# scare_seconds: 0.55
+# What a demon's jump or a look-behind scare can push the meter to, and no further: a fright alone never catc... [0.0..1.0]
+# scare_meter_cap: 0.85
+
+# --- Demons
+# Once a witch has seen you (the meter has passed `demon_sight_meter` on this level) demons whisper and show ...
+# demons_enabled: true
+#  [0.0..1.0]
+# demon_sight_meter: 0.05
+#  [1..6]
+# demon_max: 2
+# Seconds between one showing and the next, scaled down by the meter (at a full one, by half). [1.0..300.0]
+# demon_spawn_min: 12.0
+#  [1.0..300.0]
+# demon_spawn_max: 35.0
+# Where one shows: this far from the eyes, this many degrees off the middle of the view (so the corner of it,... [2.0..20.0]
+# demon_distance_min: 4.5
+#  [2.0..20.0]
+# demon_distance_max: 8.0
+#  [5.0..80.0]
+# demon_corner_min: 28.0
+#  [5.0..80.0]
+# demon_corner_max: 48.0
+# Walking this close to one makes it jump you. [0.5..6.0]
+# demon_trigger_distance: 2.2
+# Looking straight at one (within this many degrees) for this many seconds sends it away. [1.0..45.0]
+# demon_look_degrees: 12.0
+#  [0.2..20.0]
+# demon_look_seconds: 2.0
+# It fades by itself after this long. [2.0..300.0]
+# demon_lifetime: 30.0
+# Seconds between one's whispers, from where it stands. [0.5..60.0]
+# demon_whisper_gap: 6.0
+# What its jump adds to the meter. [0.0..1.0]
+# demon_meter_spike: 0.25
+
+# --- Look behind you
+# A whisper from behind, "look behind you". Turn round (to within `look_behind_degrees` of straight back) ins...
+# look_behind_enabled: true
+#  [5.0..600.0]
+# look_behind_min: 45.0
+#  [5.0..600.0]
+# look_behind_max: 140.0
+#  [0.5..20.0]
+# look_behind_window: 4.0
+#  [10.0..90.0]
+# look_behind_degrees: 50.0
+#  [0.0..1.0]
+# look_behind_spike: 0.1
