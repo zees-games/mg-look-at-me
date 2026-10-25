@@ -17,7 +17,7 @@ const LmBindings := preload("res://game/lm_bindings.gd")
 const LmBot := preload("res://game/lm_bot.gd")
 
 const SECTIONS := 23
-const CHECKS := 169
+const CHECKS := 170
 
 var _passed := 0
 var _failed := 0
@@ -608,6 +608,16 @@ func _test_the_client_settings() -> void:
 	client.call("_unhandled_input", escape)
 	_check(settings != null and settings.is_open(), "and Escape opens them")
 	settings.close()
+	var self_player: Object = client.get("player")
+	# Your own view is first person, so no figure is drawn yet: give it one as the third-person view does.
+	if self_player != null and self_player.figure == null:
+		self_player.figure = (load("res://game/lm_figure.gd") as GDScript).new()
+		self_player.figure.person = DotHumanoidFigure.new()
+		self_player.figure.add_child(self_player.figure.person)
+		client.add_child(self_player.figure)
+	var action_fig: Object = client.call("_avatar_figure", 0)
+	_check(self_player != null and self_player.figure != null and action_fig == self_player.figure.person and action_fig.has_method(&"skeleton"),
+		"an avatar action and a wearable go on the player's own person, which can hang a wearable")
 
 	# The Tab board, held: the menu's, drawn from the local world offline. The platform makes
 	# the menu hold it on this game's own row (DotGameClient.scoreboard_action).
