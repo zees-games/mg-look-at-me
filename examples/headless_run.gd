@@ -17,7 +17,7 @@ const LmBindings := preload("res://game/lm_bindings.gd")
 const LmBot := preload("res://game/lm_bot.gd")
 
 const SECTIONS := 23
-const CHECKS := 175
+const CHECKS := 177
 
 var _passed := 0
 var _failed := 0
@@ -602,6 +602,15 @@ func _test_the_client_settings() -> void:
 		"the client's settings are read by its look and its camera",
 		str(settings.describe()) if settings != null else "no settings"
 	)
+	var lamp: DotFlashlight = client.get("fl")
+	var lit_player: LmPlayer = client.get("player")
+	_check(lamp != null and lamp.beam != null and lamp.beam.spot_range == lit_player.get_parent().get("config").flashlight_range
+		and lamp.on == lit_player.flashlight, "the flashlight is dot-flashlight's beam, in the house's range and state")
+	lit_player.flashlight = false
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(not lamp.on and not lamp.beam.visible, "and it follows the player's switch")
+	lit_player.flashlight = true
 	var escape := InputEventKey.new()
 	escape.keycode = KEY_ESCAPE
 	escape.pressed = true

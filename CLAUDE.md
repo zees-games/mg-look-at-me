@@ -14,7 +14,7 @@ game/
   lm_level.gd    a level document built: rooms on floors, walls cut per storey for doors, stairwells (ramp + landing), doors (one StaticBody each), items, stations, lamps per room, events; room_at/floor_at; witch_pose()
   lm_player.gd   a CharacterBody3D with dot-player-controller's first person, EXTERNAL drive; holds/opened/used/taken; the meter; the crown
   lm_game.gd     the house: every level in rows of eight, join/leave, interact, events (fire_events), exposure, caught, exits, /r and /l, winners
-  lm_client.gd   one player: offline it owns the house, connected it predicts its own player; the dark, the flashlight, first/third person, witches with a sight fan, the HUD, a / command line
+  lm_client.gd   one player: offline it owns the house, connected it predicts its own player; the dark, the flashlight (dot-flashlight), first/third person, witches with a sight fan, the HUD, a / command line
   lm_module.gd   the DotGameModule: predicted netcode, progress keyed by account uid, lm_status / lm_send / lm_winners, /commands in chat
   lm_services.gd chat (all, admin, whisper) and voice for everybody across the house
   lm_server.gd   what scenes/lm_server.tscn runs: the house, drawing nothing

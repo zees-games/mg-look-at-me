@@ -46,6 +46,10 @@ var game: LmGame = null
 var player: LmPlayer = null
 var camera: Camera3D = null
 var flashlight: SpotLight3D = null
+## The dot-flashlight node and the beams of the other players, shown from their `flashlight` flag.
+var fl: DotFlashlight = null
+var fl_config: DotFlashlightConfig = null
+var crowd: DotFlashlightCrowd = null
 var third_person: bool = false
 
 var _probe: DotCameraProbe = null
@@ -186,23 +190,26 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 
-	# The flashlight: a hard bright middle with a soft edge, so it reads as a torch in a dark
-	# house and not a flat disc pasted on the wall (the first play test's "flat circular
-	# flashlight"). It is also what a witch sees you by, which is the game's trade.
-	flashlight = SpotLight3D.new()
-	flashlight.name = "Flashlight"
-	flashlight.spot_range = game.config.flashlight_range
-	flashlight.spot_angle = game.config.flashlight_angle
-	# Under 1 the light falls away from the middle at once: a hot centre fading out, where 1
-	# and over is an even disc with a hard rim.
-	flashlight.spot_angle_attenuation = 0.55
-	flashlight.spot_attenuation = 0.6
-	flashlight.light_energy = FLASH_ENERGY
-	flashlight.light_color = Color(1.0, 0.93, 0.8)
-	flashlight.shadow_enabled = true
-	flashlight.light_volumetric_fog_energy = 0.0
-	camera.add_child(flashlight)
-	flashlight.position = Vector3(0.2, -0.15, 0.0)
+	# The flashlight (dot-flashlight): a hard bright middle with a soft edge, so it reads as a
+	# torch in a dark house and not a flat disc. The house owns on/off (LmPlayer.flashlight), so
+	# this node only draws it; a witch sees you by it, which is the game's trade.
+	fl_config = DotFlashlightConfig.new()
+	fl_config.energy = FLASH_ENERGY
+	fl_config.shadows_on_web = true
+	fl_config.range_m = game.config.flashlight_range
+	fl_config.angle = game.config.flashlight_angle
+	fl = DotFlashlight.new()
+	fl.name = "Flashlight"
+	fl.config = fl_config
+	fl.handle_input = false
+	fl.authoritative = false
+	camera.add_child(fl)
+	flashlight = fl.beam
+	crowd = DotFlashlightCrowd.new()
+	crowd.name = "OtherBeams"
+	crowd.config = fl_config
+	add_child(crowd)
+
 	# The spill round the beam: your hands and the floor at your feet, never the far wall, so
 	# with the light off you can still step through a room you cannot see across.
 	var spill := OmniLight3D.new()
@@ -510,9 +517,13 @@ var command_override: DotFpsCommand = null
 ## The server's flashlight and darkness numbers, once its HELLO has set the config.
 func _apply_light_config() -> void:
 	_env.ambient_light_energy = game.config.darkness_ambient
-	if flashlight != null:
-		flashlight.spot_range = game.config.flashlight_range
-		flashlight.spot_angle = game.config.flashlight_angle
+	if fl_config != null:
+		fl_config.range_m = game.config.flashlight_range
+		fl_config.angle = game.config.flashlight_angle
+		if fl != null:
+			fl.refresh()
+		if crowd != null:
+			crowd.refresh()
 
 
 func _build_environment() -> void:
@@ -943,10 +954,10 @@ func _dread(delta: float, caught: bool) -> void:
 	_flicker_left -= delta
 
 	if _flicker_left > 0.0:
-		flashlight.light_energy = FLASH_ENERGY * 0.12
+		fl.energy_scale = 0.12
 		return
 
-	flashlight.light_energy = FLASH_ENERGY
+	fl.energy_scale = 1.0
 	var allowed: bool = settings == null or settings.settings.get_bool(&"allow_flashes", true)
 
 	# From a third of the meter up, a dip now and then, more often as it fills.
@@ -1064,7 +1075,8 @@ func _process(delta: float) -> void:
 		player.controller.set(&"render_clock", net.clock if net != null and net.is_running() else null)
 
 	_place_camera()
-	flashlight.visible = player.flashlight
+	fl.apply_state({"on": player.flashlight})
+	crowd.set_viewer(camera.global_position)
 
 	# Only the level you are on is drawn. Every level is built at once, and the compatibility
 	# renderer draws a capped number of lights: with the lamps of three-times-bigger levels in
@@ -1082,6 +1094,11 @@ func _process(delta: float) -> void:
 		# Only the people in the same house: the others are on another level, out of sight.
 		other.visible = other.level == player.level
 		other.present_body(other == player and not third_person, other == player)
+		# Everybody else's beam, from their eye along their look: nearest few cast shadows.
+		crowd.set_lit(key, other != player and other.flashlight and other.level == player.level)
+		crowd.place(key, other.eye_position(), other.look_direction())
+
+	crowd.retain(game.players.keys())
 
 	var level := game.level_of(player)
 

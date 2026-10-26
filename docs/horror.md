@@ -45,7 +45,7 @@ Beyond the witches, three things frighten the player, all the client's own (`gam
 
 ## Light
 
-Dark, but never so dark a player cannot step through a room: ambient 0.05, fog 0.05, filmic at 1.1, a little glow so lamps and eyes bloom, saturation down. The flashlight is a 36° spot with `spot_angle_attenuation` 0.55 (under 1 it falls away from a hot middle; at 1 and over it was the flat disc the play test saw), and a faint 3 m spill round the camera so the floor at your feet is there with the light off. The flashlight is still what a witch sees you by.
+Dark, but never so dark a player cannot step through a room: ambient 0.05, fog 0.05, filmic at 1.1, a little glow so lamps and eyes bloom, saturation down. The flashlight is a 36° spot with `spot_angle_attenuation` 0.55 (under 1 it falls away from a hot middle; at 1 and over it was the flat disc the play test saw), and a faint 3 m spill round the camera so the floor at your feet is there with the light off. The flashlight is still what a witch sees you by. The beam itself is dot-flashlight's `DotFlashlight` (others' beams are its `DotFlashlightCrowd`); the lit state and the witch's sight stay in `LmPlayer`.
 
 ## Signs and the HUD
 
