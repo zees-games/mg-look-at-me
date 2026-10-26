@@ -17,7 +17,7 @@ const LmBindings := preload("res://game/lm_bindings.gd")
 const LmBot := preload("res://game/lm_bot.gd")
 
 const SECTIONS := 23
-const CHECKS := 170
+const CHECKS := 175
 
 var _passed := 0
 var _failed := 0
@@ -1029,6 +1029,30 @@ func _test_the_mouse_turns_the_view() -> void:
 	_check(absf(angle_difference(back.y, camera.global_basis.get_euler().y)) > deg_to_rad(2.0),
 		"and closed, it turns it again",
 		"yaw %.1f -> %.1f" % [rad_to_deg(back.y), rad_to_deg(camera.global_basis.get_euler().y)])
+
+	# The command line holds the pointer: nothing recaptures it until the line is sent.
+	var platform: DotGameClient = client.get("platform")
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_ENTER
+	client._unhandled_input(key)
+	await get_tree().process_frame
+	_check(client.get("_command").visible and platform.is_input_blocked(),
+		"the command line open blocks input")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	platform._unhandled_input(click)
+	_check(platform._pointer_holds.has(&"command"), "and holds the pointer against a click")
+	settings.open()
+	settings.close()
+	await get_tree().process_frame
+	_check(platform._pointer_holds.has(&"command") and platform.is_input_blocked(),
+		"and a menu closing does not release it")
+	client.call("_on_command", "")
+	await get_tree().process_frame
+	_check(not platform._pointer_holds.has(&"command"), "sending the line releases the hold")
+	_check(not platform.is_input_blocked(), "and input is back")
 
 	remove_child(client)
 	client.free()

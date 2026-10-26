@@ -812,7 +812,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_command.text = "/"
 		_command.grab_focus()
 		_command.caret_column = 1
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		# Held, not just freed: a click outside or a menu closing must not recapture it mid-word.
+		platform.hold_pointer(&"command")
 	elif key.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		# And the settings: a released pointer with nothing to click was half a key. The
@@ -830,7 +831,8 @@ func _on_command(text: String) -> void:
 		player.sampler = _held_sampler
 		_held_sampler = null
 
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# The platform takes the pointer back only if no menu or other hold remains.
+	platform.release_pointer(&"command")
 	_act("command", {"text": text})
 
 
