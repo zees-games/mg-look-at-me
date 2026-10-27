@@ -198,7 +198,11 @@ func _ready() -> void:
 	fl_config.shadows_on_web = true
 	fl_config.range_m = game.config.flashlight_range
 	fl_config.angle = game.config.flashlight_angle
+	# Audio first: the light resolves its sound manager when it enters the tree.
+	_build_audio()
+	var flash_audio: DotNodeRef = DotNodeRef.of_path(audio.manager.get_path()) if audio != null and audio.manager != null else null
 	fl = DotFlashlight.new()
+	fl.audio = flash_audio
 	fl.name = "Flashlight"
 	fl.config = fl_config
 	fl.handle_input = false
@@ -208,6 +212,7 @@ func _ready() -> void:
 	crowd = DotFlashlightCrowd.new()
 	crowd.name = "OtherBeams"
 	crowd.config = fl_config
+	crowd.audio = flash_audio
 	add_child(crowd)
 
 	# The spill round the beam: your hands and the floor at your feet, never the far wall, so
@@ -222,7 +227,6 @@ func _ready() -> void:
 	camera.add_child(spill)
 
 	_build_hud()
-	_build_audio()
 	_apply_mood()
 	_build_effects()
 	chat = new_chat()

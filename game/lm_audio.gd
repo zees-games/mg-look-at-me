@@ -222,6 +222,9 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	behind.max_distance = 10.0
 	behind.gain_db = -2.0
 	c.add(behind)
+	# The torch's switch clicks, dot-audio's stock; dot-flashlight plays them by id.
+	for d in DotAudioStock.flashlight_defs():
+		c.add(d)
 	return c
 
 
