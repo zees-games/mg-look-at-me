@@ -47,6 +47,32 @@
 # What its jump adds to the meter. [0.0..1.0]
 # demon_meter_spike: 0.25
 
+# --- The clown
+# A clown that floats in a corner of the view and watches. Walk up to it and it lunges: a jump scare that pus...
+# clown_enabled: true
+#  [1.0..600.0]
+# clown_wait_max: 150.0
+#  [1.0..600.0]
+# clown_wait_min: 30.0
+#  [0.0..1.0]
+# clown_chance_min: 0.2
+#  [0.0..1.0]
+# clown_chance_max: 0.9
+#  [0.0..1.0]
+# clown_damage_min: 0.08
+#  [0.0..1.0]
+# clown_damage_max: 0.3
+#  [0.2..4.0]
+# clown_curve: 1.5
+#  [1.0..6.0]
+# clown_trigger_distance: 2.6
+#  [2.0..120.0]
+# clown_lifetime: 40.0
+# Looking straight at it this many seconds sends it away unlunged. [0.5..20.0]
+# clown_look_seconds: 3.5
+#  [0.1..2.0]
+# clown_lunge_seconds: 0.45
+
 # --- Look behind you
 # A whisper from behind, "look behind you". Turn round (to within `look_behind_degrees` of straight back) ins...
 # look_behind_enabled: true

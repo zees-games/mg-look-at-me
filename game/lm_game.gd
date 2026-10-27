@@ -1077,7 +1077,7 @@ func spook(key: StringName, amount: float) -> bool:
 	if not can_be_harmed(key):
 		return false
 
-	if not config.demons_enabled and not config.look_behind_enabled:
+	if not config.demons_enabled and not config.look_behind_enabled and not config.clown_enabled:
 		return false
 
 	var now := seconds_now()
@@ -1085,7 +1085,7 @@ func spook(key: StringName, amount: float) -> bool:
 	if now - player.spooked_at < minf(config.scare_cooldown, 5.0):
 		return false
 
-	var top := maxf(config.demon_meter_spike, config.look_behind_spike)
+	var top := maxf(maxf(config.demon_meter_spike, config.look_behind_spike), config.clown_damage_max if config.clown_enabled else 0.0)
 	player.spooked_at = now
 	player.meter = maxf(player.meter, minf(player.meter + minf(amount, top), config.scare_meter_cap))
 	player.unseen_for = 0.0

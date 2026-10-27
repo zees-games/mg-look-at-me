@@ -179,6 +179,26 @@ func _ready() -> void:
 		if view == "demon":
 			player.place_at(player.global_position, 0.0)
 
+	# --view=clown: the clown in the corner of the view, watching; --view=clownlunge: mid-lunge, jaw wide.
+	if view == "clown" or view == "clownlunge":
+		var cfg = client.scares.config
+		cfg.scares_enabled = false
+		cfg.demons_enabled = false
+		cfg.look_behind_enabled = false
+		cfg.clown_chance_min = 1.0
+		cfg.clown_wait_max = 1.0
+		cfg.clown_wait_min = 1.0
+		cfg.demon_corner_min = float(_args.get("corner", "30"))
+		cfg.demon_corner_max = cfg.demon_corner_min
+		cfg.demon_distance_min = float(_args.get("dist", "4.2"))
+		cfg.demon_distance_max = cfg.demon_distance_min
+		cfg.scare_cooldown = 0.0
+		cfg.clown_trigger_distance = 1.0
+		if view == "clownlunge":
+			cfg.clown_chance_min = 0.0
+			cfg.clown_chance_max = 0.0
+		player.meter = 0.3
+
 	# --meter=0.8: the fear the house closes in with (fog, red tint, a stuttering light), held there.
 	if _args.has("meter"):
 		player.meter = float(_args["meter"])
@@ -196,6 +216,14 @@ func _ready() -> void:
 	if view == "scare":
 		client.scare_view.call("_startle", str(_args.get("style", "demon")), 1.0, 4.0, client.camera.global_position)
 		await get_tree().process_frame
+
+	if view == "clownlunge":
+		var eye: Vector3 = client.camera.global_position
+		var fwd := -client.camera.global_basis.z
+		client.scare_view.call("_start_lunge", {"at": eye + fwd * 3.6 + Vector3(1.0, -1.45, 0), "seconds": 3.0}, eye)
+		for _i in 36:
+			await get_tree().process_frame
+		await get_tree().create_timer(float(_args.get("lunge", "1.9"))).timeout
 
 	if view == "action":
 		await _stage_action(client, player, action[0], action[1])

@@ -11,6 +11,7 @@ extends Node3D
 const LmScares := preload("lm_scares.gd")
 const LmWitch := preload("lm_witch.gd")
 const LmAudio := preload("lm_audio.gd")
+const LmClown := preload("lm_clown.gd")
 
 const CHANNEL := "lookatme.scares"
 
@@ -30,6 +31,9 @@ var _scare_total := 0.5
 var _flash_alpha := 0.0
 var _jump: Dictionary = {}
 var _sway := 0.0
+var _clown: Node3D = null
+## The lunge in progress: {"left", "total", "from"}, or empty.
+var _lunge: Dictionary = {}
 
 
 ## One tick: ask the director, show what it says, keep the figures as the director has them.
@@ -41,6 +45,7 @@ func present(delta: float, view: Dictionary) -> Array[Dictionary]:
 		_on_event(event, eye)
 
 	_sync_demons(eye)
+	_sync_clown(delta, eye)
 	_animate(delta, eye, view["forward"])
 	return events
 
@@ -56,6 +61,9 @@ func _on_event(event: Dictionary, eye: Vector3) -> void:
 			# It is on you: the demon itself, in your face, for a moment.
 			_startle("demon", 0.0, director.config.scare_seconds, eye)
 			_fright(float(event["spike"]))
+		LmScares.CLOWN_LUNGES:
+			_start_lunge(event, eye)
+			_fright(float(event["spike"]))
 		LmScares.BEHIND_WHISPER:
 			if audio != null:
 				var _b := audio.whisper_behind(event["at"])
@@ -70,6 +78,10 @@ func rest() -> void:
 	_scare_left = 0.0
 	_flash_alpha = 0.0
 	_jump = {}
+	_lunge = {}
+
+	if _clown != null:
+		_clown.visible = false
 
 	if _scare_figure != null:
 		_scare_figure.queue_free()
@@ -82,6 +94,60 @@ func rest() -> void:
 		flash.color = Color(0, 0, 0, 0)
 
 	_sync_demons(Vector3.ZERO)
+
+
+## The clown floats where the director put it, a little above the floor, watching; during a lunge
+## it flies at the lens with its jaw wide, then is gone.
+func _sync_clown(delta: float, eye: Vector3) -> void:
+	var present := not director.clown.is_empty() or not _lunge.is_empty()
+
+	if not present:
+		if _clown != null:
+			_clown.visible = false
+
+		return
+
+	if _clown == null:
+		_clown = LmClown.new()
+		add_child(_clown)
+
+		if not _clown.call(&"build"):
+			_clown.queue_free()
+			_clown = null
+			_lunge = {}
+			return
+
+	_clown.visible = true
+
+	if _lunge.is_empty():
+		var at: Vector3 = director.clown["at"]
+		_clown.global_position = at + Vector3(0, 0.75 + sin(_sway * 0.9) * 0.08, 0)
+		_clown.set(&"mouth", 0.0)
+		_clown.call(&"watch", eye, delta)
+		return
+
+	_lunge["left"] = float(_lunge["left"]) - delta
+	var t := 1.0 - clampf(float(_lunge["left"]) / maxf(float(_lunge["total"]), 0.01), 0.0, 1.0)
+	var from: Vector3 = _lunge["from"]
+	var face := eye + Vector3(0, -0.85, 0) + (from - eye).normalized() * 1.15
+	_clown.global_position = from.lerp(face, t * t)
+	_clown.set(&"mouth", 1.0)
+	_clown.call(&"watch", eye, delta)
+
+	if float(_lunge["left"]) <= 0.0:
+		_lunge = {}
+		_clown.visible = false
+
+
+func _start_lunge(event: Dictionary, eye: Vector3) -> void:
+	_lunge = {"left": float(event["seconds"]) + 0.15, "total": float(event["seconds"]) + 0.15,
+		"from": (event["at"] as Vector3) + Vector3(0, 0.75, 0)}
+	_flash_alpha = 0.6
+	_scare_left = 0.1
+
+	if audio != null:
+		var _h := audio.scare_hit()
+		var _s := audio.whisper(event["at"])
 
 
 func _fright(amount: float) -> void:
@@ -280,5 +346,5 @@ static func make_demon(head_scale: float) -> Node3D:
 
 
 func describe() -> Dictionary:
-	return {"figures": _figures.size(), "scare_left": _scare_left, "flash": _flash_alpha,
+	return {"figures": _figures.size(), "clown": _clown != null and _clown.visible, "scare_left": _scare_left, "flash": _flash_alpha,
 		"director": director.describe() if director != null else {}}

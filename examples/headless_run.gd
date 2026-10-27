@@ -17,7 +17,7 @@ const LmBindings := preload("res://game/lm_bindings.gd")
 const LmBot := preload("res://game/lm_bot.gd")
 
 const SECTIONS := 23
-const CHECKS := 177
+const CHECKS := 185
 
 var _passed := 0
 var _failed := 0
@@ -1703,6 +1703,41 @@ func _test_scares() -> void:
 	_check(guest.meter <= game.config.scare_meter_cap + 0.001 and guest.meter > 0.8 - 0.001, "and never past the cap, so a fright is never a catch", "%.2f" % guest.meter)
 	game.leave(key)
 
+	# The clown: damage, chance and rate are curves over the meter; a lunge is once, at the trigger.
+	var cc := LmConfig.new()
+	var dmg := [LmScares.clown_damage(cc, 0.0), LmScares.clown_damage(cc, 0.5), LmScares.clown_damage(cc, 1.0)]
+	var chance := [LmScares.clown_chance(cc, 0.0), LmScares.clown_chance(cc, 0.5), LmScares.clown_chance(cc, 1.0)]
+	var wait := [LmScares.clown_wait(cc, 0.0), LmScares.clown_wait(cc, 0.5), LmScares.clown_wait(cc, 1.0)]
+	_check(absf(dmg[0] - cc.clown_damage_min) < 0.001 and absf(dmg[2] - cc.clown_damage_max) < 0.001 and dmg[0] < dmg[1] and dmg[1] < dmg[2],
+		"clown damage rises with the meter, min at 0 and max at 1", "%.3f, %.3f, %.3f" % dmg)
+	_check(chance[0] < chance[1] and chance[1] < chance[2] and wait[0] > wait[1] and wait[1] > wait[2],
+		"and its chance rises and its wait falls", "chance %.2f %.2f %.2f, wait %.0f %.0f %.0f s" % [chance[0], chance[1], chance[2], wait[0], wait[1], wait[2]])
+	var shows: Array[int] = []
+	for m in [0.0, 0.5, 1.0]:
+		var n := 0
+		for who in 12:
+			for e in _scare_clown_night(who, m, 1800.0, cc):
+				n += 1 if e["kind"] == LmScares.CLOWN_SHOWS else 0
+		shows.append(n)
+	_check(shows[0] < shows[1] and shows[1] < shows[2] and shows[0] >= 1, "twelve half-hours show the clown more often as the meter climbs", "%d, %d, %d" % [shows[0], shows[1], shows[2]])
+	for m in [0.0, 0.5, 1.0]:
+		var lunges: Array = _scare_clown_night(3, m, 3600.0, cc).filter(func(e: Dictionary) -> bool: return e["kind"] == LmScares.CLOWN_LUNGES)
+		var ok := not lunges.is_empty()
+		for e: Dictionary in lunges:
+			ok = ok and absf(float(e["spike"]) - LmScares.clown_damage(cc, m)) < 0.001
+		_check(ok, "each lunge at meter %.1f carries exactly its damage, once per clown" % m, "%d lunges, %.3f" % [lunges.size(), LmScares.clown_damage(cc, m)])
+	var coff := LmConfig.new()
+	coff.clown_enabled = false
+	_check(_scare_clown_night(3, 1.0, 1800.0, coff).filter(func(e: Dictionary) -> bool: return str(e["kind"]).begins_with("clown")).is_empty(), "lm_clown_enabled off is no clown")
+	game.config.scare_cooldown = 10.0
+	game.config.scare_meter_cap = 0.85
+	var victim := game.join(&"clown_test", "Clown")
+	victim.meter = 0.5
+	game.tick += 600
+	_check(game.spook(&"clown_test", LmScares.clown_damage(game.config, 0.5)) and absf(victim.meter - (0.5 + LmScares.clown_damage(game.config, 0.5))) < 0.001,
+		"the house applies the clown's whole damage (its cap includes the clown)", "%.3f" % victim.meter)
+	game.leave(&"clown_test")
+
 	# A stare sends it away, no jump.
 	var stare := LmScares.new(LmConfig.new())
 	view["eye"] = Vector3(0, 1.6, 0)
@@ -1888,6 +1923,29 @@ func _section(name: String) -> void:
 
 func _finished_section() -> void:
 	_finished += 1
+
+
+## A clown-only night: the player walks straight at whatever shows, every 0.1 s; returns the events.
+func _scare_clown_night(who: int, meter: float, seconds: float, cfg: LmConfig) -> Array[Dictionary]:
+	cfg.demons_enabled = false
+	cfg.look_behind_enabled = false
+	cfg.scares_enabled = false
+	var d := LmScares.new(cfg)
+	d.reseed(1, 1, who)
+	var eye := Vector3(0, 1.6, 0)
+	var out: Array[Dictionary] = []
+	var t := 0.0
+	while t < seconds:
+		var view := {"meter": meter, "level": 1, "who": who, "eye": eye, "feet": Vector3.ZERO, "forward": Vector3.FORWARD, "caught": false}
+		for e in d.tick(0.25, view):
+			out.append(e)
+		if not d.clown.is_empty():
+			var at: Vector3 = d.clown["at"]
+			eye = eye.move_toward(Vector3(at.x, 1.6, at.z), 1.0)
+		else:
+			eye = Vector3(0, 1.6, 0)
+		t += 0.25
+	return out
 
 
 func _check(ok: bool, what: String, detail: String = "") -> void:

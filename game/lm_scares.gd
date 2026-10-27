@@ -24,6 +24,9 @@ const WHISPER := &"whisper"
 const DEMON_SHOWS := &"demon_shows"
 const DEMON_JUMPS := &"demon_jumps"
 const DEMON_GONE := &"demon_gone"
+const CLOWN_SHOWS := &"clown_shows"
+const CLOWN_LUNGES := &"clown_lunges"
+const CLOWN_GONE := &"clown_gone"
 const BEHIND_WHISPER := &"behind_whisper"
 const BEHIND_SCARE := &"behind_scare"
 
@@ -48,6 +51,9 @@ var since_event := 1000.0
 var _until_demon := -1.0
 var _until_behind := -1.0
 var _next_id := 1
+var _until_clown := -1.0
+## The one clown: {"at" (feet), "age", "looked"}, or empty.
+var clown: Dictionary = {}
 
 ## Each demon: {"id", "at" (feet), "age", "looked", "whisper" (seconds to its next)}.
 var demons: Array[Dictionary] = []
@@ -76,6 +82,8 @@ func reseed(seed_value: int, p_level: int, who: int) -> void:
 	_until_behind = _roll_behind()
 	demons.clear()
 	behind = {}
+	clown = {}
+	_until_clown = _roll_clown(0.0)
 
 
 ## Rest: whatever was hunting the player, and the build-up to the next scare, is gone. The night's
@@ -85,6 +93,30 @@ func rest() -> void:
 	since_event = 1000.0
 	demons.clear()
 	behind = {}
+	clown = {}
+
+
+## The meter's curve, 0 to 1: `clown_curve` is its exponent.
+static func curve(cfg: LmConfig, meter: float) -> float:
+	return pow(clampf(meter, 0.0, 1.0), cfg.clown_curve)
+
+
+## What the clown's lunge adds to the meter at [param meter]; and the chance a due clown shows, and
+## the wait to the next roll. Static, so a check can ask them without a night.
+static func clown_damage(cfg: LmConfig, meter: float) -> float:
+	return lerpf(cfg.clown_damage_min, cfg.clown_damage_max, curve(cfg, meter))
+
+
+static func clown_chance(cfg: LmConfig, meter: float) -> float:
+	return lerpf(cfg.clown_chance_min, cfg.clown_chance_max, curve(cfg, meter))
+
+
+static func clown_wait(cfg: LmConfig, meter: float) -> float:
+	return maxf(lerpf(cfg.clown_wait_max, cfg.clown_wait_min, curve(cfg, meter)), 1.0)
+
+
+func _roll_clown(meter: float) -> float:
+	return clown_wait(config, meter) * rng.randf_range(0.7, 1.3)
 
 
 ## Seconds a sanity scare takes to come at [param meter] (0 to 1): the long wait at an empty
@@ -114,6 +146,7 @@ func tick(delta: float, view: Dictionary) -> Array[Dictionary]:
 		# Whatever was hunting you is gone when you are put back.
 		demons.clear()
 		behind = {}
+		clown = {}
 		charge = 0.0
 		return events
 
@@ -127,6 +160,7 @@ func tick(delta: float, view: Dictionary) -> Array[Dictionary]:
 
 	_scares(delta, meter, events)
 	_demons(delta, meter, eye, forward, view, events)
+	_clown(delta, meter, eye, forward, view, events)
 	_look_behind(delta, meter, eye, forward, view, events)
 	told.append_array(events)
 	return events
@@ -243,6 +277,56 @@ func _corner(eye: Vector3, forward: Vector3, view: Dictionary) -> Vector3:
 	return Vector3.INF
 
 
+func _clown(delta: float, meter: float, eye: Vector3, forward: Vector3, view: Dictionary, events: Array[Dictionary]) -> void:
+	if not config.clown_enabled:
+		clown = {}
+		return
+
+	if not clown.is_empty():
+		clown["age"] = float(clown["age"]) + delta
+		var at: Vector3 = clown["at"]
+		var to := at - eye
+		to.y = 0.0
+
+		if to.length() <= config.clown_trigger_distance:
+			# Walked up to it: it lunges, once, for what the meter makes it worth.
+			since_event = 0.0
+			charge = 0.0
+			events.append({"kind": CLOWN_LUNGES, "at": at, "spike": clown_damage(config, meter), "seconds": config.clown_lunge_seconds})
+			clown = {}
+			_until_clown = _roll_clown(meter)
+			return
+
+		var looking := to.length() > 0.01 and rad_to_deg(forward.angle_to(to.normalized())) <= config.demon_look_degrees
+		clown["looked"] = float(clown["looked"]) + delta if looking else maxf(float(clown["looked"]) - delta, 0.0)
+
+		if float(clown["looked"]) >= config.clown_look_seconds or float(clown["age"]) >= config.clown_lifetime:
+			events.append({"kind": CLOWN_GONE, "why": "seen" if float(clown["looked"]) >= config.clown_look_seconds else "faded"})
+			clown = {}
+			_until_clown = _roll_clown(meter)
+
+		return
+
+	_until_clown -= delta
+
+	if _until_clown > 0.0 or since_event < config.scare_cooldown:
+		return
+
+	_until_clown = _roll_clown(meter)
+
+	if rng.randf() >= clown_chance(config, meter):
+		return
+
+	var spot := _corner(eye, forward, view)
+
+	if spot == Vector3.INF:
+		_until_clown = 1.5
+		return
+
+	clown = {"at": spot, "age": 0.0, "looked": 0.0}
+	events.append({"kind": CLOWN_SHOWS, "at": spot})
+
+
 func _look_behind(delta: float, meter: float, eye: Vector3, forward: Vector3, view: Dictionary, events: Array[Dictionary]) -> void:
 	if not config.look_behind_enabled:
 		behind = {}
@@ -291,4 +375,4 @@ static func _flat(v: Vector3) -> Vector3:
 
 func describe() -> Dictionary:
 	return {"level": level, "sighted": sighted, "charge": "%.2f/%.2f" % [charge, _need], "demons": demons.size(),
-		"behind": not behind.is_empty(), "told": told.size()}
+		"behind": not behind.is_empty(), "clown": not clown.is_empty(), "told": told.size()}
