@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 ## A real look-at-me server, a real client on ENet, and dot-net's lossy UDP relay between them.
 ##
@@ -56,9 +56,6 @@ const WINDOWS := [
 ## as game-arena's headless_lossy says. A wait on it ends the moment the thing arrives.
 const RELIABLE_SECONDS := 35.0
 
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 var _entered := 0
 var _finished := 0
 var _verbose := false
@@ -102,24 +99,7 @@ func _run() -> void:
 	await _teardown()
 	DotPaths.remove_tree(DATA)
 
-	print("")
-	print("%d sections entered, %d finished" % [_entered, _finished])
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	var code := 1 if _failed > 0 else 0
-
-	if _entered != SECTIONS or _finished != SECTIONS:
-		push_error("%d of %d sections finished, %d declared." % [_finished, _entered, SECTIONS])
-		code = 1
-
-	if _passed + _failed != CHECKS:
-		push_error("%d checks ran, %d declared." % [_passed + _failed, CHECKS])
-		code = 1
-
-	get_tree().quit(code)
+	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
 # --- The harness ------------------------------------------------------------
@@ -134,15 +114,6 @@ func _done() -> void:
 	_finished += 1
 
 
-func _check(ok: bool, what: String, detail: String = "") -> bool:
-	if ok:
-		_passed += 1
-		print("  ok    %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-	else:
-		_failed += 1
-		_failures.append(what if detail == "" else "%s: %s" % [what, detail])
-		print("  FAIL  %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-	return ok
 
 
 func _until(condition: Callable, seconds: float) -> bool:

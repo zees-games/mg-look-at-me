@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 ## The house, headless: every level built and finished, doors that are open for one player and
 ## shut for another, what a witch can see, being caught, the commands, and winning.
@@ -19,9 +19,6 @@ const LmBot := preload("res://game/lm_bot.gd")
 const SECTIONS := 23
 const CHECKS := 186
 
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 var _entered := 0
 var _finished := 0
 var game: LmGame = null
@@ -66,23 +63,6 @@ func _ready() -> void:
 	_test_wheel_jumps()
 	await _test_collision_audit()
 
-	print("")
-	print("%d sections entered, %d finished" % [_entered, _finished])
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	var code := 1 if _failed > 0 else 0
-
-	if _entered != SECTIONS or _finished != SECTIONS:
-		push_error("%d of %d sections finished, %d declared." % [_finished, _entered, SECTIONS])
-		code = 1
-
-	if _passed + _failed != CHECKS:
-		push_error("%d checks ran, %d declared." % [_passed + _failed, CHECKS])
-		code = 1
-
 	# Freed here so its resources and RIDs are released before the engine's leak report.
 	for child in get_children():
 		remove_child(child)
@@ -94,7 +74,7 @@ func _ready() -> void:
 	DotMenuKit.clear_cache()
 	LmLevel.clear_cache()
 	DotRegistry.clear()
-	get_tree().quit(code)
+	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
 func _test_levels() -> void:
@@ -1953,13 +1933,3 @@ func _scare_clown_night(who: int, meter: float, seconds: float, cfg: LmConfig) -
 		t += 0.25
 	return out
 
-
-func _check(ok: bool, what: String, detail: String = "") -> void:
-	if ok:
-		_passed += 1
-		print("  ok    %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-	else:
-		_failed += 1
-		var line := what if detail == "" else "%s  (%s)" % [what, detail]
-		_failures.append(line)
-		print("  FAIL  %s" % line)

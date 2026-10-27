@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 ## A server and a client in one process, over the link's loopback, each in its own physics
 ## world, with the client predicting its own player as a real one does.
@@ -20,9 +20,6 @@ const CLIENT_PEER := 7
 const SESSION := 42
 const INPUT_LEAD := 2
 
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 var _entered := 0
 var _finished := 0
 
@@ -51,23 +48,6 @@ func _ready() -> void:
 		await _test_progress_and_meter()
 		_test_one_account_twice()
 
-	print("")
-	print("%d sections entered, %d finished" % [_entered, _finished])
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	var code := 1 if _failed > 0 else 0
-
-	if _entered != SECTIONS or _finished != SECTIONS:
-		push_error("%d of %d sections finished, %d declared." % [_finished, _entered, SECTIONS])
-		code = 1
-
-	if _passed + _failed != CHECKS:
-		push_error("%d checks ran, %d declared." % [_passed + _failed, CHECKS])
-		code = 1
-
 	if _server_bridge != null and _server_bridge.link != null:
 		_server_bridge.link.loopback = Callable()
 	if _client_bridge != null and _client_bridge.link != null:
@@ -89,7 +69,7 @@ func _ready() -> void:
 	DotMenuKit.clear_cache()
 	LmLevel.clear_cache()
 	DotRegistry.clear()
-	get_tree().quit(code)
+	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
 func _make_game(authoritative: bool, parent: Node) -> LmGame:
@@ -525,13 +505,3 @@ func _section(name: String) -> void:
 func _finished_section() -> void:
 	_finished += 1
 
-
-func _check(ok: bool, what: String, detail: String = "") -> void:
-	if ok:
-		_passed += 1
-		print("  ok    %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-	else:
-		_failed += 1
-		var line := what if detail == "" else "%s  (%s)" % [what, detail]
-		_failures.append(line)
-		print("  FAIL  %s" % line)

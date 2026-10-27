@@ -26,19 +26,7 @@ func _ready() -> void:
 func _run() -> void:
 	print("look at me workshop")
 	await _test()
-	print("%d sections entered, %d finished" % [_entered, _finished])
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	var code := 1 if _failed > 0 else 0
-
-	if _entered != 1 or _finished != 1 or _passed + _failed != CHECKS:
-		print("ERROR: %d sections, %d checks ran; 1 and %d expected." % [_finished, _passed + _failed, CHECKS])
-		code = 1
-
-	get_tree().quit(code)
+	_report_sections(_entered, _finished, 1, CHECKS)
 
 
 func _write_house(dir: String, doc_id: String, with_level: bool) -> void:
