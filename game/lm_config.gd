@@ -196,8 +196,11 @@ extends DotConfig
 ## Seconds between one's whispers, from where it stands.
 @export_range(0.5, 60.0, 0.5) var demon_whisper_gap: float = 6.0
 
-## What its jump adds to the meter.
-@export_range(0.0, 1.0, 0.01) var demon_meter_spike: float = 0.25
+## What its jump adds to the meter: `demon_spike_min` at an empty meter, `demon_spike_max` at a full one, along `spike_curve`.
+@export_range(0.0, 1.0, 0.01) var demon_spike_min: float = 0.12
+@export_range(0.0, 1.0, 0.01) var demon_spike_max: float = 0.25
+## Exponent of the meter curve for the demon and look-behind spikes (1 straight, above 1 mild until the meter is high).
+@export_range(0.2, 4.0, 0.05) var spike_curve: float = 1.5
 
 @export_group("The clown")
 
@@ -230,7 +233,8 @@ extends DotConfig
 @export_range(5.0, 600.0, 1.0) var look_behind_max: float = 140.0
 @export_range(0.5, 20.0, 0.1) var look_behind_window: float = 4.0
 @export_range(10.0, 90.0, 1.0) var look_behind_degrees: float = 50.0
-@export_range(0.0, 1.0, 0.01) var look_behind_spike: float = 0.1
+@export_range(0.0, 1.0, 0.01) var look_behind_spike_min: float = 0.05
+@export_range(0.0, 1.0, 0.01) var look_behind_spike_max: float = 0.1
 
 @export_group("The world")
 
@@ -275,10 +279,10 @@ func scare_keys() -> PackedStringArray:
 		"scares_enabled", "scare_interval_max", "scare_interval_min", "scare_cooldown", "scare_seconds", "scare_meter_cap",
 		"demons_enabled", "demon_sight_meter", "demon_max", "demon_spawn_min", "demon_spawn_max", "demon_distance_min",
 		"demon_distance_max", "demon_corner_min", "demon_corner_max", "demon_trigger_distance", "demon_look_degrees",
-		"demon_look_seconds", "demon_lifetime", "demon_whisper_gap", "demon_meter_spike",
+		"demon_look_seconds", "demon_lifetime", "demon_whisper_gap", "demon_spike_min", "demon_spike_max", "spike_curve",
 		"clown_enabled", "clown_wait_max", "clown_wait_min", "clown_chance_min", "clown_chance_max", "clown_damage_min",
 		"clown_damage_max", "clown_curve", "clown_trigger_distance", "clown_lifetime", "clown_look_seconds", "clown_lunge_seconds",
-		"look_behind_enabled", "look_behind_min", "look_behind_max", "look_behind_window", "look_behind_degrees", "look_behind_spike",
+		"look_behind_enabled", "look_behind_min", "look_behind_max", "look_behind_window", "look_behind_degrees", "look_behind_spike_min", "look_behind_spike_max",
 	])
 
 
@@ -321,7 +325,7 @@ func describe() -> Dictionary:
 		"witches": "speed x%.2f, sight x%.2f" % [witch_speed_scale, witch_sight_scale],
 		"senses": "hears %.1f m, sees a light at %.1f m, reacts in %.2f s, turns %.0f deg/s, opens doors in %.1f s" % [witch_hear_range, witch_light_range, witch_reaction_seconds, witch_turn_rate, witch_door_seconds],
 		"scares": "%s, every %.0f to %.0f s by the meter, cooldown %.0f s" % ["on" if scares_enabled else "off", scare_interval_max, scare_interval_min, scare_cooldown],
-		"demons": "%s, up to %d, jump at %.1f m for +%.2f" % ["on" if demons_enabled else "off", demon_max, demon_trigger_distance, demon_meter_spike],
+		"demons": "%s, up to %d, jump at %.1f m for +%.2f to +%.2f" % ["on" if demons_enabled else "off", demon_max, demon_trigger_distance, demon_spike_min, demon_spike_max],
 		"clown": "%s, damage %.2f to %.2f by the meter, lunges at %.1f m" % ["on" if clown_enabled else "off", clown_damage_min, clown_damage_max, clown_trigger_distance],
 		"look_behind": "%s, %.0f to %.0f s, %.1f s to turn" % ["on" if look_behind_enabled else "off", look_behind_min, look_behind_max, look_behind_window],
 		"shared": shared_progress,

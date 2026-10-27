@@ -44,8 +44,12 @@
 # demon_lifetime: 30.0
 # Seconds between one's whispers, from where it stands. [0.5..60.0]
 # demon_whisper_gap: 6.0
-# What its jump adds to the meter. [0.0..1.0]
-# demon_meter_spike: 0.25
+# What its jump adds to the meter: `demon_spike_min` at an empty meter, `demon_spike_max` at a full one, alon... [0.0..1.0]
+# demon_spike_min: 0.12
+#  [0.0..1.0]
+# demon_spike_max: 0.25
+# Exponent of the meter curve for the demon and look-behind spikes (1 straight, above 1 mild until the meter ... [0.2..4.0]
+# spike_curve: 1.5
 
 # --- The clown
 # A clown that floats in a corner of the view and watches. Walk up to it and it lunges: a jump scare that pus...
@@ -85,4 +89,6 @@
 #  [10.0..90.0]
 # look_behind_degrees: 50.0
 #  [0.0..1.0]
-# look_behind_spike: 0.1
+# look_behind_spike_min: 0.05
+#  [0.0..1.0]
+# look_behind_spike_max: 0.1

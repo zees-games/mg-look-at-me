@@ -107,6 +107,15 @@ static func clown_damage(cfg: LmConfig, meter: float) -> float:
 	return lerpf(cfg.clown_damage_min, cfg.clown_damage_max, curve(cfg, meter))
 
 
+## What a demon's jump and the look-behind scare add to the meter at [param meter].
+static func demon_spike(cfg: LmConfig, meter: float) -> float:
+	return lerpf(cfg.demon_spike_min, cfg.demon_spike_max, pow(clampf(meter, 0.0, 1.0), cfg.spike_curve))
+
+
+static func look_behind_spike(cfg: LmConfig, meter: float) -> float:
+	return lerpf(cfg.look_behind_spike_min, cfg.look_behind_spike_max, pow(clampf(meter, 0.0, 1.0), cfg.spike_curve))
+
+
 static func clown_chance(cfg: LmConfig, meter: float) -> float:
 	return lerpf(cfg.clown_chance_min, cfg.clown_chance_max, curve(cfg, meter))
 
@@ -203,7 +212,7 @@ func _demons(delta: float, meter: float, eye: Vector3, forward: Vector3, view: D
 		if to.length() <= config.demon_trigger_distance:
 			since_event = 0.0
 			charge = 0.0
-			events.append({"kind": DEMON_JUMPS, "id": demon["id"], "at": at, "spike": config.demon_meter_spike})
+			events.append({"kind": DEMON_JUMPS, "id": demon["id"], "at": at, "spike": demon_spike(config, meter)})
 			continue
 
 		# Looking at it dead on, long enough, and it is gone: the thing in the corner of the eye
@@ -346,7 +355,7 @@ func _look_behind(delta: float, meter: float, eye: Vector3, forward: Vector3, vi
 
 			var feet: Vector3 = view.get("feet", eye)
 			var at := Vector3(eye.x + back.x * distance, feet.y, eye.z + back.z * distance)
-			events.append({"kind": BEHIND_SCARE, "at": at, "spike": config.look_behind_spike, "seconds": config.scare_seconds})
+			events.append({"kind": BEHIND_SCARE, "at": at, "spike": look_behind_spike(config, meter), "seconds": config.scare_seconds})
 			since_event = 0.0
 			charge = 0.0
 			behind = {}

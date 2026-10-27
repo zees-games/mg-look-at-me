@@ -17,7 +17,7 @@ const LmBindings := preload("res://game/lm_bindings.gd")
 const LmBot := preload("res://game/lm_bot.gd")
 
 const SECTIONS := 23
-const CHECKS := 185
+const CHECKS := 186
 
 var _passed := 0
 var _failed := 0
@@ -1687,7 +1687,13 @@ func _test_scares() -> void:
 			if e["kind"] == LmScares.DEMON_JUMPS:
 				spiked = float(e["spike"])
 	gone = dir.demons.is_empty() or not dir.demons.any(func(d: Dictionary) -> bool: return int(d["id"]) == int(spawned["id"]))
-	_check(spiked == config.demon_meter_spike and gone, "walking up to it makes it jump you, then it vanishes", "spike %.2f" % spiked)
+	_check(absf(spiked - LmScares.demon_spike(config, 0.3)) < 0.001 and gone, "walking up to it makes it jump you, then it vanishes", "spike %.2f" % spiked)
+
+	var sp := [LmScares.demon_spike(config, 0.0), LmScares.demon_spike(config, 0.5), LmScares.demon_spike(config, 1.0)]
+	var lb := [LmScares.look_behind_spike(config, 0.0), LmScares.look_behind_spike(config, 0.5), LmScares.look_behind_spike(config, 1.0)]
+	_check(absf(sp[0] - config.demon_spike_min) < 0.001 and absf(sp[2] - config.demon_spike_max) < 0.001 and sp[0] < sp[1] and sp[1] < sp[2]
+		and absf(lb[0] - config.look_behind_spike_min) < 0.001 and absf(lb[2] - config.look_behind_spike_max) < 0.001 and lb[0] < lb[1] and lb[1] < lb[2],
+		"demon and look-behind spikes rise with the meter, min at 0 and max at 1", "%.3f %.3f %.3f / %.3f %.3f %.3f" % [sp[0], sp[1], sp[2], lb[0], lb[1], lb[2]])
 
 	# The server's side of the spike: it raises the meter, to the cap and no further, and not twice at once.
 	game.config.scare_cooldown = 10.0
@@ -1782,7 +1788,7 @@ func _test_scares() -> void:
 			if e["kind"] == LmScares.BEHIND_SCARE:
 				scare_at = e["at"]
 				behind_spike = float(e["spike"])
-	_check(scare_at != Vector3.INF and scare_at.z > 1.0 and behind_spike == back_config.look_behind_spike,
+	_check(scare_at != Vector3.INF and scare_at.z > 1.0 and absf(behind_spike - LmScares.look_behind_spike(back_config, 0.0)) < 0.001,
 		"turning round inside the window puts a scare where they look, behind where they were", str(scare_at))
 
 	var slow := LmScares.new(back_config)

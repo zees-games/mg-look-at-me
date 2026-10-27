@@ -10,9 +10,13 @@ const LmAudio := preload("../game/lm_audio.gd")
 const LmGame := preload("../game/lm_game.gd")
 const LmNetBridge := preload("../game/net/lm_net_bridge.gd")
 const LmNetLink := preload("../game/net/lm_net_link.gd")
+const LmConfig := preload("../game/lm_config.gd")
+const LmEvents := preload("../game/net/lm_events.gd")
+const LmRequest := preload("../game/net/lm_request.gd")
+const LmScares := preload("../game/lm_scares.gd")
 
-const SECTIONS := 11
-const CHECKS := 63
+const SECTIONS := 12
+const CHECKS := 69
 
 const SERVER_DIR := "user://lm_dedicated"
 const PORT := 28951
@@ -48,6 +52,7 @@ func _run() -> void:
 		await _test_stand_ins()
 		_test_an_empty_server()
 		await _test_a_covered_seat_is_not_caught()
+		await _test_a_clown_lunge_over_the_socket()
 		_test_rotation_file()
 		await _test_ambient_cvars_reach_the_client()
 		await _test_a_reload_leaves_one_link()
@@ -366,6 +371,139 @@ func _test_a_covered_seat_is_not_caught() -> void:
 	link.disconnect_from_server("done")
 	side.queue_free()
 	_finished_section()
+
+
+## [b]A clown's lunge over a real socket.[/b] The director computes the damage from the client's meter;
+## the client asks, the server applies it: exactly that much, once inside the cooldown, and never more than
+## the largest scare spike however large a forged request is.
+func _test_a_clown_lunge_over_the_socket() -> void:
+	_section("a clown's lunge crosses the wire and lands by the meter")
+
+	var module := _module()
+	var bridge := module.get("bridge") as LmNetBridge if module != null else null
+	var side := Node.new()
+	side.name = "ClownClient"
+	add_child(side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
+	var link := DotClientLink.new()
+	link.name = "Server"
+	link.player_name = "Clowned"
+	link.transport_preference = "udp"
+	link.udp_address = "127.0.0.1:%d" % PORT
+	var mirror := Node.new()
+	mirror.name = "Dedicated"
+	side.add_child(mirror)
+	mirror.add_child(link)
+	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
+		if link.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) == null:
+			var sink := LmNetLink.attached_to(link, null, false)
+			sink.name = LmNetLink.NODE_NAME
+			link.add_child(sink)
+	attach.call()
+	link.phase_changed.connect(attach)
+	var spawned := [false]
+	link.spawned.connect(func() -> void: spawned[0] = true)
+	link.connect_to_server("127.0.0.1:%d" % PORT)
+	var joined := await _until(func() -> bool:
+		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
+	joined = joined and spawned[0]
+	var peer := side.multiplayer.get_unique_id() if joined else 0
+	var key: StringName = &""
+	if bridge != null and joined:
+		var _seated := await _until(func() -> bool: return bridge.key_of_peer(peer) != &"", 10.0)
+		key = bridge.key_of_peer(peer)
+	var victim: Object = game.players.get(key)
+	_check(victim != null, "a client joins over the socket and is seated", "peer %d key %s" % [peer, key])
+
+	if victim == null:
+		for what in ["the lunge carries the curve's damage", "the server applies exactly that", "a second lunge inside the cooldown is refused",
+				"a forged huge spike is capped to the largest scare spike", "the cap is the meter's ceiling too"]:
+			_check(false, what)
+		link.disconnect_from_server("done")
+		side.queue_free()
+		_finished_section()
+		return
+
+	DotGameClient.report_cover(link, false)
+	var _lifted := await _until(func() -> bool: return not bool(module.call("is_peer_loading", peer)), 10.0)
+	var sink := link.get_node(NodePath(LmNetLink.NODE_NAME))
+	# A client-side manager only to encode what the client's bridge would send.
+	var client_net := DotNetManager.new()
+	client_net.name = "ClownNet"
+	client_net.is_server = false
+	client_net.local_peer_id = peer
+	client_net.auto_tick = false
+	client_net.config_file = ""
+	client_net.config = DotNetConfig.new()
+	side.add_child(client_net)
+	var _setup := client_net.setup()
+	var _reg := client_net.messages.register(LmRequest.NAME, LmRequest, DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_SERVER)
+	client_net.send_fn = func(_p: int, payload: PackedByteArray, _d: int) -> void: sink.send_request(payload)
+	var spook := func(amount: float) -> void:
+		var _r := client_net.send(LmRequest.new(LmEvents.Ask.ACT, LmEvents.write_json({"action": "spook", "amount": amount})), 1)
+
+	var cfg: LmConfig = game.config
+	cfg.scare_meter_cap = 1.0
+	# The lunge as the director makes it, at a half-full meter.
+	var meter := 0.5
+	var night := _clown_lunge(cfg, meter)
+	var want := LmScares.clown_damage(cfg, meter)
+	_check(not night.is_empty() and absf(float(night["spike"]) - want) < 0.001, "the lunge carries the curve's damage", "%.3f vs %.3f" % [float(night.get("spike", -1.0)), want])
+
+	victim.meter = meter
+	victim.spooked_at = -100.0
+	spook.call(float(night.get("spike", 0.0)))
+	var landed := await _until(func() -> bool: return victim.meter > meter + 0.001, 5.0)
+	_check(landed and absf(victim.meter - (meter + want)) < 0.001, "the server applies exactly that", "meter %.3f" % victim.meter)
+
+	var after: float = victim.meter
+	spook.call(float(night.get("spike", 0.0)))
+	await _seconds(0.5)
+	_check(is_equal_approx(victim.meter, after), "a second lunge inside the cooldown is refused", "meter %.3f" % victim.meter)
+
+	victim.meter = 0.2
+	victim.spooked_at = -100.0
+	spook.call(1.0)
+	var _big := await _until(func() -> bool: return victim.meter > 0.21, 5.0)
+	var top := maxf(maxf(cfg.demon_spike_max, cfg.look_behind_spike_max), cfg.clown_damage_max)
+	_check(absf(victim.meter - (0.2 + top)) < 0.001, "a forged huge spike is capped to the largest scare spike", "meter %.3f, top %.2f" % [victim.meter, top])
+
+	victim.meter = 0.95
+	victim.spooked_at = -100.0
+	cfg.scare_meter_cap = 0.97
+	spook.call(0.3)
+	var _cap := await _until(func() -> bool: return victim.meter > 0.951, 5.0)
+	_check(victim.meter <= 0.97 + 0.001 and victim.meter > 0.95, "the cap is the meter's ceiling too", "meter %.3f" % victim.meter)
+
+	link.disconnect_from_server("done")
+	side.queue_free()
+	_finished_section()
+
+
+## The first lunge of a clown-only night at [param meter], walking at it.
+func _clown_lunge(cfg: LmConfig, meter: float) -> Dictionary:
+	var c := LmConfig.new()
+	for k: String in cfg.scare_keys():
+		c.set(k, cfg.get(k))
+	c.demons_enabled = false
+	c.look_behind_enabled = false
+	c.scares_enabled = false
+	c.clown_chance_min = 1.0
+	c.clown_chance_max = 1.0
+	var d := LmScares.new(c)
+	d.reseed(1, 1, 7)
+	var eye := Vector3(0, 1.6, 0)
+	var t := 0.0
+	while t < 1800.0:
+		var view := {"meter": meter, "level": 1, "who": 7, "eye": eye, "feet": Vector3.ZERO, "forward": Vector3.FORWARD, "caught": false}
+		for e in d.tick(0.25, view):
+			if e["kind"] == LmScares.CLOWN_LUNGES:
+				return e
+		if not d.clown.is_empty():
+			var at: Vector3 = d.clown["at"]
+			eye = eye.move_toward(Vector3(at.x, 1.6, at.z), 1.0)
+		t += 0.25
+	return {}
 
 
 ## [b]A module loaded again leaves one link under the server[/b], the live one still named
