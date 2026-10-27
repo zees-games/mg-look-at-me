@@ -64,6 +64,8 @@ const SUPERSEDED_REASON := "You joined from another tab or window"
 var game: LmGame = null
 var net: DotNetManager = null
 var link: LmNetLink = null
+## Carries the game's profile runtime over this manager (rows down, for a remote admin's panel).
+var profile_link: DotNetProfileLink = null
 
 var local_key: StringName = &""
 var voice_relay_fn: Callable = Callable()
@@ -109,6 +111,13 @@ var _hello_serial: int = 0
 var _ack_queued := false
 
 
+func _exit_tree() -> void:
+	# The link and the runtime hold each other through broadcast.
+	if profile_link != null:
+		profile_link.release()
+		profile_link = null
+
+
 func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	var world := p_game as LmGame
 
@@ -121,6 +130,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	game = world
 	net = p_net
 	net.send_fn = _send
+	profile_link = DotNetProfileLink.attach(net, world.ensure_runtime())
 
 	var event := net.messages.register(LmEvent.NAME, LmEvent, DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_CLIENT)
 
@@ -314,6 +324,9 @@ func _admit(peer_id: int) -> void:
 
 	if not net.peers().has(peer_id):
 		net.add_peer(peer_id)
+
+	if profile_link != null:
+		profile_link.peer_joined(peer_id)
 
 	_send_house(peer_id)
 

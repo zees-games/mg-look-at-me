@@ -83,6 +83,10 @@ var _message_left := 0.0
 var _held_sampler: DotFpsSampler = null
 
 var net: DotNetManager = null
+## Asks a server whether this player may edit it (sv_workbench_remote); null offline.
+var workbench_remote: DotGameWorkbenchRemoteClient = null
+## The tuning panel's host: F9 solo, the admin's remote panel on a server that allows it.
+var workbench: DotGameWorkbench = null
 var bridge: LmNetBridge = null
 var link: Node = null
 
@@ -235,7 +239,10 @@ func _ready() -> void:
 	_build_scares()
 
 	if not _offline:
-		DotLog.result(CHANNEL, "the netcode", _build_netcode())
+		var netted := _build_netcode()
+		DotLog.result(CHANNEL, "the netcode", netted)
+		if netted.ok:
+			_start_remote_workbench()
 		DotLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
 		return
 
@@ -298,6 +305,27 @@ func _add_noblock_and_workbench() -> void:
 	DotLog.result(CHANNEL, "the workbench", started)
 	if started.ok:
 		game.config_binder.attach(wb.api.runtime)
+	platform.add_workbench(wb)
+
+
+## Online: no local trust and no panel until the server names this player an admin (sv_workbench_remote). The rows are the server's, through the bridge's profile link.
+func _start_remote_workbench() -> void:
+	if workbench_remote == null:
+		return
+	var wb := DotGameWorkbench.new()
+	wb.name = "Workbench"
+	wb.remote_client = workbench_remote
+	wb.remote_fn = func() -> bool: return true
+	wb.config = {"enabled": false}
+	for set: DotProfileSet in game.config_binder.profile_sets():
+		wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
+	add_child(wb)
+	var started := wb.start(game.ensure_runtime())
+	DotLog.result(CHANNEL, "the remote workbench", started)
+	if not started.ok:
+		wb.queue_free()
+		return
+	workbench = wb
 	platform.add_workbench(wb)
 
 
@@ -464,6 +492,8 @@ func _build_netcode() -> DotResult:
 	var _ambient := game.ambient_rules.follow_cvars(link)
 	# Before the seal and in the server's order (after the bridge), or the actions stay local.
 	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
+	# The server's order again (after the avatar frame): the remote workbench's frame.
+	workbench_remote = DotGameWorkbenchRemoteClient.attach(net)
 	net.messages.seal()
 	game.player_joined.connect(func(key: StringName) -> void:
 		if key == bridge.local_key:
@@ -485,11 +515,18 @@ func _build_netcode() -> DotResult:
 		bridge.rtt_source = func() -> float: return float(maxi(0, int(link.call("ping_ms"))))
 
 	if link.has_method("is_playing") and bool(link.call("is_playing")):
-		bridge.ask_ready()
+		_say_ready()
 	elif link.has_signal("spawned"):
-		link.connect("spawned", func() -> void: bridge.ask_ready(), CONNECT_ONE_SHOT)
+		link.connect("spawned", _say_ready, CONNECT_ONE_SHOT)
 
 	return net.start()
+
+
+func _say_ready() -> void:
+	if workbench_remote != null:
+		workbench_remote.ask()
+	if bridge != null:
+		bridge.ask_ready()
 
 
 func _physics_process(delta: float) -> void:
