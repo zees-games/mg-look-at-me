@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const LmMapConfig := preload("../game/lm_map_config.gd")
 
@@ -11,10 +11,6 @@ const LmMapConfig := preload("../game/lm_map_config.gd")
 ## The file is written to the server tier into user://, so the check does not depend on what ships.
 
 const CHECKS := 8
-
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
 
 
 func _ready() -> void:
@@ -62,22 +58,4 @@ func _run() -> void:
 		up = up.get_base_dir()
 	_check(not FileAccess.file_exists(path), "the test file is removed")
 
-	print("")
-	print("%d passed, %d failed" % [_passed, _failed])
-	for line in _failures:
-		print("  FAIL  %s" % line)
-	if _passed + _failed != CHECKS:
-		print("ERROR: %d checks ran, %d expected." % [_passed + _failed, CHECKS])
-		get_tree().quit(1)
-		return
-	get_tree().quit(1 if _failed > 0 else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if ok:
-		_passed += 1
-		print("  ok    %s" % what)
-	else:
-		_failed += 1
-		_failures.append(what)
-		print("  FAIL  %s" % what)
+	_report(CHECKS)
