@@ -117,20 +117,7 @@ func _game_load() -> DotResult:
 	if world == null:
 		return DotResult.fail(DotError.CODE_STATE, "The registered game is not the house.")
 
-	# dot-player-controller's mp_forceview (0 the player's choice, 1 first person only, 2 third
-	# only; the config's allow_third_person false starts it at 1) and mp_solidplayers.
-	# REPLICATED: each client places its own camera and predicts its own player under them.
-	var _views := world.view_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	)
-	var _bodies := world.body_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	)
-	# lm_ambient*: REPLICATED, because each client plays its own ambience under the server's intent; the directory cvar stays local.
-	var _ambient := world.ambient_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
-	)
+	_bind_rule_cvars(world)
 
 	# dot-game's "still loading": a seat behind its client's cover is not caught (LmGame.harm_gate).
 	world.harm_gate = func(key: StringName) -> bool:
@@ -141,23 +128,7 @@ func _game_load() -> DotResult:
 
 	_wire_voice(world)
 
-	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
-	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
-	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")
-	# Renameable from maps.yml's `commands:` block, like dot-vote's. An admin's lm_house loads
-	# any house, in the rotation or not.
-	for name in world.command_names("lm_house"):
-		add_command(name, _cmd_house, "Play another house now: lm_house <id>, or the list with none", DotAdminFlags.CHANGEMAP)
-	add_command("lm_rotation", _cmd_rotation,
-		"lm_rotation [name]: switch to a rotation in maps.yml, or list them", DotAdminFlags.CHANGEMAP)
-	add_command("lm_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP)
-	_file_cvar = add_cvar("sv_map_rotation_file", world.config.map_rotation_file,
-		"maps.yml: the houses that rotate, in named rotations. Unlisted houses stay installed.")
-	_file_cvar.changed.connect(func(_old: String, new_value: String) -> void:
-		world.config.map_rotation_file = new_value.strip_edges()
-		var _read := world.load_rotation()
-		if vote != null:
-			vote.refresh_houses())
+	_add_commands(world)
 
 	# After the commands: the config's `house` has no cvar where `lm_house` is the command.
 	var configured := _bind_config(world)
@@ -201,6 +172,43 @@ func _game_load() -> DotResult:
 			var _again := report_map(String(id)))
 
 	return DotResult.success(null)
+
+
+func _bind_rule_cvars(world: LmGame) -> void:
+	# dot-player-controller's mp_forceview (0 the player's choice, 1 first person only, 2 third
+	# only; the config's allow_third_person false starts it at 1) and mp_solidplayers.
+	# REPLICATED: each client places its own camera and predicts its own player under them.
+	var _views := world.view_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	var _bodies := world.body_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	# lm_ambient*: REPLICATED, because each client plays its own ambience under the server's intent; the directory cvar stays local.
+	var _ambient := world.ambient_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+	)
+
+
+func _add_commands(world: LmGame) -> void:
+	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
+	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
+	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")
+	# Renameable from maps.yml's `commands:` block, like dot-vote's. An admin's lm_house loads
+	# any house, in the rotation or not.
+	for name in world.command_names("lm_house"):
+		add_command(name, _cmd_house, "Play another house now: lm_house <id>, or the list with none", DotAdminFlags.CHANGEMAP)
+	add_command("lm_rotation", _cmd_rotation,
+		"lm_rotation [name]: switch to a rotation in maps.yml, or list them", DotAdminFlags.CHANGEMAP)
+	add_command("lm_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP)
+	_file_cvar = add_cvar("sv_map_rotation_file", world.config.map_rotation_file,
+		"maps.yml: the houses that rotate, in named rotations. Unlisted houses stay installed.")
+	_file_cvar.changed.connect(func(_old: String, new_value: String) -> void:
+		world.config.map_rotation_file = new_value.strip_edges()
+		var _read := world.load_rotation()
+		if vote != null:
+			vote.refresh_houses())
 
 
 ## dot-workbench over the config; the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.

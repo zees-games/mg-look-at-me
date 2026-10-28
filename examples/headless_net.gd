@@ -565,7 +565,10 @@ func _test_the_remote_workbench() -> void:
 	var kind: String = set.rel_path
 	var edit := {"op": "set", "kind": kind, "id": sbinder.profile_id, "key": "allow_third_person", "value": false}
 	var srt := swb.api.runtime as DotProfileRuntime
+	_the_remote_workbench_2(flags, state, snet, cnet, sconfig, sbinder, swb, slink, cremote, crt, clink, remote, cwb, kind, edit, srt)
 
+
+func _the_remote_workbench_2(flags: Dictionary, state: Dictionary, snet: DotNetManager, cnet: DotNetManager, sconfig: LmConfig, sbinder: DotGameConfigBinder, swb: DotGameWorkbench, slink: DotNetProfileLink, cremote: DotGameWorkbenchRemoteClient, crt: DotProfileRuntime, clink: DotNetProfileLink, remote: DotGameWorkbenchRemote, cwb: DotGameWorkbench, kind: String, edit: Dictionary, srt: DotProfileRuntime) -> void:
 	state["uid"] = "boss"
 	cremote.ask()
 	_check(not cremote.allowed and cwb.overlay == null, "with the cvar off even an admin is told no and gets no panel")

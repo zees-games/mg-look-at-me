@@ -1,10 +1,6 @@
 extends DotGameCheckSuite
 
 ## LmConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_config.tscn
-## [/codeblock]
 
 const LmConfig := preload("../game/lm_config.gd")
 const CHECKS := 30

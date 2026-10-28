@@ -1,12 +1,8 @@
 extends DotConfig
 
-## Every rule a level is played under: the witches, the meter, the light, the penalties. The
-## levels themselves are documents (`levels/`). Layered like every DotConfig in the family:
+## Every rule a level is played under: the witches, the meter, the light, the penalties, each a
+## number here (levels themselves are documents in `levels/`). Layered like every DotConfig:
 ## exported defaults < JSON file < LM_* environment < --lm-* command line.
-##
-## [b]"Configurable down to the tee" was the brief[/b], so every number about being seen is
-## here: how far a witch sees, how wide, how a flashlight or a crouch changes it, how fast the
-## meter climbs and falls, and what being caught costs.
 
 @export_group("Players")
 

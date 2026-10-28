@@ -4,17 +4,9 @@ const LmBot := preload("../game/lm_bot.gd")
 const LmGame := preload("../game/lm_game.gd")
 const LmPlayer := preload("../game/lm_player.gd")
 
-## Bot soak on the real game: N stand-ins (LmBot) play the levels of one house for M simulated
-## minutes through dot-bot's DotBotSoak, fed by dot-spawn's DotSpawnWatch. A "map" is a house id.
-##
-## [codeblock]
-## ./game.sh soak [house] [minutes]
-## godot --headless --path . res://tools/soak.tscn -- --map asylum --bots 2 --minutes 1
-## [/codeblock]
-##
-## Takes the harness's own flags too. Writes .godot/test-logs/soak-<house>.json, prints the SOAK
-## line, exits 1 when the run fails. A stand-in is only judged stuck while it has a goal; a catch
-## puts it back at the start and resets its goal.
+## Bot soak: N stand-ins (LmBot) play one house (the "map") for M simulated minutes through
+## dot-bot's DotBotSoak: `./game.sh soak [house] [minutes]`. Writes .godot/test-logs/soak-<house>.json,
+## prints the SOAK line, exits 1 on failure. A stand-in is stuck only while it has a goal.
 
 const DEFAULT_MAP := &"house"
 const DEFAULT_MINUTES := 1.0
@@ -90,7 +82,10 @@ func _run() -> void:
 		soak.advance(delta)
 		if soak.ticks % 32 == 0:
 			await get_tree().physics_frame
+	await _finish(map_id, soak)
 
+
+func _finish(map_id: String, soak: DotBotSoak) -> void:
 	var report := soak.finish()
 	report["map"] = map_id
 	var done := 0

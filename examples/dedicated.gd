@@ -2,8 +2,6 @@ extends DotGameCheckSuite
 
 ## The game as a deployed server runs it: a real [DotServer], the world from the server scene,
 ## the module loaded BY PATH the way an operator names it.
-##
-##   godot --headless --path . res://examples/dedicated.tscn
 
 const LmAmbience := preload("../game/lm_ambience.gd")
 const LmAudio := preload("../game/lm_audio.gd")
@@ -421,7 +419,10 @@ func _test_a_clown_lunge_over_the_socket() -> void:
 	client_net.send_fn = func(_p: int, payload: PackedByteArray, _d: int) -> void: sink.send_request(payload)
 	var spook := func(amount: float) -> void:
 		var _r := client_net.send(LmRequest.new(LmEvents.Ask.ACT, LmEvents.write_json({"action": "spook", "amount": amount})), 1)
+	await _a_clown_lunge_over_the_socket_2(side, link, victim, spook)
 
+
+func _a_clown_lunge_over_the_socket_2(side: Node, link: DotClientLink, victim: Object, spook: Callable) -> void:
 	var cfg: LmConfig = game.config
 	cfg.scare_meter_cap = 1.0
 	# The lunge as the director makes it, at a half-full meter.
@@ -554,7 +555,6 @@ func _test_ambient_cvars_reach_the_client() -> void:
 	await get_tree().create_timer(2.0).timeout
 	side.queue_free()
 	_finished_section()
-
 
 
 func _test_a_reload_leaves_one_link() -> void:

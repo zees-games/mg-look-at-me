@@ -57,7 +57,10 @@ func _ready() -> void:
 			await RenderingServer.frame_post_draw
 		_save(client)
 		return
+	await _ready_2(client, view, action)
 
+
+func _ready_2(client: LmClient, view: String, action: Array) -> void:
 	# Somewhere worth looking: facing the nearest witch, a few metres away, or a room by id.
 	var player = client.player
 	var level = client.game.level_of(player)
@@ -83,84 +86,18 @@ func _ready() -> void:
 		var from: Vector3 = level.position + centre + normal * side * float(_args.get("near", "0.6"))
 		player.place_at(from + Vector3(0, 0.1, 0), rad_to_deg(atan2(normal.x * side, normal.z * side)))
 	elif view == "glimpse":
-		# --view=glimpse: a step into the level's first long corridor with a glimpse, looking
-		# down it, as she appears at the far end.
-		for id: String in level.events:
-			var event: Dictionary = level.events[id]
-			if str(event.get("do", "")) != "glimpse":
-				continue
-			for door_id: String in level.doors:
-				var door: Dictionary = level.doors[door_id]
-				if str(door["doc"].get("b", "")) == str(event["room"]):
-					player.opened[door_id] = true
-					client.game._apply_doors(player)
-					var from: Vector3 = level.position + (door["centre"] as Vector3) + (door["normal"] as Vector3) * 1.2
-					var to: Vector3 = level.position + level._room_point(str(event["room"]), event["at"])
-					var dir := to - from
-					player.place_at(from + Vector3(0, 0.1, 0), rad_to_deg(atan2(-dir.x, -dir.z)))
-					break
-			break
-		client.game.set_flashlight(player.player_key, false)
+		_stand_for_glimpse(client, player, level)
 	elif view == "range":
-		# --view=range --dist=20: that far from a wall, looking straight at it down the longest
-		# clear line the level has (every door open), for judging how surfaces hold up at range.
-		# The cover lifts first; the player is moved after, so nothing falls while it is up.
-		await get_tree().create_timer(1.5).timeout
-		for door_id: String in level.doors:
-			# Not the exit: standing past the house's edge would be leaving the level.
-			if door_id != "exit":
-				player.opened[door_id] = true
-		client.game._apply_doors(player)
-		await get_tree().physics_frame
-		var space: PhysicsDirectSpaceState3D = client.get_world_3d().direct_space_state
-		var wanted := float(_args.get("dist", "20"))
-		var best_len := 0.0
-		var best_from := Vector3.ZERO
-		var best_dir := Vector3.FORWARD
-		var best_wall := Vector3.ZERO
-		var best_hits: Array[Node] = []
-
-		# The longest line through the house, walls and all: where it ends is the wall to look at,
-		# and what it passes through is taken away (the house never gives a straight 40 m).
-		for rid: String in level.rooms:
-			var base: Vector3 = level.position + level.room_centre(rid) + Vector3(0, 1.5, 0)
-			for k in 16:
-				var dir := Vector3(sin(TAU * k / 16.0), 0, cos(TAU * k / 16.0))
-				var skip: Array[RID] = []
-				var hits: Array[Node] = []
-				var end := base
-
-				for _n in 30:
-					var query := PhysicsRayQueryParameters3D.create(base, base + dir * 80.0, 1)
-					query.exclude = skip
-					var hit := space.intersect_ray(query)
-					if hit.is_empty():
-						break
-					skip.append(hit["rid"])
-					hits.append(hit["collider"])
-					end = hit["position"]
-
-				if base.distance_to(end) > best_len and hits.size() > 0:
-					best_len = base.distance_to(end)
-					best_from = base
-					best_dir = dir
-					best_wall = end
-					best_hits = hits
-
-		var stand := best_wall - best_dir * minf(wanted, best_len)
-		# The last hit is the wall looked at; the rest between are cleared.
-		for blocker in best_hits.slice(0, best_hits.size() - 1):
-			var at: Vector3 = (blocker as Node3D).global_position
-			if (at - stand).dot(best_dir) > 0.0 and (best_wall - at).dot(best_dir) > 0.3:
-				blocker.queue_free()
-		print("range: longest line %.1f m, standing %.1f m from the wall" % [best_len, stand.distance_to(best_wall)])
-		player.place_at(stand - Vector3(0, 1.5 - 0.1, 0), rad_to_deg(atan2(-best_dir.x, -best_dir.z)))
+		await _stand_at_range(client, player, level)
 	elif view == "witch" and not level.witches.is_empty():
 		var pose: Dictionary = level.witch_pose(0, client.game.seconds_now())
 		var at: Vector3 = level.position + (pose["at"] as Vector3)
 		var from := at + Vector3(sin(float(pose["facing"])), 0, cos(float(pose["facing"]))) * -5.0
 		player.place_at(from + Vector3(0, 0.1, 0), rad_to_deg(atan2(-(at - from).x, -(at - from).z)))
+	await _ready_3(client, view, action, player, level)
 
+
+func _ready_3(client: LmClient, view: String, action: Array, player: Variant, level: Variant) -> void:
 	# --view=demon: the meter says a witch has seen you, and a demon shows in the corner of the view.
 	# --view=scare: a sanity scare caught at its peak (--style=witch|demon|flash).
 	if view == "demon" or view == "scare":
@@ -198,7 +135,10 @@ func _ready() -> void:
 			cfg.clown_chance_min = 0.0
 			cfg.clown_chance_max = 0.0
 		player.meter = 0.3
+	await _ready_4(client, view, action, player, level)
 
+
+func _ready_4(client: LmClient, view: String, action: Array, player: Variant, level: Variant) -> void:
 	# --meter=0.8: the fear the house closes in with (fog, red tint, a stuttering light), held there.
 	if _args.has("meter"):
 		player.meter = float(_args["meter"])
@@ -242,6 +182,83 @@ func _ready() -> void:
 			her.global_position if her != null else Vector3.ZERO, player.global_position])
 
 	_save(client)
+
+
+func _stand_for_glimpse(client: LmClient, player: Variant, level: Variant) -> void:
+	# --view=glimpse: a step into the level's first long corridor with a glimpse, looking
+	# down it, as she appears at the far end.
+	for id: String in level.events:
+		var event: Dictionary = level.events[id]
+		if str(event.get("do", "")) != "glimpse":
+			continue
+		for door_id: String in level.doors:
+			var door: Dictionary = level.doors[door_id]
+			if str(door["doc"].get("b", "")) == str(event["room"]):
+				player.opened[door_id] = true
+				client.game._apply_doors(player)
+				var from: Vector3 = level.position + (door["centre"] as Vector3) + (door["normal"] as Vector3) * 1.2
+				var to: Vector3 = level.position + level._room_point(str(event["room"]), event["at"])
+				var dir := to - from
+				player.place_at(from + Vector3(0, 0.1, 0), rad_to_deg(atan2(-dir.x, -dir.z)))
+				break
+		break
+	client.game.set_flashlight(player.player_key, false)
+
+
+func _stand_at_range(client: LmClient, player: Variant, level: Variant) -> void:
+	# --view=range --dist=20: that far from a wall, looking straight at it down the longest
+	# clear line the level has (every door open), for judging how surfaces hold up at range.
+	# The cover lifts first; the player is moved after, so nothing falls while it is up.
+	await get_tree().create_timer(1.5).timeout
+	for door_id: String in level.doors:
+		# Not the exit: standing past the house's edge would be leaving the level.
+		if door_id != "exit":
+			player.opened[door_id] = true
+	client.game._apply_doors(player)
+	await get_tree().physics_frame
+	var space: PhysicsDirectSpaceState3D = client.get_world_3d().direct_space_state
+	var wanted := float(_args.get("dist", "20"))
+	var best_len := 0.0
+	var best_from := Vector3.ZERO
+	var best_dir := Vector3.FORWARD
+	var best_wall := Vector3.ZERO
+	var best_hits: Array[Node] = []
+
+	# The longest line through the house, walls and all: where it ends is the wall to look at,
+	# and what it passes through is taken away (the house never gives a straight 40 m).
+	for rid: String in level.rooms:
+		var base: Vector3 = level.position + level.room_centre(rid) + Vector3(0, 1.5, 0)
+		for k in 16:
+			var dir := Vector3(sin(TAU * k / 16.0), 0, cos(TAU * k / 16.0))
+			var skip: Array[RID] = []
+			var hits: Array[Node] = []
+			var end := base
+
+			for _n in 30:
+				var query := PhysicsRayQueryParameters3D.create(base, base + dir * 80.0, 1)
+				query.exclude = skip
+				var hit := space.intersect_ray(query)
+				if hit.is_empty():
+					break
+				skip.append(hit["rid"])
+				hits.append(hit["collider"])
+				end = hit["position"]
+
+			if base.distance_to(end) > best_len and hits.size() > 0:
+				best_len = base.distance_to(end)
+				best_from = base
+				best_dir = dir
+				best_wall = end
+				best_hits = hits
+
+	var stand := best_wall - best_dir * minf(wanted, best_len)
+	# The last hit is the wall looked at; the rest between are cleared.
+	for blocker in best_hits.slice(0, best_hits.size() - 1):
+		var at: Vector3 = (blocker as Node3D).global_position
+		if (at - stand).dot(best_dir) > 0.0 and (best_wall - at).dot(best_dir) > 0.3:
+			blocker.queue_free()
+	print("range: longest line %.1f m, standing %.1f m from the wall" % [best_len, stand.distance_to(best_wall)])
+	player.place_at(stand - Vector3(0, 1.5 - 0.1, 0), rad_to_deg(atan2(-best_dir.x, -best_dir.z)))
 
 
 ## `--workshop`: a solo subscription pack holding one house, in the shared content index, the way

@@ -1,11 +1,8 @@
 extends RefCounted
 
-## A stand-in player: plays its level with real movement and E, server side, off unless a test or
-## the soak creates one. It is the house's own puzzle format (items, stations, doors, stairwells),
-## so it is game code; there is no navigation mesh to hand to dot-bot's navigation.
-##
-## Each tick [method drive] picks the nearest thing it can usefully do from the rooms it can walk
-## through, walks door to door to it, aims and presses E. Witches are ignored: a catch puts it back.
+## A stand-in player (tests and the soak only): real movement and E on the house's own puzzle
+## format, so game code; there is no navigation mesh for dot-bot to use. Each tick [method drive]
+## walks door to door to the nearest useful thing and presses E. Witches are ignored.
 
 const LmGame := preload("lm_game.gd")
 const LmLevel := preload("lm_level.gd")

@@ -3,11 +3,6 @@ extends DotGameCheckSuite
 const LmMapConfig := preload("../game/lm_map_config.gd")
 
 ## A map with a file gets its values and the next map has the previous ones back.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_mapcfg.tscn
-## [/codeblock]
-##
 ## The file is written to the server tier into user://, so the check does not depend on what ships.
 
 const CHECKS := 8

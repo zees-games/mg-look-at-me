@@ -167,6 +167,11 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	door.gain_db = -7.0
 	c.add(door)
 
+	_scare_sounds(c)
+	return c
+
+
+static func _scare_sounds(c: DotAudioCatalogue) -> void:
 	var click := _def(CLICK, 2, 60)
 	click.cooldown_ms = 60
 	click.gain_db = -9.0
@@ -225,7 +230,6 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	# The torch's switch clicks, dot-audio's stock; dot-flashlight plays them by id.
 	for d in DotAudioStock.flashlight_defs():
 		c.add(d)
-	return c
 
 
 static func _numbered(stem: String, count: int) -> PackedStringArray:
