@@ -51,6 +51,7 @@ func present(delta: float, view: Dictionary) -> Array[Dictionary]:
 
 
 func _on_event(event: Dictionary, eye: Vector3) -> void:
+	DotLog.debug(CHANNEL, "a scare event", {"kind": String(event["kind"])})
 	match StringName(event["kind"]):
 		LmScares.SCARE:
 			_startle(str(event["style"]), float(event["side"]), float(event["seconds"]), eye)

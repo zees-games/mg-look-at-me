@@ -152,6 +152,7 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 	for event: Dictionary in doc.get("events", []):
 		events[str(event.get("id", ""))] = event
 
+	DotLog.debug(CHANNEL, "the house was built", {"id": str(doc.get("id", "?")), "rooms": rooms.size()})
 	return DotResult.success(self)
 
 
