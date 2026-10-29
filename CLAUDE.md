@@ -36,7 +36,7 @@ scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
 assets/clown/   the clown hallucination's model, CC-BY (CREDITS.md; tools/make_clown.py); game/lm_clown.gd draws it, LmScares schedules it (lm_clown_* cvars: chance, wait and damage are curves over the meter; so are the demon and look-behind spikes, lm_demon_spike_min/max, lm_look_behind_spike_min/max, lm_spike_curve); tools/shot.sh --view=clown|clownlunge
-examples/        headless_run (23 sections, 186 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (12, 69), headless_workshop (1, 19), headless_config (1, 22)
+examples/        headless_run (23 sections, 187 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (12, 69), headless_workshop (1, 19), headless_config (1, 22)
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 

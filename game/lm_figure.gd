@@ -107,10 +107,14 @@ func pose(at: Vector3, yaw_radians: float, speed: float) -> void:
 	rotation = Vector3(0.0, yaw_radians, 0.0)
 	if person == null:
 		return
-	var now := Time.get_ticks_usec()
-	# A figure that was hidden for a minute is not a minute behind: clamped.
-	var delta := 0.0 if _posed_at_usec < 0 else clampf((now - _posed_at_usec) / 1e6, 0.0, 0.1)
-	_posed_at_usec = now
+	var delta: float
+	if DotAddonApi.build_level("dot_player_char") >= 11:
+		# Game time, as the body moves: a wall-clock step skated the feet (slow motion, fixed-rate frames).
+		delta = person.frame_delta()
+	else:
+		var now := Time.get_ticks_usec()
+		delta = 0.0 if _posed_at_usec < 0 else clampf((now - _posed_at_usec) / 1e6, 0.0, 0.1)
+		_posed_at_usec = now
 	person.animate(speed, delta)
 	clip = person.clip
 

@@ -52,6 +52,11 @@ func _test_the_client_settings() -> void:
 	var action_fig: Object = client.call("_avatar_figure", 0)
 	_check(self_player != null and self_player.figure != null and action_fig == self_player.figure.person and action_fig.has_method(&"skeleton"),
 		"an avatar action and a wearable go on the player's own person, which can hang a wearable")
+	# The figure steps its clip by game time (DotHumanoidFigure.frame_delta), which stamps the frame it ran in.
+	if self_player != null and self_player.figure != null and DotAddonApi.build_level("dot_player_char") >= 11:
+		self_player.figure.pose(self_player.global_position, 0.0, 3.0)
+		_check(int(self_player.figure.person.get("_posed_frame")) == Engine.get_process_frames(),
+			"a posed figure animates by game time, not the wall clock")
 	await _the_client_settings_2(client, settings)
 
 
