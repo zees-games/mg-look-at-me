@@ -32,7 +32,7 @@
 # witch_turn_rate: 75.0
 # Seconds she keeps looking where it came from after it stops, before her head goes back. [0.0..30.0]
 # witch_alert_seconds: 4.0
-# Listening. A witch that suspects somebody behind her (a faint sound, or a glimpse at the edge of her view f...
+# Listening. A witch that suspects somebody stops for `witch_listen_seconds`, hears `witch_listen_hearing` ti...
 # witch_listens: true
 #  [0.5..10.0]
 # witch_listen_seconds: 3.5

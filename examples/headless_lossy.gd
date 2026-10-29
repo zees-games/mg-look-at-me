@@ -1,29 +1,8 @@
 extends DotGameCheckSuite
 
-## A real look-at-me server, a real client on ENet, and dot-net's lossy UDP relay between them.
-##
-##   godot --headless --path . res://examples/headless_lossy.tscn
-##   godot --headless --path . res://examples/headless_lossy.tscn -- --verbose
-##
-## [b]What only this can see.[/b] `headless_net` drops packets in its own loopback: in order,
-## instantly, and never a reliable one. The house is the most reliable data any game here sends
-## a joiner (32 levels, deflated, a window at a time), on the same ENet channel as the snapshots
-## and the commands; over a real UDP path with a real round trip that traffic is what ENet's
-## own congestion control reacts to. This puts dot-net's relay in front of a dual-stack
-## [DotServer] running the module, connects a [DotClientLink] on ENet through it, builds the
-## client's netcode as [code]LmClient._build_netcode[/code] does (drawing nothing), and walks.
-##
-## Windows: a steady 60 ms each way with no loss; the same while the server changes the house
-## (every client is sent the new one, and builds it, while it walks: three 600 ms frames in one
-## process stall both ends, as the delivered client's build did); and the house changed back at
-## 5% loss. Each measures the share of the client's input packets the server's link received,
-## the share of the server's snapshots the client's link received, ENet's packet throttle at
-## both ends, that the server's player walked, and that the client's prediction ends within half
-## a metre of it.
-##
-## [code]--stock-throttle[/code] is the control: it puts ENet's packet throttle back as the
-## engine ships it (see dot-core's [code]DotTransportENet.packet_throttle_deceleration[/code]),
-## and the throttle check fails in every run, the delivery checks in most.
+## A real look-at-me server and client on ENet through dot-net's lossy UDP relay (`godot --headless --path . res://examples/headless_lossy.tscn [-- --verbose]`).
+## Only this sees ENet's congestion control react to the 32-level house sent reliably beside snapshots; windows: 60 ms, a house change mid-walk, 5% loss.
+## `--stock-throttle` is the control (the engine's own packet throttle): the throttle check fails every run.
 
 const LmGame := preload("res://game/lm_game.gd")
 const LmNetBridge := preload("res://game/net/lm_net_bridge.gd")
@@ -42,10 +21,8 @@ const CHECKS := 7 + 3 * WINDOW_CHECKS + 2
 const PORT := 28961
 const DATA := "user://lm_lossy"
 
-## Name, loss each way, delay each way (ms), jitter (ms), seconds walked, and the house the
-## server changes to as the window starts ("" none): every client is sent the new house while
-## it walks, and builds it, which is the burst of reliable data and the long frames ENet's
-## throttle reacted to.
+## Name, loss and delay each way (ms), jitter (ms), seconds walked, and the house the server changes to as the
+## window starts ("" none): the burst of reliable data and long frames ENet's throttle reacted to.
 const WINDOWS := [
 	["60 ms, no loss", 0.0, 60.0, 0.0, 6.0, ""],
 	["60 ms, no loss, the house changes", 0.0, 60.0, 0.0, 8.0, "asylum"],
@@ -102,7 +79,6 @@ func _run() -> void:
 	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
-# --- The harness ------------------------------------------------------------
 
 func _section(title: String) -> void:
 	_entered += 1
@@ -169,7 +145,6 @@ func _server_throttle() -> int:
 	return _throttle(_server_side.multiplayer.multiplayer_peer, _client_side.multiplayer.get_unique_id())
 
 
-# --- Boot -------------------------------------------------------------------
 
 func _boot() -> bool:
 	_section("a dual-stack look-at-me server, and the relay in front of its UDP port")
@@ -334,7 +309,6 @@ func _connect() -> bool:
 	return housed and synced
 
 
-# --- Walking ----------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
 	if not _driving or _client_net == null or not _client_net.is_running():

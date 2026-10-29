@@ -1,16 +1,8 @@
 extends "lm_net_bridge_client.gd"
 
-## The only file that names both the house and the netcode. Both ends.
-##
-## [b]Movement is mg-deathrun's[/b]: a [LmNetCommand] a tick into dot-net's input buffer, the
-## owner predicting with the same controller the server simulates, snapshots reconciling it.
-## [b]Everything else is mg-dangerous-delivery's[/b]: a few JSON events and requests.
-##
-## [b]What makes this game's prediction work is the doors.[/b] A door is open for the player
-## who opened it and nobody else ([LmGame._apply_doors]); the owner's client must exclude the
-## same doors from its predicting controller, or it predicts a wall the server walks them
-## through and every snapshot drags them back. PROGRESS carries `opened` to the owner, and the
-## client applies it before its next predicted tick.
+## The only file that names both the house and the netcode. Both ends. Movement is mg-deathrun's, the rest JSON events.
+## A door is open only for the player who opened it ([LmGame._apply_doors]), so the owner's client must exclude the
+## same doors from its predicting controller or every snapshot drags them back; PROGRESS carries `opened`.
 
 
 func _exit_tree() -> void:
@@ -73,10 +65,9 @@ func open_link(parent: Node) -> void:
 
 	link = LmNetLink.attached_to(parent, self, net != null and net.is_server)
 
-	# Not parent.add_child: the link sits under the server (RPCs route by path) but must die
-	# with this bridge. A bare add_child left a second link after a module reload and Godot
-	# renamed the live one `@Node@n`, so RPCs to clients were lost. DotGameLink frees it with
-	# the bridge without remove_child, which errors on a busy parent.
+	# Not parent.add_child: the link sits under the server (RPCs route by path) but must die with this
+	# bridge, or a module reload leaves a second one and Godot renames the live one `@Node@n`.
+	# DotGameLink frees it without remove_child, which errors on a busy parent.
 	DotGameLink.attach(link, parent, self, LmNetLink.NODE_NAME)
 
 
@@ -96,7 +87,6 @@ static func session_key(session_id: int) -> StringName:
 	return StringName("s%d" % session_id)
 
 
-# --- Server: people --------------------------------------------------------------
 
 
 func add_player(peer_id: int, session_id: int, display_name: String) -> DotResult:
@@ -108,11 +98,9 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 	if key == &"":
 		key = session_key(session_id)
 
-	# The same account again, on another connection: the newest wins. Left alone, the second seat
-	# took the first's player under it (one key), and the first's keys moved nothing while its link
-	# stayed up; worse, its eventual leave then took the newcomer's player out. The old peer leaves
-	# exactly as a disconnect does, BEFORE the newcomer is seated, so its later remove_peer finds no
-	# key; the module is told so it can disconnect that peer with a reason it will show.
+	# The same account again: the newest wins. The old peer leaves exactly as a disconnect does, BEFORE the
+	# newcomer is seated, or the one key makes the newcomer's seat take its player and its later leave remove it;
+	# the module is told so it can disconnect that peer with a reason it will show.
 	var held_by: int = int(_peer_of_key.get(key, 0))
 
 	if held_by != 0 and held_by != peer_id:
@@ -215,10 +203,8 @@ func _admit(peer_id: int) -> void:
 	_send_progress(key)
 
 
-## The house to one peer: a HELLO saying how many levels follow, then one LEVEL each, paced by
-## the peer's acks ([constant LEVEL_WINDOW]). Anything else told to the peer meanwhile is held
-## until the last LEVEL has gone. A second house before the first finished replaces it; what was
-## held for the first still follows.
+## The house to one peer: a HELLO, then one LEVEL each paced by acks ([constant LEVEL_WINDOW]); anything else
+## told meanwhile is held until the last LEVEL; a second house replaces the first.
 ## The scare tunables as they stand, so a joining client's director runs the server's numbers.
 func _scare_settings() -> Dictionary:
 	var out := {}
@@ -355,7 +341,6 @@ func _send_progress(key: StringName) -> void:
 	})
 
 
-# --- Server: the tick ----------------------------------------------------------------
 
 
 func server_tick(tick: int) -> void:
@@ -387,7 +372,6 @@ func ensure_game_ticked(tick: int) -> void:
 	game.step(net.clock.tick_duration())
 
 
-# --- Requests ----------------------------------------------------------------------
 
 
 func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
@@ -518,7 +502,6 @@ func _emit(peer_id: int, event: LmEvent) -> void:
 	net.send(event, peer_id)
 
 
-# --- Client ------------------------------------------------------------------------
 
 
 func send_chat(peer_id: int, wire: Dictionary) -> void:

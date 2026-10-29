@@ -3,26 +3,9 @@ extends Node
 const LmAmbience := preload("lm_ambience.gd")
 const LmPaths := preload("lm_paths.gd")
 
-## What the house sounds like, on the client: the house itself breathing under everything, its
-## boards creaking somewhere you are not, your own steps, a witch's steps and the hum she carries,
-## which you hear through a wall before you see her, a stab of strings the moment one sees you, a
-## heartbeat that quickens as she keeps seeing you, and a shriek when she has you.
-##
-## [b]Every warning the game gives is a sound before it is a picture.[/b] The meter is the whole
-## game, and a meter that is only a bar is one you stop watching: the heartbeat is the same
-## number, heard (nothing below 0.2, a slow thud past it, racing at the top). The drone and her
-## footfalls are the other warning: where she is, through walls, from 22 m. The stinger is the
-## one moment that matters most, being seen at all, said once.
-##
-## [b]Files, generated and copied by tools/make_sounds.py[/b], which is their source: the
-## ambience, drone, stinger, shriek and heartbeat are synthesised there (numpy and SoX, ours,
-## CC0), the steps, creaks and doors are Kenney's (CC0; audio/CREDITS.md). Every file peaks at
-## -2 dBFS; how loud each one plays is its `gain_db` here, measured together in a mix under xvfb
-## (tools/audio_probe, `--record`). Until 2026-10-12 the house had three synthesised stand-ins
-## (a thud, a beep and a hum) and was otherwise silent, which the first play test heard.
-##
-## [b]Never on a server, and never deciding anything.[/b] Every call here comes from
-## [LmClient], from what the world already says.
+## What the house sounds like, on the client: ambience, creaks, steps, a witch's hum and steps, a stinger,
+## a heartbeat and a shriek. Every warning is a sound before it is a picture (docs/design.md, "Audio").
+## Never on a server and never deciding anything: every call comes from [LmClient]. Files: tools/make_sounds.py.
 
 const CHANNEL := "lookatme.audio"
 
@@ -261,10 +244,8 @@ func setup() -> DotResult:
 	manager.register_as_service = false
 	# Six drones and their steps, a heart, a creak and a stinger is the busiest the house gets.
 	manager.voices = 24
-	# The whole house a little up, the quiet and the catches together (the range is the design
-	# and a trim keeps it): tools/playthrough.sh read -18.9 and -19.8 LUFS on 2026-10-12, under
-	# the family's -18..-16 band, with the catch held by the limiter. At +3: -17.3 and -17.4,
-	# range 17 LU, true peak -1.9 dBTP.
+	# The whole house a little up (the range is the design, a trim keeps it): the playthrough mix
+	# read under the family's -18..-16 LUFS band, +3 puts it at -17.3 with the catch held by the limiter.
 	manager.loudness_trim_db = 3.0
 	add_child(manager)
 
@@ -294,10 +275,8 @@ func setup() -> DotResult:
 	return DotResult.success(null)
 
 
-## A hard limiter at -1 dB on the master bus, once: the moment of a catch is a shriek, a stinger
-## and a racing heart at once, and the first recorded mix (2026-10-12) peaked at 0 dBFS there.
-## The gains above keep the house well under it; this is what keeps the worst moment from
-## clipping on a speaker whatever the player's sliders are.
+## A hard limiter at -1 dB on the master bus, once: a catch is a shriek, a stinger and a racing
+## heart at once and peaked at 0 dBFS. It stops clipping on a speaker whatever the sliders are.
 static func _limit_master() -> void:
 	for i in AudioServer.get_bus_effect_count(0):
 		if AudioServer.get_bus_effect(0, i) is AudioEffectHardLimiter:
@@ -460,10 +439,8 @@ func scream() -> bool:
 
 
 ## Keeps witch [param key]'s drone where she is, starting it when she comes within earshot.
-##
-## [b]Asked every frame, not once.[/b] The manager refuses a sound beyond its `max_distance`
-## when it starts, so a drone asked for once, from the far end of the level, would never be
-## heard; asking again costs one distance check until she is near enough.
+## Asked every frame: the manager refuses a sound beyond `max_distance` at start, so asking once
+## from the far end of the level would never be heard.
 func witch(key: String, at: Vector3) -> void:
 	if manager == null:
 		return

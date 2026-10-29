@@ -1,16 +1,12 @@
 extends "lm_client_frame.gd"
 
-## One player in the dark: the camera (first person or behind), the flashlight, the witches
-## drawn where the clock says they are, and the HUD — the step you are on, what you hold, what
-## you are looking at, and the meter.
-##
-## [b]Offline today, built to be a mirror later[/b], as mg-dangerous-delivery's was: everything
-## the player does goes through [method _act]; everything they see comes from [member game].
+## One player in the dark: the camera, the flashlight, the witches drawn where the clock says they are,
+## and the HUD. Offline it owns the house; everything the player does goes through [method _act]
+## and everything they see comes from [member game], so connected it can mirror a server.
 
 
 func _ready() -> void:
-	# First, so the cover is up before anything of the house is drawn: the house used to show
-	# itself, and the player, while it was still being built.
+	# First, so the cover is up before anything of the house is drawn.
 	platform = DotGameClient.new()
 	platform.name = "Platform"
 	platform.spawned_fn = func() -> bool: return player != null and camera != null and camera.current
@@ -186,9 +182,7 @@ func _start_remote_workbench() -> void:
 
 
 ## The player's settings, bound to the camera and the sampler's tunables. See [LmSettings].
-##
-## The look is bound to the controller's own tunables, which both samplers read (offline the
-## player's, connected the client's); [method _adopt_player] binds them for a later player.
+## [method _adopt_player] binds the controller's tunables for a later player.
 func _build_settings() -> void:
 	settings = LmSettings.new()
 	add_child(settings)
@@ -257,10 +251,8 @@ func _suspend_input(blocked: bool) -> void:
 			sampler.suspended = blocked
 
 
-## The Tab board: everybody in the house, the level they are on, the furthest they have got
-## and whether they got out, beside how long they have been on and their ping. Online the
-## levels are the server's (see [LmModule]'s `_game_board_fields`); offline, this world's
-## ([method board_snapshot]). The platform feeds it and holds it on Tab.
+## The Tab board: everybody in the house, their level, furthest level and ping. Online the levels
+## are the server's (see [LmModule]'s `_game_board_fields`); offline, [method board_snapshot]'s.
 func _dress_board() -> void:
 	if board == null:
 		return
@@ -400,10 +392,8 @@ func _build_hud() -> void:
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_hud)
 
-	# The dark house is mostly very low, very smooth gradients (a lamp's falloff across a far wall),
-	# and an 8-bit framebuffer steps them into concentric stripes. The compatibility renderer has no
-	# debanding (the viewport and project switches are ignored there), so the frame is dithered here:
-	# triangular noise of about two levels, added after the world is drawn and before the HUD is.
+	# Dithered here: the compatibility renderer ignores debanding, and 8 bits step a lamp's falloff
+	# into stripes. Triangular noise of about two levels, after the world and before the HUD.
 	var dither := ColorRect.new()
 	dither.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dither.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -511,10 +501,8 @@ static func use_key() -> String:
 	return DotInputBinding.ensure_action(USE_ACTION, USE_DEFAULT)
 
 
-## This house's accent over whichever theme the player picked in the menu: the lamp's amber
-## as the glance pieces' highlight and their plates' edge. The plates, the words, the key cap
-## and the outline are the theme's (dark by default), so a light or high-contrast theme can
-## change them. Static so a render tool can use it.
+## This house's accent (the lamp's amber) over the player's menu theme; the theme owns the plates,
+## words and outline. Static so a render tool can use it.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
 	var type := DotHudPiece.THEME_TYPE
@@ -604,10 +592,8 @@ func _chat_mute(peer: int, muted: bool) -> void:
 		chat.self_mute.call(&"set_muted", {"key": "", "name": other.display_name}, muted)
 
 
-## dot-game's chat box and microphone, with this game's channels and voice format. It also
-## draws dot-server's own lines (the vote between games, joins, an admin's `say`), which arrive
-## on the shell's client link rather than on this game's bridge. Static so a suite can build
-## the same box the client does.
+## dot-game's chat box and microphone with this game's channels and voice format; it also draws
+## dot-server's own lines, which arrive on the shell's client link. Static so a suite can build it.
 static func new_chat() -> DotGameChatClient:
 	var box := DotGameChatClient.new()
 	box.name = "Chat"

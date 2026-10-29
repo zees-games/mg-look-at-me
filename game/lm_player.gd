@@ -1,11 +1,8 @@
 extends CharacterBody3D
 
-## One person in the house: movement (dot-player-controller's first person, driven by the
-## world's tick), a flashlight, and what they carry and have done on the level they are on.
-##
-## [b]Progress is the player's own[/b] (the brief: everybody does every level themselves, so
-## the server never has to end). What they hold, the doors they have opened, the things they
-## have used and the items they have taken are fields here, not facts about the level.
+## One person in the house: movement (dot-player-controller's first person, driven by the world's tick), a
+## flashlight, and what they carry and have done on this level. Progress is the player's own (everybody does
+## every level themselves, so the server never has to end): holds, opened doors, used things, taken items.
 
 const LmConfig := preload("lm_config.gd")
 const LmFigure := preload("lm_figure.gd")
@@ -32,10 +29,9 @@ var opened: Dictionary = {}
 var used: Dictionary = {}
 var taken: Dictionary = {}
 
-## The level's events that have happened to this player on this go (event id -> true): progress
-## like the rest, sent to the owner, so their client puts out the lights, slams the door and
-## shows her. A slam waits in [member slams_waiting] until the player is clear of the doorway
-## (the server's alone).
+## The level's events that have happened to this player (event id -> true), sent to the owner so their client
+## puts out the lights, slams the door and shows her. A slam waits in [member slams_waiting] until the player
+## is clear of the doorway (the server's alone).
 var fired: Dictionary = {}
 var slams_waiting: Array[String] = []
 
@@ -124,15 +120,9 @@ func eye_position() -> Vector3:
 	return controller.state.position + Vector3(0.0, EYE_HEIGHT * (0.6 if is_crouching() else 1.0), 0.0)
 
 
-## Where the eye is DRAWN this frame, for this machine's own player: between its last two
-## ticks ([method DotFpsController.render_state]), not on the last one. [method eye_position]
-## is the simulation's and stays on the tick.
-##
-## [b]The camera was drawn on the tick[/b], so it advanced in tick-sized steps whatever the
-## display rate, and every frame that ran no tick stood still. A connected client also hands
-## the controller its clock (`render_clock`, see `LmClient._process`), so a physics frame the
-## clock's drift left with no tick or two is drawn through rather than stalled or doubled.
-## Only for a player this machine simulates: a mirror's controller has no second tick.
+## Where the eye is DRAWN this frame, for this machine's own player: between its last two ticks
+## ([method DotFpsController.render_state]), so the camera does not step at tick rate. [method eye_position]
+## is the simulation's. A connected client hands the controller its `render_clock`; a mirror has no second tick.
 func drawn_eye_position() -> Vector3:
 	var drawn := controller.render_state()
 	return drawn.position + Vector3(0.0, EYE_HEIGHT * (0.6 if drawn.crouch_fraction > 0.5 else 1.0), 0.0)

@@ -102,13 +102,9 @@ extends DotConfig
 ## Seconds she keeps looking where it came from after it stops, before her head goes back.
 @export_range(0.0, 30.0, 0.5) var witch_alert_seconds: float = 4.0
 
-## Listening. A witch that suspects somebody behind her (a faint sound, or a glimpse at the edge of
-## her view for `witch_reaction_seconds`) stops dead for `witch_listen_seconds`, head tilted, and
-## hears `witch_listen_hearing` times as far while she does. Hearing the player for
-## `witch_listen_confirm` seconds in that window, she looks back (`witch_turn_delay`) and runs at the
-## sound at `witch_chase_speed` times her walk for up to `witch_chase_seconds`; hearing nothing she
-## walks on and will not stop to listen again for `witch_listen_cooldown`. A player standing
-## still makes no sound, which is the whole of the answer.
+## Listening. A witch that suspects somebody stops for `witch_listen_seconds`, hears `witch_listen_hearing`
+## times as far, and on `witch_listen_confirm` seconds of hearing turns and chases (`witch_chase_*`);
+## otherwise she walks on and waits `witch_listen_cooldown`. A player standing still makes no sound.
 @export var witch_listens: bool = true
 @export_range(0.5, 10.0, 0.25) var witch_listen_seconds: float = 3.5
 @export_range(1.0, 4.0, 0.1) var witch_listen_hearing: float = 1.8
@@ -141,11 +137,9 @@ extends DotConfig
 
 @export_group("Scares")
 
-## Sanity scares: a sudden sound and a brief face, flash or figure, the client's alone. How
-## often one comes depends on the meter: `scare_interval_max` seconds apart at an empty meter,
-## `scare_interval_min` at a full one (the meter is read live, so a fright mid-wait shortens it).
-## Each wait is stretched or shrunk by 0.7 to 1.3 from the house's seed. Every one of these is
-## an `lm_*` cvar of the same name (`lm_scare_interval_max`).
+## Sanity scares, the client's alone: `scare_interval_max` seconds apart at an empty meter, `scare_interval_min`
+## at a full one (read live), each wait stretched 0.7 to 1.3 from the house's seed.
+## Each is an `lm_*` cvar of the same name (`lm_scare_interval_max`).
 @export var scares_enabled: bool = true
 @export_range(1.0, 600.0, 1.0) var scare_interval_max: float = 90.0
 @export_range(1.0, 600.0, 1.0) var scare_interval_min: float = 14.0
@@ -200,11 +194,9 @@ extends DotConfig
 
 @export_group("The clown")
 
-## A clown that floats in a corner of the view and watches. Walk up to it and it lunges: a jump
-## scare that pushes the meter up by its damage, once, and it is gone. Every wait, chance and
-## damage here is a curve over the meter (0 sane, 1 caught): `clown_*_min` at an empty meter,
-## `clown_*_max` at a full one, `clown_curve` the exponent (1 is a straight line, above 1 it
-## stays mild until the meter is high). Damage is a rise of the meter, capped by `scare_meter_cap`.
+## A clown that floats in a corner and lunges when approached, once. Every wait, chance and damage is a
+## curve over the meter: `clown_*_min` at empty, `clown_*_max` at full, `clown_curve` the exponent.
+## Damage is a rise of the meter, capped by `scare_meter_cap`.
 @export var clown_enabled: bool = true
 @export_range(1.0, 600.0, 1.0) var clown_wait_max: float = 150.0
 @export_range(1.0, 600.0, 1.0) var clown_wait_min: float = 30.0
@@ -251,11 +243,9 @@ extends DotConfig
 ## The house a server opens with.
 @export var house: String = "house"
 
-## The file that says which houses this server ROTATES: `cfg/maps.yml` (dot-map's
-## `DotMapRotationFile`: named rotations, `random` or `cycle`, wildcards, command names), looked
-## for in the `--config` directory. Empty, or no such file, rotates every house. A house it
-## leaves out stays installed (`lm_house` and the map menu load it); it is only never drawn,
-## balloted or nominated. `sv_map_rotation_file`.
+## `cfg/maps.yml` in the `--config` directory (dot-map's `DotMapRotationFile`) says which houses rotate;
+## empty or missing rotates all. A house left out stays installed (`lm_house` loads it) but is never
+## drawn, balloted or nominated. `sv_map_rotation_file`.
 @export var map_rotation_file: String = "cfg/maps.yml"
 
 ## Minutes a house is played before the players vote on the next (the same house is on the

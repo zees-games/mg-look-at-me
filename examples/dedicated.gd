@@ -262,11 +262,9 @@ func _test_an_empty_server() -> void:
 	_finished_section()
 
 
-## [b]A seat whose client has not lifted its loading cover cannot be caught, and can once it does[/b]
-## (dot-game's "still loading"), over a real ENet socket. A client joins and says nothing, as one
-## still loading its level; a fright it reports (the one way the meter is raised by a client) is
-## refused and a witch's look leaves the meter alone. It then sends `game.cover` on the wire and
-## the same fright lands. Stand-ins never reach this: a bot is never loading.
+## A seat whose client has not lifted its loading cover cannot be caught (dot-game's "still loading") over a
+## real ENet socket: its reported fright is refused and a witch's look leaves the meter alone, until it
+## sends `game.cover`. Stand-ins never reach this: a bot is never loading.
 func _test_a_covered_seat_is_not_caught() -> void:
 	_section("a client behind its loading cover is not caught, and is once it lifts")
 
@@ -429,11 +427,9 @@ func _clown_lunge(cfg: LmConfig, meter: float) -> Dictionary:
 	return {}
 
 
-## [b]A module loaded again leaves one link under the server[/b], the live one still named
-## `LookAtMe`. The link is the server's child, not the bridge's, so the bridge going away left it
-## and the next one was named `@Node@n`, and a client's RPCs addressed a path nothing had.
-## [b]`lm_ambient*` on a client.[/b] The server's ambience intent rides the replicated cvars over a real socket, and a
-## director that follows the game's rules (as the client wires it) has it in its layer's config; the Ambience bus follows Effects.
+## A module loaded again leaves one link under the server, still named `LookAtMe` (the link is the server's child).
+## `lm_ambient*` on a client: the server's ambience intent rides the replicated cvars over a real socket and
+## reaches the director's layer config; the Ambience bus follows Effects.
 func _test_ambient_cvars_reach_the_client() -> void:
 	_section("the server's lm_ambient* reaches a client's ambience director, live")
 	var side := Node.new()
@@ -528,10 +524,8 @@ class CommandHost extends Node:
 		return null
 
 
-## `cfg/maps.yml`: which houses rotate. The format is dot-map's selftest's; this is what the GAME
-## does with it: a house left out is installed and loadable and is never drawn, never on a
-## ballot, never nominated, marked in the map list; a switch of rotation takes effect; a renamed
-## command is registered; no file means every house.
+## `cfg/maps.yml`: a house left out is installed and loadable but never drawn, balloted, nominated, and marked
+## in the map list; a rotation switch takes effect; a renamed command is registered; no file means every house.
 func _test_rotation_file() -> void:
 	_section("rotation file")
 	var module := _module()
@@ -718,7 +712,6 @@ func _test_no_message_preloads_itself() -> void:
 	_finished_section()
 
 
-# --- Harness -----------------------------------------------------------------
 
 func _module() -> DotModule:
 	return server.modules.get_module("lookatme") if server != null and server.modules != null else null

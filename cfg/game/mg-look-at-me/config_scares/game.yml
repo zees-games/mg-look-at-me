@@ -2,7 +2,7 @@
 # an operator overrides in cfg/server/game/mg-look-at-me/config_scares/game.yml. Layers: defaults < this < env < argv.
 
 # --- Scares
-# Sanity scares: a sudden sound and a brief face, flash or figure, the client's alone. How often one comes de...
+# Sanity scares, the client's alone: `scare_interval_max` seconds apart at an empty meter, `scare_interval_mi...
 # scares_enabled: true
 #  [1.0..600.0]
 # scare_interval_max: 90.0
@@ -52,7 +52,7 @@
 # spike_curve: 1.5
 
 # --- The clown
-# A clown that floats in a corner of the view and watches. Walk up to it and it lunges: a jump scare that pus...
+# A clown that floats in a corner and lunges when approached, once. Every wait, chance and damage is a curve ...
 # clown_enabled: true
 #  [1.0..600.0]
 # clown_wait_max: 150.0

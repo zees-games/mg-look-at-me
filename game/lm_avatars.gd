@@ -1,24 +1,8 @@
 extends RefCounted
 
-## What a player looks like, as a dot-user-avatar document: the schema, the stock avatar a
-## player without one of their own wears, and which skin a document asks for.
-##
-## [b]One slot, because this game's people differ in one thing.[/b] Every Blocky Character
-## carries byte-identical geometry and UVs, so the six people [LmFigure] can draw are six
-## atlases on one mesh — and the side a player is on goes on the torso as a tint, which is
-## the game's to decide and not the player's. A document with a hat slot in it would be a
-## promise this game has no art to keep.
-##
-## [b]Data only, and loads nothing.[/b] A dedicated server validates a document against
-## this schema without holding the art, which is dot-user-avatar's whole premise; which
-## atlas a skin means is [LmFigure]'s, on a client. [constant SKINS] and
-## [code]LmFigure.ATLASES[/code] are the same list in the same order, and `headless_run`
-## checks that they stay so.
-##
-## [b]The stock avatar is the old hash, exactly.[/b] Before this file a player's look came
-## from `hash(player_id)` into the atlas list; [method stock_avatar] makes the same choice
-## into a document, so nobody's character changed the day profiles arrived, and a server
-## with no platform draws everybody precisely as it did before.
+## What a player looks like, as a dot-user-avatar document: the schema, the stock avatar and the skin asked for.
+## One slot: the six people are six atlases on one mesh, and the side goes on the torso as a tint.
+## Data only, loads nothing, so a server validates without the art; [constant SKINS] matches `LmFigure.ATLASES`.
 
 const SCHEMA_ID := &"lm_people"
 
@@ -57,9 +41,7 @@ static func schema() -> DotAvatarSchema:
 
 
 ## The avatar a player with none of their own wears: the skin their id hashes to.
-##
-## [param player_id] is the game's own key — `u<session>` — and the hash is the one
-## [code]LmPlayer[/code] used before there were documents. See the class note.
+## [param player_id] is the game's own key (`u<session>`); the hash is the one [LmPlayer] always used.
 static func stock_avatar(player_id: StringName) -> DotAvatar:
 	var avatar := DotAvatar.make(SCHEMA_ID)
 	avatar.set_part(SLOT_SKIN, SKINS[stock_index(player_id)])
@@ -71,10 +53,7 @@ static func stock_index(player_id: StringName) -> int:
 
 
 ## Which of [constant SKINS] a document asks for, or -1 for none this game has.
-##
-## [b]-1 rather than a guess.[/b] A document for another schema, or naming a skin this
-## build does not ship, is not this game's to reinterpret; the caller falls back to the
-## stock one, which is a real person rather than a wrong one.
+## -1 rather than a guess: another schema's skin is not ours to reinterpret, and the stock one is a real person.
 static func skin_index(avatar: DotAvatar) -> int:
 	if avatar == null or avatar.schema_id != SCHEMA_ID:
 		return -1
@@ -82,11 +61,8 @@ static func skin_index(avatar: DotAvatar) -> int:
 	return SKINS.find(avatar.part_in(SLOT_SKIN))
 
 
-## A member's site avatar as one of this game's six people: their top's skin, when this
-## game ships it. See `DotPlatformIdentity.avatar_translate_fn`.
-##
-## Null for a skin this game does not draw, and for a document that is not the site's:
-## the member is then their stock person, which is a real person rather than a wrong one.
+## A member's site avatar as one of this game's six people: their top's skin, when this game ships it.
+## See `DotPlatformIdentity.avatar_translate_fn`. Null for a skin not drawn here or a foreign document.
 static func from_site(foreign: DotAvatar) -> DotAvatar:
 	var top := _site_skin(foreign, &"top")
 	var skin := StringName("skin_%s" % top)
@@ -100,9 +76,7 @@ static func from_site(foreign: DotAvatar) -> DotAvatar:
 
 
 ## The letter of the site's skin in [param slot] of its `builtin` document, or "".
-##
-## The site's avatar is the Kenney kit's eighteen painted skins, `skin-a` to `skin-r`,
-## chosen per face, top and legs — the same atlases this game draws, spelt the site's way.
+## The site's skins `skin-a` to `skin-r` are chosen per face, top and legs.
 static func _site_skin(foreign: DotAvatar, slot: StringName) -> String:
 	if foreign == null or foreign.schema_id != &"builtin":
 		return ""

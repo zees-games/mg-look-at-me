@@ -1,17 +1,8 @@
 extends Node
 
-## The players choose the next house: dot-map's job, done the way the brief asked, through
-## dot-vote.
-##
-## [DotVoteDirector] over a [DotVoteListSource] of this server's houses. There are no rounds
-## here — the server never ends — so dot-vote's own clock decides when: a house is played for
-## [member LmConfig.house_minutes], and as the limit nears a ballot opens with every house on
-## it, the current one included (`include_current`) and an extension (`include_extend`).
-## The winner is played at once. Players can rock the vote (`!rtv`) at any time. An owner's
-## own house is a directory of level documents, and appears on the ballot at the next boot.
-##
-## [b]Server side only[/b], like mg-deathrun's course vote: a client draws the ballot from the
-## notice [member ballot_fn] sends.
+## The players choose the next house through dot-vote ([DotVoteDirector] over a [DotVoteListSource] of this
+## server's houses). No rounds, so dot-vote's clock decides: a house plays [member LmConfig.house_minutes], then a
+## ballot opens with every house, the current one and an extension; `!rtv` works any time. Server side only.
 
 const CHANNEL := "lookatme.vote"
 
@@ -25,10 +16,9 @@ const COMMAND_NAMES := {"vote": "vote"}
 ## Minutes a house is played before the ballot (LmConfig.house_minutes). 0: only rock the vote.
 var house_minutes: float = 45.0
 
-## The file a server owner configures the vote in, keyed exactly as [DotVoteRules]. Layered:
-## [code]_rules() < game.yml metadata house_vote: < this file < DOT_VOTE_* < --vote-*[/code].
-## Empty skips the file. [code]{"enabled": false}[/code] turns the vote off and the rotation
-## stays on its house.
+## The file a server owner configures the vote in, keyed as [DotVoteRules]. Layered: [code]_rules() < game.yml
+## metadata house_vote: < this file < DOT_VOTE_* < --vote-*[/code]. Empty skips it; `{"enabled": false}` turns
+## the vote off and the rotation stays on its house.
 @export var config_path: String = "user://cfg/lookatme_vote.json"
 
 ## [code]func() -> Array[/code] of [code][id, name][/code] pairs: every house a ballot may offer.
@@ -71,11 +61,9 @@ func setup() -> DotResult:
 	source.label = "houses"
 	source.apply_fn = func(id: StringName) -> DotResult:
 		return apply_fn.call(id) if apply_fn.is_valid() else DotResult.success(id)
-	# Every house the game lists, its Workshop ones included and labelled "Name [Pack]" by the
-	# game, read again before each ballot. Not dot-vote's follow_content: that merges every
-	# entry of an accepted kind, with no way to leave out a pack document the game refused (a
-	# house whose id is not the entry's, or with no levels), and a ballot must not offer a house
-	# that then cannot open. The game syncs the same shared index, so online lists none.
+	# Every house the game lists, Workshop ones labelled "Name [Pack]", read again before each ballot. Not
+	# dot-vote's follow_content: it cannot leave out a pack document the game refused, and a ballot must not
+	# offer a house that cannot open.
 	source.entries_fn = _own_houses
 	refresh_houses()
 

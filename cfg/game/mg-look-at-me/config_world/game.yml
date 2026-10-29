@@ -18,7 +18,7 @@
 # houses_directory: "houses"
 # The house a server opens with.
 # house: "house"
-# The file that says which houses this server ROTATES: `cfg/maps.yml` (dot-map's `DotMapRotationFile`: named ...
+# `cfg/maps.yml` in the `--config` directory (dot-map's `DotMapRotationFile`) says which houses rotate; empty...
 # map_rotation_file: "cfg/maps.yml"
 # Minutes a house is played before the players vote on the next (the same house is on the ballot). 0 is no li... [0.0..600.0]
 # house_minutes: 45.0

@@ -1,8 +1,6 @@
 extends DotGameCheckSuite
 
-## A server and a client in one process, over the link's loopback, each in its own physics
-## world, with the client predicting its own player as a real one does.
-##
+## A server and a client in one process over the link's loopback, each in its own physics world, the client predicting.
 ##   godot --headless --path . res://examples/headless_net.tscn
 
 const LmGame := preload("res://game/lm_game.gd")
@@ -123,10 +121,9 @@ func _build() -> bool:
 	_check(_server_game.levels.size() == 32 and _client_game.levels.is_empty(), "the server reads the levels; the client reads none")
 	_server_net = _make_manager(true, server_side)
 	_client_net = _make_manager(false, client_side)
-	# This harness stamps every command itself (`_tick + INPUT_LEAD`), not from the client's
-	# clock, so the client must not ask for dot-net's input-lead report: steered by reports
-	# about commands it never stamped, the clock runs away from them (only dot-net's cap
-	# holds it). By the constant map, so this parses against a dot-net from before the report.
+	# This harness stamps every command itself, so the client must not ask for dot-net's input-lead report:
+	# steered by reports about commands it never stamped, the clock runs away. By the constant map, so it
+	# parses against a dot-net from before the report.
 	var lead_bit := int((DotNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
 	_client_net.messages.features &= ~lead_bit
 
@@ -234,11 +231,9 @@ func _test_walking() -> void:
 	_finished_section()
 
 
-## Inputs go unreliable, so every packet carries the last few commands
-## ([constant LmNetBridge.INPUT_COPIES]). One packet is dropped here and the server must still
-## hold that tick's command from the next packet's copies; with one command a packet it never
-## arrives. Then copies of ticks the server has already simulated must be skipped, not pushed
-## (which would count every one of them as a late input).
+## Inputs go unreliable, so every packet carries the last few commands ([constant LmNetBridge.INPUT_COPIES]): a
+## dropped packet's command must come from the next packet's copies, and copies of ticks already simulated
+## must be skipped, not pushed (each would count as a late input).
 func _test_a_lost_input() -> void:
 	_section("a lost input packet")
 	var buffer := _server_net.input_buffer_for(CLIENT_PEER)
@@ -463,7 +458,6 @@ func _test_one_account_twice() -> void:
 	_finished_section()
 
 
-# --- Harness -----------------------------------------------------------------
 
 func _flush() -> void:
 	var to_client := _to_client.duplicate()

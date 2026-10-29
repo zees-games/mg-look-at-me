@@ -1,12 +1,8 @@
 extends DotGameModule
 
-## This game, as a module a dedicated server loads. Over dot-game, like the others.
-##
-## What is this game's: the netcode's numbers, the commands an operator types, where who won is
-## kept, and the key a player's progress is kept under. A chat line beginning with / that the
-## house understands (/r, /l3) is the house's; everything else goes to chat.
-##
-## [b]No `class_name`[/b]: a module delivered inside a dot-cloud pack cannot have one.
+## This game, as a module a dedicated server loads, over dot-game: the netcode's numbers, the operator's commands,
+## where who won is kept, and the key progress is kept under. A chat line beginning with / that the house
+## understands is the house's. No `class_name`: a module delivered inside a dot-cloud pack cannot have one.
 
 const LmNetBridge := preload("net/lm_net_bridge.gd")
 const LmServices := preload("lm_services.gd")
@@ -355,10 +351,8 @@ func _build_vote(world: LmGame) -> void:
 				out.append(StringName(str(session.userid)))
 
 		return out
-	# [b]Through this game's chat router, not dot-server's system chat.[/b] A routed line keeps
-	# the channel and colour every other line here has, and reaches a client whose shell is
-	# older than the dot-game that draws dot-server's own lines too (DotGameChatClient). The
-	# house ballot's "Vote: The House, The Asylum, Extend (30s)" was once drawn nowhere.
+	# Through this game's chat router, not dot-server's system chat: a routed line keeps the channel and colour
+	# every other line has, and reaches a client whose shell is older than dot-game's DotGameChatClient.
 	# smash and the other minigames announce the same way.
 	vote.announce_fn = func(line: String) -> void:
 		var chat: Object = services.get("chat") if services != null else null
@@ -530,9 +524,8 @@ func _wire_identity() -> void:
 	hook_post("player_renamed", _on_profile)
 
 
-## Through the platform module's `player_for`, never the hub by a key made here: the hub keys
-## a player by the scoped profile key only admission knows (mg-deathrun found a lookup by any
-## other key finds nobody, every time, and reads as "no avatar"). Duck-typed, because a server
+## Through the platform module's `player_for`, never the hub by a key made here: the hub keys a player by the
+## scoped profile key only admission knows, so any other lookup finds nobody. Duck-typed, because a server
 ## without dot-platform is a configuration.
 func _avatar_for(session_id: int) -> DotAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
