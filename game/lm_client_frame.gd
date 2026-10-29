@@ -10,6 +10,16 @@ func _say_ready() -> void:
 		bridge.ask_ready()
 
 
+const STEP_FORMAT := "Level %d of %d — %s"
+const HOLDS_FORMAT := "Holding: %s"
+
+var _hud_level := -1
+var _hud_last := -1
+var _hud_step := ""
+var _hud_holds := 0
+var _hud_holds_level: LmLevel = null
+
+
 func _physics_process(delta: float) -> void:
 	if _offline or net == null or not net.is_running() or bridge == null:
 		return
@@ -301,13 +311,24 @@ func _process(delta: float) -> void:
 		_step.text = "Joining…"
 		return
 
-	_step.text = "Level %d of %d — %s" % [player.level, game.last_level(), game.step_of(player)]
-	_holds.text = "Holding: %s" % (", ".join(_hold_names(level)) if not player.holds.is_empty() else "nothing")
+	# The labels are rebuilt only when what they show changed, not every frame.
+	var step := game.step_of(player)
+	var last := game.last_level()
+	if player.level != _hud_level or last != _hud_last or step != _hud_step:
+		_hud_level = player.level
+		_hud_last = last
+		_hud_step = step
+		_step.text = STEP_FORMAT % [_hud_level, last, step]
+	var held_hash := player.holds.hash()
+	if held_hash != _hud_holds or level != _hud_holds_level:
+		_hud_holds = held_hash
+		_hud_holds_level = level
+		_holds.text = HOLDS_FORMAT % (", ".join(_hold_names(level)) if not player.holds.is_empty() else "nothing")
 	var target := game.target_of(player.player_key)
 	if target.is_empty():
 		prompt.clear()
 	else:
-		prompt.show_prompt(str(target["text"]), DotInputBinding.describe_action(USE_ACTION))
+		prompt.show_prompt(String(target["text"]), DotInputBinding.describe_action(USE_ACTION))
 	_meter_bar.value = player.meter
 	_hear_player(level)
 	_present(delta)
