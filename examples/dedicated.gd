@@ -271,42 +271,11 @@ func _test_a_covered_seat_is_not_caught() -> void:
 	_section("a client behind its loading cover is not caught, and is once it lifts")
 
 	var module := _module()
-	var bridge := module.get("bridge") as LmNetBridge if module != null else null
-	var side := Node.new()
-	side.name = "CoverClient"
-	add_child(side)
-	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
-	link.name = "Server"
-	link.player_name = "Covered"
-	link.transport_preference = "udp"
-	link.udp_address = "127.0.0.1:%d" % PORT
-	# RPC paths are relative to the multiplayer root, so the link must sit at the path the
-	# server's does: "Dedicated/Server" under the root.
-	var mirror := Node.new()
-	mirror.name = "Dedicated"
-	side.add_child(mirror)
-	mirror.add_child(link)
-	# The link retires whatever the game left under it when it signs on, so a sink for the
-	# server's snapshots is put back at each phase change (a real game scene does this itself).
-	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
-		if link.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) == null:
-			var sink := LmNetLink.attached_to(link, null, false)
-			sink.name = LmNetLink.NODE_NAME
-			link.add_child(sink)
-	attach.call()
-	link.phase_changed.connect(attach)
-	var spawned := [false]
-	link.spawned.connect(func() -> void: spawned[0] = true)
-	link.connect_to_server("127.0.0.1:%d" % PORT)
-	var joined := await _until(func() -> bool:
-		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
-	joined = joined and spawned[0]
-	var peer := side.multiplayer.get_unique_id() if joined else 0
-	var key: StringName = &""
-	if bridge != null and joined:
-		var _seated := await _until(func() -> bool: return bridge.key_of_peer(peer) != &"", 10.0)
-		key = bridge.key_of_peer(peer)
+	var joined_as := await _join_client("CoverClient", "Covered")
+	var side: Node = joined_as["side"]
+	var link: DotClientLink = joined_as["link"]
+	var peer: int = joined_as["peer"]
+	var key: StringName = joined_as["key"]
 	var victim: Object = game.players.get(key)
 	_check(victim != null, "a client joins over the socket and is seated", "peer %d key %s" % [peer, key])
 
@@ -358,38 +327,11 @@ func _test_a_clown_lunge_over_the_socket() -> void:
 	_section("a clown's lunge crosses the wire and lands by the meter")
 
 	var module := _module()
-	var bridge := module.get("bridge") as LmNetBridge if module != null else null
-	var side := Node.new()
-	side.name = "ClownClient"
-	add_child(side)
-	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
-	link.name = "Server"
-	link.player_name = "Clowned"
-	link.transport_preference = "udp"
-	link.udp_address = "127.0.0.1:%d" % PORT
-	var mirror := Node.new()
-	mirror.name = "Dedicated"
-	side.add_child(mirror)
-	mirror.add_child(link)
-	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
-		if link.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) == null:
-			var sink := LmNetLink.attached_to(link, null, false)
-			sink.name = LmNetLink.NODE_NAME
-			link.add_child(sink)
-	attach.call()
-	link.phase_changed.connect(attach)
-	var spawned := [false]
-	link.spawned.connect(func() -> void: spawned[0] = true)
-	link.connect_to_server("127.0.0.1:%d" % PORT)
-	var joined := await _until(func() -> bool:
-		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
-	joined = joined and spawned[0]
-	var peer := side.multiplayer.get_unique_id() if joined else 0
-	var key: StringName = &""
-	if bridge != null and joined:
-		var _seated := await _until(func() -> bool: return bridge.key_of_peer(peer) != &"", 10.0)
-		key = bridge.key_of_peer(peer)
+	var joined_as := await _join_client("ClownClient", "Clowned")
+	var side: Node = joined_as["side"]
+	var link: DotClientLink = joined_as["link"]
+	var peer: int = joined_as["peer"]
+	var key: StringName = joined_as["key"]
 	var victim: Object = game.players.get(key)
 	_check(victim != null, "a client joins over the socket and is seated", "peer %d key %s" % [peer, key])
 
@@ -706,6 +648,48 @@ func _until(condition: Callable, seconds: float) -> bool:
 			return true
 		await get_tree().physics_frame
 	return bool(condition.call())
+
+
+## Joins a client over the socket the way a player does and waits for its seat:
+## `{side, link, peer, key}`; `peer` is 0 and `key` empty when it never joined.
+func _join_client(node_name: String, player_name: String) -> Dictionary:
+	var bridge := _module().get("bridge") as LmNetBridge if _module() != null else null
+	var side := Node.new()
+	side.name = node_name
+	add_child(side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
+	var link := DotClientLink.new()
+	link.name = "Server"
+	link.player_name = player_name
+	link.transport_preference = "udp"
+	link.udp_address = "127.0.0.1:%d" % PORT
+	# RPC paths are relative to the multiplayer root, so the link must sit at the path the
+	# server's does: "Dedicated/Server" under the root.
+	var mirror := Node.new()
+	mirror.name = "Dedicated"
+	side.add_child(mirror)
+	mirror.add_child(link)
+	# The link retires whatever the game left under it when it signs on, so a sink for the
+	# server's snapshots is put back at each phase change (a real game scene does this itself).
+	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
+		if link.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) == null:
+			var sink := LmNetLink.attached_to(link, null, false)
+			sink.name = LmNetLink.NODE_NAME
+			link.add_child(sink)
+	attach.call()
+	link.phase_changed.connect(attach)
+	var spawned := [false]
+	link.spawned.connect(func() -> void: spawned[0] = true)
+	link.connect_to_server("127.0.0.1:%d" % PORT)
+	var joined := await _until(func() -> bool:
+		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
+	joined = joined and spawned[0]
+	var peer := side.multiplayer.get_unique_id() if joined else 0
+	var key: StringName = &""
+	if bridge != null and joined:
+		var _seated := await _until(func() -> bool: return bridge.key_of_peer(peer) != &"", 10.0)
+		key = bridge.key_of_peer(peer)
+	return {"side": side, "link": link, "peer": peer, "key": key}
 
 
 func _test_it_unloads() -> void:
