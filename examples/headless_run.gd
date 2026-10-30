@@ -6,7 +6,7 @@ extends "headless_run_witch.gd"
 ##   godot --headless --path . res://examples/headless_run.tscn
 
 const SECTIONS := 23
-const CHECKS := 187
+const CHECKS := 188
 
 
 func _ready() -> void:
@@ -22,6 +22,8 @@ func _ready() -> void:
 	add_child(progress)
 	var _p := progress.setup(game, "", false)
 	progress.earned.connect(func(key: StringName, title: String, _points: int) -> void: _earned.append([String(key), title]))
+	var split: Array[String] = ProgressKeysCheck.run(game, progress)
+	_check(split.is_empty(), "stats file under the stable key, players under the world key", str(split))
 
 	_test_levels()
 	_test_every_level_finishes()

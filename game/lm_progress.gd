@@ -8,6 +8,7 @@ extends Node
 ## signals are the whole input. Server only.
 
 const LmGame := preload("lm_game.gd")
+const LmStatsRelay := preload("lm_stats_relay.gd")
 
 const CHANNEL := "lookatme.progress"
 
@@ -22,6 +23,13 @@ var game: LmGame = null
 var stats: DotStatsTracker = null
 var achievements: DotAchievementTracker = null
 var link: DotAchievementStatsLink = null
+
+## Only the stats report is filed under dot-game's stable key; `game.players` and awards keep `uid:...`.
+var stats_feed := DotGameStatsFeed.new()
+var relay := LmStatsRelay.new()
+
+## world key -> [stats key, userid], noted at admission by [method note_session].
+var _stats_keys: Dictionary = {}
 
 
 static func schema() -> DotStatsSchema:
@@ -105,7 +113,8 @@ func setup(world: LmGame, directory: String, report: bool) -> DotResult:
 	link = DotAchievementStatsLink.new()
 	link.name = "StatsLink"
 	link.tracker = achievements
-	link.stats = stats
+	relay.follow(stats)
+	link.stats = relay
 	add_child(link)
 	var linked := link.start()
 
@@ -121,17 +130,28 @@ func setup(world: LmGame, directory: String, report: bool) -> DotResult:
 	return DotResult.success(self)
 
 
+## Notes the stable stats key of a player's seat; a player never noted files under the world key.
+func note_session(key: StringName, session: DotClientSession) -> void:
+	stats_feed.open_sessions = false
+	_stats_keys[key] = [stats_feed.key_for(session), session.userid]
+
+
+func _stats_key(key: StringName) -> StringName:
+	return _stats_keys[key][0] if _stats_keys.has(key) else key
+
+
 func record(key: StringName, stat: StringName, value: float = 1.0) -> void:
 	var player: Node = game.players.get(key, null) if game != null else null
 
 	if stats == null or player == null:
 		return
 
-	if not stats.has_player(key):
-		stats.begin(key, str(player.get("display_name")))
+	if not stats.has_player(_stats_key(key)):
+		stats.begin(_stats_key(key), str(player.get("display_name")))
+		relay.record_of[_stats_key(key)] = key
 		_begin(key)
 
-	var filed := stats.record(key, stat, value)
+	var filed := stats.record(_stats_key(key), stat, value)
 
 	if not filed.ok:
 		DotLog.warn(CHANNEL, "a reading was refused", {"player": String(key), "stat": String(stat), "why": filed.error.message})
@@ -145,10 +165,16 @@ func _begin(key: StringName) -> void:
 
 
 func leave(key: StringName) -> void:
-	if stats == null or not stats.has_player(key):
+	if stats == null or not stats.has_player(_stats_key(key)):
 		return
 
-	var _values := stats.end(key)
+	var _values := stats.end(_stats_key(key))
+	relay.record_of.erase(_stats_key(key))
+
+	if _stats_keys.has(key):
+		stats_feed.forget(int(_stats_keys[key][1]))
+		_stats_keys.erase(key)
+
 	link.forget(String(key))
 	var ended: DotResult = await achievements.end(String(key))
 
@@ -157,4 +183,4 @@ func leave(key: StringName) -> void:
 
 
 func session_values(key: StringName) -> DotStatsValues:
-	return stats.session_values(key) if stats != null else DotStatsValues.new()
+	return stats.session_values(_stats_key(key)) if stats != null else DotStatsValues.new()
