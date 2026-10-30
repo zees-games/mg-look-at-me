@@ -1,12 +1,7 @@
 extends Node3D
 
-## Draws and plays what [LmScares] decides: the face or flash of a sanity scare, the demons in the
-## corners of the view, the whisper to look behind you. The client's alone: nothing here is sent
-## anywhere but the one number a fright moves, the meter, which goes through [member spook].
-##
-## Everything is drawn from primitives (a demon is a pale head, a dark body, long arms and two
-## red eyes) and heard from audio/ (made for this game, see audio/CREDITS.md), so nothing needs
-## a file to exist: a demon with no model is still a demon.
+## Draws and plays what [LmScares] decides: sanity-scare faces and flashes, demons in the corners of the view, the whisper to look behind you.
+## Client only; the one thing sent is the meter spike, through [member spook]. Everything is primitives and audio/ (see audio/CREDITS.md), so no model file is needed.
 
 const LmScares := preload("lm_scares.gd")
 const LmWitch := preload("lm_witch.gd")

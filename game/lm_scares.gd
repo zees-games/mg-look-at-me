@@ -1,21 +1,8 @@
 extends RefCounted
 
-## What frightens the player beyond the witches: sanity scares, demons, and a whisper to look
-## behind you. Pure scheduling and geometry, with no nodes and no clock of its own: [method tick]
-## is told the time that passed and where the player is and looks, and answers with events the
-## client draws and plays ([LmScareView]). That split is why a suite can run minutes of fright in
-## a frame, and why the same seed gives the same night.
-##
-## [b]Why the client and not the server.[/b] Where a face flashes is nobody else's business and
-## must not wait a round trip, so the drawing and the schedule are the client's. The one thing
-## the rules care about is the meter, so an event that moves it carries a "spike", the client
-## asks the server for it (`LmGame.spook`), and the server applies it capped and rate limited.
-## A client that never asks simply is not frightened, which costs nobody else anything.
-##
-## [b]Deterministic.[/b] Every draw comes from one generator seeded from the house seed, the
-## level and the player ([method reseed]); a tick is only a function of that and what it is told.
-##
-## The tunables are all [LmConfig]'s (`lm_*` cvars).
+## What frightens the player beyond the witches. Pure scheduling and geometry: [method tick] is told the time passed and where the player is and looks, and returns events [LmScareView] draws.
+## Client-side because a face must not wait a round trip; an event that moves the meter carries a "spike" the client asks the server for (`LmGame.spook`), which caps and rate limits it.
+## Deterministic: one generator seeded from house seed, level and player ([method reseed]). Tunables are [LmConfig]'s.
 
 const LmConfig := preload("lm_config.gd")
 
@@ -138,10 +125,9 @@ func _roll_behind() -> float:
 	return rng.randf_range(config.look_behind_min, config.look_behind_max)
 
 
-## Advances [param delta] seconds. [param view]: "meter", "level", "eye" and "feet" (Vector3),
-## "forward" (the view's direction), "caught" (bool), and optionally "clear", a
-## Callable(from, direction, max_distance) -> float of how far that way is open, so a demon is
-## never put in a wall. Returns this tick's events (also appended to [member told]).
+## Advances [param delta] seconds. [param view]: "meter", "level", "eye", "feet" (Vector3), "forward", "caught" (bool), and optionally
+## "clear", a Callable(from, direction, max_distance) -> float of how far that way is open, so no demon is put in a wall.
+## Returns this tick's events (also appended to [member told]).
 func tick(delta: float, view: Dictionary) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	var meter := float(view.get("meter", 0.0))

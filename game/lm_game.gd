@@ -1,16 +1,8 @@
 extends "lm_game_senses.gd"
 
-## The house: every level at once, side by side, every player on whichever level they are on,
-## and the witches. Headless; [LmClient] draws.
-##
-## [b]A server that never ends.[/b] Nobody waits for a round: a player arrives in the lobby
-## (level 1's start room), goes through the levels at their own pace, and the next person can
-## arrive at any moment. So there are no rounds and no sides, only each player's own progress.
-##
-## [b]Being seen is a meter, not a moment.[/b] Every tick each witch on a player's level asks
-## whether she can see them — in range, inside her cone, nothing in the way — and how well:
-## nearer is faster, a lit flashlight faster, a crouch or standing still slower. The meter
-## climbs while she does and drains after a pause when she does not, and full is caught.
+## The house: every level at once, side by side, every player on the level they are on, and the witches. Headless; [LmClient] draws.
+## A server that never ends: no rounds or sides, only each player's own progress. Being seen is a meter: each tick a witch asks whether she
+## sees a player (range, cone, line of sight; nearer, lit and moving is faster); it climbs while she does, drains after a pause, full is caught.
 
 
 func ensure_runtime() -> DotProfileRuntime:
@@ -161,11 +153,9 @@ func set_flashlight(key: StringName, on: bool) -> void:
 		player.flashlight = on
 
 
-## A fright the player's client reports (a demon's jump, a look-behind): the meter rises by
-## [param amount] and no higher than `scare_meter_cap`, and the drain waits as it does after a
-## sighting. Refused for a catch in progress, with demons off, or inside `scare_cooldown` of the
-## last: a client may ask for the meter to go UP, which costs nobody but itself, and the cooldown
-## keeps a loop of asks from being the way to a catch. Returns whether it applied.
+## A fright the player's client reports: raises the meter by [param amount], capped at `scare_meter_cap`; the drain waits as after a sighting.
+## Refused during a catch, with demons off, or inside `scare_cooldown` of the last: a client may only ask for the meter to go UP,
+## and the cooldown stops a loop of asks being the way to a catch. Returns whether it applied.
 func spook(key: StringName, amount: float) -> bool:
 	var player: LmPlayer = players.get(key, null)
 
@@ -189,8 +179,6 @@ func spook(key: StringName, amount: float) -> bool:
 	player.unseen_for = 0.0
 	return true
 
-
-# --- The tick ------------------------------------------------------------------
 
 
 func _physics_process(delta: float) -> void:

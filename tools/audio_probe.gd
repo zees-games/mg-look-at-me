@@ -2,10 +2,7 @@ extends Node
 
 ## Under xvfb-run (never --headless, whose audio driver is Dummy): does the house make a noise?
 ##   xvfb-run -a godot --path . res://tools/audio_probe.tscn
-##
-## Asks the engine's own players, not dot-audio's book-keeping: an id the manager accepted is
-## not a sound unless a real player in its pool is playing a stream, and which file that stream
-## came from says which sound it is. tools/playthrough.sh records the mix and measures it.
+## Asks the engine's own players, not dot-audio's book-keeping: an accepted id is no sound unless a pooled player is playing a stream.
 
 const LmClient := preload("res://game/lm_client.gd")
 const LmPlayer := preload("res://game/lm_player.gd")

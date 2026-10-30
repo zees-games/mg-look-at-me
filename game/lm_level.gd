@@ -1,22 +1,8 @@
 extends "lm_level_parts.gd"
 
-## A level document, built: the rooms, their walls with doorways cut in them, the doors, the
-## items and the things you use them on, the lamps, and where every witch is at any moment.
-##
-## [b]A witch's walk is a pure function of time[/b], like mg-wipeout's obstacles: a loop of
-## points through room centres and doorways, at the document's speed. Every machine poses
-## every witch from the clock it already agrees on, so nothing about a witch is ever sent, and
-## the server's "can she see you" and the client's picture of where she is cannot disagree.
-##
-## [b]Doors are per player.[/b] A door is one StaticBody3D in the world, solid; a player who
-## has opened it has its RID in their controller's exclusion list, so it is open for them and
-## shut for everybody else (see [LmGame]). The level never knows who opened what.
-##
-## [b]Floors.[/b] A room is on a floor (format 2), a storey ([method storey]) above the one
-## below; a STAIRWELL is two storeys high, a landing at its foot, a ramp, and a landing at its
-## head level with the floor above, and is the only way between floors. A door says where it
-## is ("at", in cells, and "floor"); a format 1 document's doors sit in the middle of the wall
-## their rooms share, on the ground floor, as they always did.
+## A level document, built: rooms, walls with doorways cut in, doors, items, use-points, lamps, and where every witch is at any moment.
+## A witch's walk is a pure function of the shared clock, so nothing about her is sent and server sight and client picture cannot disagree.
+## Doors are per player (one solid body; the opener's controller excludes its RID, see [LmGame]); floors: [method storey], docs/design.md.
 
 ## Model id -> PackedScene, loaded once for every level, and its bounds.
 static var _furniture_scenes: Dictionary = {}
@@ -83,8 +69,6 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 	DotLog.debug(CHANNEL, "the house was built", {"id": str(doc.get("id", "?")), "rooms": rooms.size()})
 	return DotResult.success(self)
 
-
-# --- Placement ---------------------------------------------------------------
 
 
 func _place_door(door: Dictionary) -> Dictionary:
@@ -325,15 +309,12 @@ func _build_room(room_id: String) -> void:
 
 		lamps[room_id] = list
 
-	# A room's name is on the wall over each of its doors, seen from the room you are leaving
-	# ([method _build_door]): it used to hang in mid-air in the middle of the room, a billboard
-	# turning to follow you (the first play test).
+	# A room's name is on the wall over each of its doors, seen from the room you are leaving ([method _build_door]).
 
 
-## Furniture along one wall: something to hide behind, as solid to a witch's sight as the
-## wall. Never in front of a door, and never further from the wall than an item is ever put
-## (items are at least a fifth of a cell in), so nothing a level needs is ever behind it.
-## Placed from a hash of the level, room and slot, so every machine furnishes alike.
+## Furniture along one wall, solid to a witch's sight. Never in front of a door, nor further from the wall than an item
+## sits (at least a fifth of a cell in), so nothing a level needs is behind it. Placed from a hash of level, room and slot,
+## so every machine furnishes alike.
 func _furnish(root: Node, room_id: String, rect: Rect2, side: String) -> void:
 	var name_text := str(rooms[room_id]["doc"].get("name", "")).to_lower()
 	var theme := "store"

@@ -3,13 +3,9 @@ extends DotGameCheckSuite
 const LmGame := preload("res://game/lm_game.gd")
 const LmVote := preload("res://game/lm_vote.gd")
 
-## Workshop houses: a subscribed pack's house is listed (M menu, ballot) and played in solo,
-## is not offered online, a map kind the game does not accept is left out, and a pack document
-## that is not a house of that id is refused.
-##
-## The fixture is a pack on disk under user:// registered in dot-core's shared content index as
-## a solo pack, the way the client shell's Workshop sync registers a mounted one. A house is a
-## directory: the entry's `scene` is its house.json, the levels sit beside it.
+## Workshop houses: a subscribed pack's house is listed (M menu, ballot) and played in solo, not offered online;
+## a map kind the game does not accept is left out and a pack document that is not a house of that id is refused.
+## Fixture: a solo pack on disk under user://, registered in dot-core's content index as the Workshop sync does.
 
 const ROOT := "user://lm_ws_fixture/"
 const CHECKS := 19

@@ -2,10 +2,8 @@ extends SceneTree
 
 const LmClient := preload("../game/lm_client.gd")
 
-## Boots the solo client and prints, per rendered frame, what a player would see: whether the
-## house, the player and the camera exist, where the body is, and whether the load gate still
-## covers the screen. A body that moves while uncovered, or a meter or clock that moves while
-## covered, is the glitch. Needs xvfb-run, never --headless:
+## Boots the solo client and prints, per rendered frame, what a player would see: whether house, player and camera exist, where the body is,
+## and whether the load gate covers the screen (a body moving uncovered, or a meter or clock moving covered, is the glitch). Needs xvfb-run:
 ##   xvfb-run -a godot --path . --script tools/load_probe.gd -- --offline [--frames=90] [--shot=N]
 var _client: Node = null
 var _frame := 0

@@ -1,11 +1,8 @@
 extends Node
 
-## What a player has done in the house, as dot-stats numbers, and what they have earned, as
-## achievements over them — reported to TMC's backbone when the server has one. The brief's
-## achievement for getting out of the whole house is "Out" below; the crown is [LmPlayer]'s.
-##
-## [b]It listens and nothing calls it[/b], as mg-dangerous-delivery's does: the house's own
-## signals are the whole input. Server only.
+## What a player has done in the house, as dot-stats numbers, and the achievements over them, reported to TMC's backbone when
+## the server has one. The brief's "Out" is getting out of the whole house; the crown is [LmPlayer]'s.
+## It listens and nothing calls it: the house's own signals are the whole input. Server only.
 
 const LmGame := preload("lm_game.gd")
 const LmStatsRelay := preload("lm_stats_relay.gd")

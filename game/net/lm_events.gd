@@ -1,22 +1,15 @@
 extends RefCounted
 
-## What the server tells a client and what a client asks, by kind. Kinds are their index on the
-## wire: append, never reorder.
-##
-## Movement is in snapshots, predicted, as in mg-deathrun. Everything here is small and rare, so
-## it is JSON, as in mg-dangerous-delivery: the hello with every level document, a player
-## arriving or leaving, and a player's own progress (what they hold, have opened, used and
-## taken) to that player alone — nobody else's business, and the doors in it are the ones the
-## owner's prediction has to walk through.
+## What the server tells a client and what a client asks, by kind. Kinds are their index on the wire: append, never reorder.
+## Movement is in snapshots, predicted. Everything here is small and rare, so it is JSON: the hello with every level document, arrivals and leavings,
+## and a player's own progress (held, opened, used, taken) to that player alone; the doors in it are what the owner's prediction walks through.
 
 enum Kind {
 	## You, the clock, how many levels follow, the settings a client needs.
 	HELLO,
-	## One level document, deflated ([method write_level]); never all in the HELLO. The 32 are
-	## 490 KB of JSON and about 90 KB deflated, and they are paced by the client's LEVELS acks
-	## (LmNetBridge.LEVEL_WINDOW), because a browser's WebSocket peer drops whatever arrives
-	## past its 64 KiB inbound buffer between two frames: a burst of the 32 lost 5 of them in
-	## Chromium. See docs/design.md, "The house on the wire".
+	## One level document, deflated ([method write_level]); never all in the HELLO (32 are 490 KB of JSON, about 90 KB deflated).
+	## Paced by the client's LEVELS acks (LmNetBridge.LEVEL_WINDOW): a browser WebSocket peer drops what arrives past its
+	## 64 KiB inbound buffer between frames. See docs/design.md, "The house on the wire".
 	LEVEL,
 	## A player is here, or has a new name or face: key, name, net id, the avatar document.
 	JOIN,

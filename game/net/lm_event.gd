@@ -12,13 +12,9 @@ var kind: int = 0
 var body: PackedByteArray = PackedByteArray()
 
 
-## [b]Built with [code]new(kind, body)[/code], and this file does not preload itself.[/b]
-## It used to, for a typed [code]static func of() -> DrEvent[/code] factory. A script that
-## [code]extends DotNetMessage[/code] and preloads ITSELF, first loaded from a module a
-## running [DotServer] loads at runtime — which is how every deployed server loads this
-## game — leaks the whole script graph at exit on Godot 4.7.2. Measured in
-## mg-buses-from-hell (8ed866c) with a two-line reproduction. The registry decodes with a
-## bare [code]new()[/code], which is why both arguments default.
+## Built with `new(kind, body)`; this file must not preload itself: a DotNetMessage that preloads ITSELF, loaded from a
+## module a running [DotServer] loads at runtime (every deployed server), leaks the script graph at exit on Godot 4.7.2.
+## The registry decodes with a bare `new()`, which is why both arguments default.
 func _init(p_kind: int = 0, p_body: PackedByteArray = PackedByteArray()) -> void:
 	kind = p_kind
 	body = p_body

@@ -1,17 +1,8 @@
 extends Node
 
-## The cameras and bodies the first play test asked for, in the real offline house:
-##
-## - the third-person camera flown round every room and both sides of every door of every
-##   level (dot-core's DotCameraCheck): never inside a wall, armed by the unprotected camera
-##   being in or behind one on some frames;
-## - the player walked (the forward action held) into a second player held still: with
-##   `mp_solidplayers 1` they stop at each other; with 0 they pass (the armed half);
-## - `mp_forceview` through the view key's own path;
-## - with `--render`, both views and a second player at the lens before and after the fade.
-##
-##   tools/camera_check.sh            # headless; exit 1 on a failure
-##   tools/camera_check.sh --render   # and the frames, in screenshots/cameras/
+## The first play test's cameras and bodies, in the real offline house: the third-person camera flown round every room and both sides of every door
+## (dot-core's DotCameraCheck, armed), a walked player vs a held one under `mp_solidplayers` 1 and 0, and `mp_forceview` through the view key.
+##   tools/camera_check.sh [--render]   # headless, exit 1 on failure; --render also writes frames to screenshots/cameras/
 
 const LmClient := preload("res://game/lm_client.gd")
 const LmGame := preload("res://game/lm_game.gd")

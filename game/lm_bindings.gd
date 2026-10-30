@@ -1,16 +1,8 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [DotMenuBindings] table: the action, the setting
-## that stores it, the words a player sees, the default, and the card it goes on.
-##
-## [b]A table, because four things read it:[/b] the client matches events against the actions,
-## the settings document stores one binding per row, the menu's Controls page draws a key per
-## row, and the help screen (H) lists them with the key each is on now. Until 2026-10-11 only
-## the use key was an action; the rest were keycodes in `LmClient._unhandled_input`.
-##
-## [b]Enter opens the command line as well as Slash[/b], as a fixed second key no row holds,
-## because it is where a chat line opens in most games. H is help, in every game of the family
-## (dot-menu adds the row), so nothing here may default to it.
+## Every key this game reads, as one dot-menu [DotMenuBindings] table: action, storing setting, label, default, card.
+## One table because the client, the settings document, the Controls page and the help screen (H) all read it.
+## Enter opens the command line as a fixed second key no row holds; H is help in every game (dot-menu adds the row), so nothing here may default to it.
 
 ## The use key's action, which `LmClient.USE_ACTION` names and the prompt draws.
 const USE := &"lm_use"

@@ -1,15 +1,8 @@
 extends RefCounted
 
-## The house's surfaces: a wallpaper, floorboards and a ceiling, painted into images once and
-## shared by every room, for the rooms to tint and offset.
-##
-## [b]Why they exist.[/b] The walls were one flat colour each. A flat surface has nothing for the eye
-## to judge distance by, so at range a wall read as a smooth glowing slab with the flashlight's
-## gradient across it. These have fine detail (stripes, damask, stains, grime) that MIPMAPS
-## average away at a distance, so far walls settle to a steady tone instead of shimmering, and
-## the detail comes back as you walk up. Every texture is tileable, drawn in world space
-## (triplanar, see [method LmLevel._surface]) so a 3 m wall and a 12 m one carry the same grain,
-## and nothing is stretched.
+## The house's surfaces: a wallpaper, floorboards and a ceiling, painted into images once and shared by every room, which tint and offset them.
+## Fine tileable detail that mipmaps average away at range, so far walls settle to a steady tone instead of shimmering or reading as a flat slab.
+## Drawn in world space (triplanar, see [method LmLevel._surface]) so a 3 m wall and a 12 m one carry the same grain.
 
 const SIZE := 256
 

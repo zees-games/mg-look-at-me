@@ -1,10 +1,7 @@
 extends DotNetBehaviour
 
-## One player on the wire: movement (dot-player-controller's own sync, predicted by the owner),
-## plus what everybody needs to draw them and what only they need to play.
-##
-## mg-deathrun's DrPlayerNet, without the weapons and the round: the same split between the
-## server simulating for real and the owner predicting with the same controller.
+## One player on the wire: movement (dot-player-controller's own sync, predicted by the owner), plus what everybody needs
+## to draw them and what only they need to play. The server simulates for real; the owner predicts with the same controller.
 
 const LmNetCommand := preload("lm_net_command.gd")
 const LmPlayer := preload("../lm_player.gd")

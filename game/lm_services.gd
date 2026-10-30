@@ -1,11 +1,8 @@
 extends DotGameServices
 
 ## Chat, voice and moderation over dot-game's base: what this game decides about them.
-##
-## [b]Everybody can talk to everybody, whatever level they are on[/b]: the lobby is for
-## socialising, and the house is too dark to be lonely in. Voice is push-to-talk and carries
-## across the house too; a proximity channel would be the obvious horror choice and is the
-## owner's to make. It is made now: proximity, a short radius, and a wall turns a voice down.
+## Everybody talks to everybody whatever level they are on (the lobby socialises); voice is push-to-talk with a short
+## proximity radius, and a wall turns it down.
 
 const LmGame := preload("lm_game.gd")
 

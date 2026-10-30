@@ -1,21 +1,8 @@
 extends Node3D
 
-## A witch, drawn: a tall grey corpse in a black skirt and a pointed hat (the Zombie Apocalypse
-## Kit's basic zombie, recoloured; tools/make_witch.py), shambling round the loop the clock puts
-## her on, her head turning the way her sight turns, and her sight laid on the floor as a red fan.
-##
-## [b]Only what the server already decides is drawn here, and how it is drawn is the rule a
-## player reads.[/b] Where she is and where she looks are [method LmLevel.witch_pose] (Decision 2);
-## whether she sees YOU is [method LmGame.exposure], asked by [LmClient] for the local player
-## alone. Seeing you, her eyes and the lamp in her face flare, her fan goes from a faint smear to
-## a hard red and her arms come up: the meter is filling, and the way out of it is out of the fan.
-##
-## [b]A creature, not a cone in a hat, and not one of the players' people[/b] (2026-10-12; the
-## first play test saw no witch in 36 s, and the one there was a black cylinder). The family's
-## people were tried first and drew a cheerful girl in a crop top; the kit's zombie on the same
-## rig has a skull's face and reaching arms, and its own clips (walk, idle, attack_idle, attack),
-## so nothing is retargeted. The skirt is a cone from the hips to the floor, wide enough that her
-## stride stays inside it: she seems to glide.
+## A witch, drawn: the zombie kit's basic zombie recoloured (tools/make_witch.py) in a black skirt and pointed hat, shambling her clock loop, head turning with her sight, which lies on the floor as a red fan.
+## Only what the server already decides is drawn: pose is [method LmLevel.witch_pose] (Decision 2), whether she sees YOU is [method LmGame.exposure], asked by [LmClient] for the local player alone.
+## Seeing you, her eyes and lamp flare, the fan goes hard red and her arms come up: the meter is filling and the way out is out of the fan. The skirt is a cone to the floor so her stride cannot show.
 
 const CHANNEL := "lookatme.witch"
 
@@ -273,19 +260,13 @@ func _fan(sight: float, cone: float) -> MeshInstance3D:
 	return mesh
 
 
-## Where the clock puts her this frame: at [param at], walking toward [param facing] (radians)
-## at [param speed] metres a second, her head and her sight turned [param head] further.
-## Returns the metres she moved.
-##
-## [b]The speed is her loop's, not measured[/b]: her pose moves when the clock ticks, and a
-## frame between two ticks (any display faster than the tick rate) measured her standing still,
-## so she flickered between her walk and her idle. A negative [param speed] measures it (the
-## caught player's witch, who is placed by the camera).
 ## How far she is into listening, 0 to 1 (see [method set_listening]).
 var listening := 0.0
 const LISTEN_TILT := 0.45
 
 
+## Where the clock puts her this frame: at [param at], walking toward [param facing] (radians) at [param speed] m/s, head and sight turned [param head] further. Returns the metres she moved.
+## The speed is her loop's, not measured: between two ticks a measured speed read zero and she flickered between walk and idle. A negative [param speed] measures it (the caught player's witch, placed by the camera).
 func place(at: Vector3, facing: float, head: float, delta: float, speed: float = -1.0) -> float:
 	var moved := 0.0 if _last_at == Vector3.INF else Vector2(at.x - _last_at.x, at.z - _last_at.z).length()
 	_last_at = at

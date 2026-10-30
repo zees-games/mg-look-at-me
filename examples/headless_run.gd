@@ -1,8 +1,7 @@
 extends "headless_run_witch.gd"
 
-## The house, headless: every level built and finished, doors that are open for one player and
-## shut for another, what a witch can see, being caught, the commands, and winning.
-##
+## The house, headless: every level built and finished, doors open for one player and shut for another,
+## what a witch can see, being caught, the commands, and winning.
 ##   godot --headless --path . res://examples/headless_run.tscn
 
 const SECTIONS := 23

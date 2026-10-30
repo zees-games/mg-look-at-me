@@ -1,14 +1,8 @@
 extends Node
 
-## A minute of level 1, played by a script under xvfb, seen and heard: a frame at each beat and
-## the whole mix recorded off the master bus, so both can be looked at and measured.
-##
+## A minute of level 1 played by a script under xvfb, seen and heard: a frame at each beat and the whole mix recorded off the master bus.
 ##   tools/playthrough.sh          # screenshots/play_*.png, screenshots/play.wav, and the levels
-##
-## The beats: the lobby; the doorway to the Workshop and its plaque; the Workshop door opened;
-## the witch walking the rooms the red key is in, seen from the side, out of her sight; in her
-## sight (the stinger, her flare); a second later (the heartbeat, the meter); caught (her face,
-## the shriek); back in the lobby with the flashlight off.
+## Beats: lobby, Workshop doorway and door, the witch out of sight then in her sight (stinger, flare, heartbeat, meter), caught (her face, the shriek), back in the lobby.
 
 const LmClient := preload("res://game/lm_client.gd")
 const LmGame := preload("res://game/lm_game.gd")

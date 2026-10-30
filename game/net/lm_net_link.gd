@@ -21,7 +21,7 @@ const CHANNEL_VOICE := 2
 ## The bridge these calls are delivered to. Set by whoever creates this node.
 var bridge: Node = null
 
-## Whether this end is the authority. Used to refuse an obviously misrouted call early.
+## Whether this end is the authority; a misrouted call is refused early.
 var is_server: bool = false
 
 ## Where calls go instead of onto the network: `func(method: StringName, peer_id: int, payload: PackedByteArray)`.
