@@ -152,7 +152,7 @@ func _game_load() -> DotResult:
 	progress = LmProgress.new()
 	progress.name = "Progress"
 	add_child(progress)
-	var made := progress.setup(world, "user://lookatme_achievements", true)
+	var made := progress.setup(world, "user://lookatme_achievements", false)
 
 	if not made.ok:
 		DotLog.result(CHANNEL, "progress is off", made)
@@ -164,6 +164,7 @@ func _game_load() -> DotResult:
 
 			if peer > 0:
 				bridge.call("notice", peer, "Achievement: %s (+%d)" % [title, points]))
+		var _report := bind_stats_report(progress.set_reporting)
 
 	if not world.levels.is_empty():
 		var _reported := report_map(str((world.levels[1] as Node).get("doc").get("id", "lm_01")))

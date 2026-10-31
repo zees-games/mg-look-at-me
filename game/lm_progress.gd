@@ -16,6 +16,10 @@ const WINS := &"lm.wins"
 
 signal earned(key: StringName, title: String, points: int)
 
+const REPORT_INTERVAL := 60.0
+
+var _report_timer: Timer
+
 var game: LmGame = null
 var stats: DotStatsTracker = null
 var achievements: DotAchievementTracker = null
@@ -125,6 +129,37 @@ func setup(world: LmGame, directory: String, report: bool) -> DotResult:
 	game.won.connect(func(key: StringName) -> void: record(key, WINS))
 	game.player_left.connect(leave)
 	return DotResult.success(self)
+
+
+## Turns the backbone report on or off at run time (the family cvar `stats_report`); the cvar is bound after setup(), so setup() alone cannot see it.
+func set_reporting(on: bool) -> DotResult:
+	if stats == null:
+		return DotResult.fail(DotError.CODE_STATE, "There is no stats tracker.")
+
+	if achievements != null:
+		achievements.report_to_backbone = on
+
+	if not on:
+		stats.report_to_backbone = false
+		return DotResult.success(false)
+
+	stats.report_to_backbone = true
+	stats.define_on_start = true
+
+	if not stats.reporter.is_available():
+		stats.report_to_backbone = false
+		DotLog.warn(CHANNEL, "stats reporting needs a backbone client with STATS_WRITE; staying off")
+		return DotResult.fail(DotError.CODE_STATE, "No backbone client to report stats through.")
+
+	if _report_timer == null:
+		_report_timer = Timer.new()
+		_report_timer.name = "StatsReportTimer"
+		_report_timer.wait_time = REPORT_INTERVAL
+		_report_timer.autostart = true
+		_report_timer.timeout.connect(func() -> void: stats.flush())
+		add_child(_report_timer)
+
+	return DotResult.success(true)
 
 
 ## Notes the stable stats key of a player's seat; a player never noted files under the world key.
