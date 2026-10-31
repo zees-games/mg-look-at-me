@@ -46,6 +46,13 @@ func _ready() -> void:
 	if _args.has("houses") and client.start_level > 1:
 		client.game.send_to(client.player, client.start_level)
 		await get_tree().physics_frame
+	# A house change puts the loading cover back up until the new house is built; wait for it.
+	if _args.has("houses"):
+		var cover: DotGameClient = client.get("platform")
+		var frames := 0
+		while cover != null and not cover.is_shown() and frames < 1200:
+			await get_tree().process_frame
+			frames += 1
 
 	if view == "mapmenu":
 		var maps: Object = client.get("settings").menu.maps

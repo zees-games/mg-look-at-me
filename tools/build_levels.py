@@ -83,6 +83,7 @@ ASYLUM_NAMES = [
     "Admissions", "The Day Room", "Lights Out", "Ward B", "Solitary", "The Dispensary", "Visiting Hours",
     "Night Shift", "The Records Room", "Hydrotherapy", "The East Wing", "The Chapel", "Restraints",
     "The Director's Office", "The Basement", "Quarantine", "The Morgue Stair", "Discharge",
+    "The Locked Ward", "Lights Up",
 ]
 
 # Every house the builder writes: id -> (directory, how many levels, seed base, level names,
@@ -91,7 +92,7 @@ ASYLUM_NAMES = [
 # house is a directory of the same documents.
 HOUSES = {
     "house": ("levels", LEVELS, 1000, LEVEL_NAMES, "The Lobby", "The House", ROOM_NAMES, CORRIDOR_NAMES, STAIR_NAMES),
-    "asylum": ("houses/asylum", 18, 5000, ASYLUM_NAMES, "Reception", "The Asylum", ASYLUM_ROOMS, ASYLUM_CORRIDORS, ASYLUM_STAIRS),
+    "asylum": ("houses/asylum", 20, 5000, ASYLUM_NAMES, "Reception", "The Asylum", ASYLUM_ROOMS, ASYLUM_CORRIDORS, ASYLUM_STAIRS),
 }
 
 # Houses laid out by hand over a Workshop map's plan (tools/bsp_layout.py reads the plan; the layout
