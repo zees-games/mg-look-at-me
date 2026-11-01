@@ -33,7 +33,7 @@ func _ready() -> void:
 	if view == "cover":
 		for _i in 2:
 			await RenderingServer.frame_post_draw
-		_save(client)
+		await _save(client)
 		return
 	await get_tree().physics_frame
 
@@ -62,7 +62,7 @@ func _ready() -> void:
 		await get_tree().create_timer(0.6).timeout
 		for _i in 3:
 			await RenderingServer.frame_post_draw
-		_save(client)
+		await _save(client)
 		return
 	await _ready_2(client, view, action)
 
@@ -188,7 +188,7 @@ func _ready_4(client: LmClient, view: String, action: Array, player: Variant, le
 		print("glimpse: fired %s, drawn %s at %s, player at %s" % [player.fired.keys(), her != null and her.visible,
 			her.global_position if her != null else Vector3.ZERO, player.global_position])
 
-	_save(client)
+	await _save(client)
 
 
 func _stand_for_glimpse(client: LmClient, player: Variant, level: Variant) -> void:
@@ -322,6 +322,7 @@ func _save(client: Node) -> void:
 	var path := ProjectSettings.globalize_path(str(_args.get("out", "res://screenshots/shot.png")))
 	var saved := get_viewport().get_texture().get_image().save_png(path)
 	print("saved %s (%s)" % [path, error_string(saved)])
+	await DotShotSeq.new().record(get_tree(), path)
 	get_tree().quit()
 
 
