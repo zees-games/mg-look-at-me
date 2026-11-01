@@ -1,7 +1,7 @@
 #!/usr/bin/env python3 -I
 """A thin adapter from dot-map's dotbsp intermediate JSON to a Look At Me floor skeleton.
 
-dotbsp (../dot-map/tools/bsp) reads the compiled map; this only decides what the game wants from
+dotbsp (../dot-map-convert) reads the compiled map; this only decides what the game wants from
 it: where the rooms are. Wall brushes (world solids that stand through a storey) are rasterised,
 the space outside the building is flood-filled away, the rest is eroded so that a doorway pinches
 rooms apart, and each blob becomes rectangles on the game's 4 m grid. The result is a layout
