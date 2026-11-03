@@ -52,7 +52,7 @@ func _net_config() -> DotNetConfig:
 	# Players are predicted by their owners, as in every first-person game here.
 	config.enable_prediction = true
 	config.enable_lag_compensation = false
-	config.max_entities_per_snapshot = 64
+	config.max_entities_per_snapshot = 0
 	return config
 
 

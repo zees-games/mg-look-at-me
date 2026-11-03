@@ -261,7 +261,7 @@ func _connect() -> bool:
 	cfg.world_extent = LmGame.NET_WORLD_EXTENT
 	cfg.enable_prediction = true
 	cfg.enable_lag_compensation = false
-	cfg.max_entities_per_snapshot = 64
+	cfg.max_entities_per_snapshot = 0
 	_client_net.config = cfg
 	_client_side.add_child(_client_net)
 	var _set := _client_net.setup()
