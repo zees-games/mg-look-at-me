@@ -1,6 +1,47 @@
 [
-  {"paths": [""], "licence": "MIT", "author": "TMC", "url": "https://github.com/zees-games/mg-look-at-me", "title": "mg-look-at-me (original content; bundled addons carry their own licences in their repositories)"},
-  {"paths": ["assets/kenney"], "licence": "CC0-1.0", "author": "Kenney", "url": "https://kenney.nl", "title": "Kenney Furniture Kit and sounds"},
-  {"paths": ["assets/witch"], "licence": "CC0-1.0", "author": "Quaternius", "url": "https://quaternius.com/packs/zombieapocalypsekit.html", "title": "Witch, from the Zombie Apocalypse Kit"},
-  {"paths": ["assets/clown"], "licence": "CC-BY-4.0", "author": "Nwilly_art", "url": "https://sketchfab.com/3d-models/da-clown-stylizedbustchallenge-59bdbb3cc60748b995106b6020b25303", "title": "Da-Clown #StylizedBustChallenge, modified"}
+ {
+  "paths": [
+   ""
+  ],
+  "licence": "MIT",
+  "author": "TMC",
+  "url": "https://github.com/zees-games/mg-look-at-me",
+  "title": "mg-look-at-me (original content; bundled addons carry their own licences in their repositories)"
+ },
+ {
+  "paths": [
+   "assets/kenney"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Kenney",
+  "url": "https://kenney.nl",
+  "title": "Kenney Furniture Kit and sounds"
+ },
+ {
+  "paths": [
+   "assets/witch"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Quaternius",
+  "url": "https://quaternius.com/packs/zombieapocalypsekit.html",
+  "title": "Witch, from the Zombie Apocalypse Kit"
+ },
+ {
+  "paths": [
+   "assets/clown"
+  ],
+  "licence": "CC-BY-4.0",
+  "author": "Nwilly_art",
+  "url": "https://sketchfab.com/3d-models/da-clown-stylizedbustchallenge-59bdbb3cc60748b995106b6020b25303",
+  "title": "Da-Clown #StylizedBustChallenge, modified"
+ },
+ {
+  "paths": [
+   "audio"
+  ],
+  "licence": "CC0-1.0",
+  "author": "Kenney and TMC",
+  "url": "https://kenney.nl",
+  "title": "Kenney Impact, RPG and Interface sounds plus sounds synthesised for this game (audio/CREDITS.md)"
+ }
 ]
