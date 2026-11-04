@@ -1,0 +1,15 @@
+{
+	"format": 1,
+	"mirrors": [],
+	"origin": "https://dev.dotgames.org/content",
+	"packs": [
+		{
+			"id": "gamemann/mg-look-at-me",
+			"into": "",
+			"kind": "pack",
+			"manifest_sha256": "bbf78e580c1f5e9778ff14e18dca92f976e5f1156ea76d93b4a40c577e224afa",
+			"optional": false,
+			"version": "0.1.7"
+		}
+	]
+}
