@@ -63,6 +63,15 @@ var _dying: Dictionary = {}
 var _glimpse: Node3D = null
 var _glimpse_left := 0.0
 var _hud: Control = null
+var _touch: DotTouchButtons = null
+
+## Offsets are from the bottom-right corner (see [DotTouchButtons]); the game has no weapon, so use and flashlight lead.
+const TOUCH_LAYOUT: Array[Dictionary] = [
+	{"id": &"use", "label": "USE", "offset": Vector2(96, 110), "radius": 54.0},
+	{"id": &"flash", "label": "LIGHT", "offset": Vector2(210, 80), "radius": 38.0},
+	{"id": &"jump", "label": "JUMP", "offset": Vector2(60, 238), "radius": 36.0},
+	{"id": &"crouch", "label": "DUCK", "offset": Vector2(196, 184), "radius": 34.0},
+]
 var _step: Label = null
 var _objective: VBoxContainer = null
 var _holds: Label = null
