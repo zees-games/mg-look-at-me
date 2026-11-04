@@ -41,12 +41,13 @@ func _register_net_vars() -> void:
 		if spec["property"] == &"net_crouch":
 			declaration.range_of(0.0, 1.0)
 
-	replicate(&"net_level", DotNetVar.Type.UINT).bits(7)
-	replicate(&"net_flashlight", DotNetVar.Type.BOOL)
-	replicate(&"net_won", DotNetVar.Type.BOOL)
-	var _meter := replicate(&"net_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(8).to_owner_only()
-	var _caught := replicate(&"net_caught", DotNetVar.Type.BOOL).to_owner_only()
-	replicate(&"net_warp", DotNetVar.Type.UINT).bits(4)
+	# Server-driven: only pull() writes these, never the owner's prediction, so a change is not a misprediction.
+	replicate(&"net_level", DotNetVar.Type.UINT).bits(7).server_driven()
+	replicate(&"net_flashlight", DotNetVar.Type.BOOL).server_driven()
+	replicate(&"net_won", DotNetVar.Type.BOOL).server_driven()
+	var _meter := replicate(&"net_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(8).to_owner_only().server_driven()
+	var _caught := replicate(&"net_caught", DotNetVar.Type.BOOL).to_owner_only().server_driven()
+	replicate(&"net_warp", DotNetVar.Type.UINT).bits(4).server_driven()
 
 
 func _net_apply_input(input: DotNetInput, _tick: int) -> void:
