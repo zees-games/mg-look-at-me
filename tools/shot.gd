@@ -16,6 +16,10 @@ func _ready() -> void:
 	if _args.has("workshop") or "--workshop" in OS.get_cmdline_user_args():
 		_add_workshop_fixture()
 
+	# --touch: the phone layout (buttons, no keyboard hints).
+	if "--touch" in OS.get_cmdline_user_args():
+		DotPlatform.touch_override = 1
+
 	var client := LmClient.new()
 	client.start_level = int(_args.get("level", "1"))
 	add_child(client)
