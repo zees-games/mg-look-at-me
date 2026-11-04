@@ -38,6 +38,9 @@ func _init() -> void:
 	bindings = LmBindings.make()
 	# The HUD's key line says H (`LmClient._refresh_key_line`); a corner plate would say it twice.
 	config.help_hint = &"off"
+	# By name: an older dot-menu has no such property, and assigning it would stop this function.
+	if &"menu_button_corner" in config:
+		config.set(&"menu_button_corner", &"top_left")
 	var _layered := config.load_layered()
 
 
