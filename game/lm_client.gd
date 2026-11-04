@@ -181,6 +181,48 @@ func _start_remote_workbench() -> void:
 	platform.add_workbench(wb)
 
 
+## A touch sampler on a touch device (it is a [DotFpsSampler] and still reads keys), else the plain one.
+func _new_sampler(tunables: DotFpsTunables) -> DotFpsSampler:
+	var sampler: DotFpsSampler
+	if DotPlatform.has_touch():
+		var touch := DotFpsTouchSampler.new(tunables)
+		touch.set_screen_width(get_viewport().get_visible_rect().size.x)
+		if _touch != null:
+			touch.ignore_fn = _touch.contains_point
+		sampler = touch
+	else:
+		sampler = DotFpsSampler.new(tunables)
+	DotFpsSampler.register_default_actions(sampler)
+	return sampler
+
+
+## The on-screen buttons: use and the flashlight act as their keys do, jump and crouch are held on the sampler.
+func _build_touch() -> void:
+	_touch = DotTouchButtons.new()
+	_touch.name = "TouchButtons"
+	_touch.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_touch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_touch.set_buttons(TOUCH_LAYOUT)
+	_touch.button_down.connect(_touch_button.bind(true))
+	_touch.button_up.connect(_touch_button.bind(false))
+	_hud.add_child(_touch)
+	for s: DotFpsSampler in [_sampler, player.sampler if player != null else null]:
+		if s is DotFpsTouchSampler:
+			(s as DotFpsTouchSampler).ignore_fn = _touch.contains_point
+
+
+func _touch_button(id: StringName, down: bool) -> void:
+	if down and not _covered() and not _command.visible:
+		if id == &"use":
+			_act("use")
+		elif id == &"flash":
+			_act("flashlight")
+	var bit := DotFpsCommand.BUTTON_JUMP if id == &"jump" else (DotFpsCommand.BUTTON_CROUCH if id == &"crouch" else 0)
+	var sampler := _sampler if not _offline else (player.sampler if player != null else null)
+	if bit != 0 and sampler is DotFpsTouchSampler:
+		(sampler as DotFpsTouchSampler).hold(bit, down and not _covered())
+
+
 ## The player's settings, bound to the camera and the sampler's tunables. See [LmSettings].
 ## [method _adopt_player] binds the controller's tunables for a later player.
 func _build_settings() -> void:
@@ -289,11 +331,9 @@ func _adopt_player(p: LmPlayer) -> void:
 		platform.gate.freeze(player)
 
 	if _offline:
-		player.sampler = DotFpsSampler.new(player.controller.tunables)
-		DotFpsSampler.register_default_actions(player.sampler)
+		player.sampler = _new_sampler(player.controller.tunables)
 	else:
-		_sampler = DotFpsSampler.new(player.controller.tunables)
-		DotFpsSampler.register_default_actions(_sampler)
+		_sampler = _new_sampler(player.controller.tunables)
 
 	if settings != null:
 		settings.bind_look(player.controller.tunables)
@@ -448,6 +488,7 @@ func _build_hud() -> void:
 	fill.bg_color = Color(0.75, 0.05, 0.05)
 	_meter_bar.add_theme_stylebox_override("fill", fill)
 	_hud.add_child(_meter_bar)
+	_build_touch()
 
 	# Under the crosshair: what the use key does right now. Its colours are the menu's theme
 	# (set on the HUD's root, see [method _build_settings]) with [method piece_theme]'s accent.

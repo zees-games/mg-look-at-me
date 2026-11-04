@@ -16,6 +16,10 @@ func _ready() -> void:
 	if _args.has("workshop") or "--workshop" in OS.get_cmdline_user_args():
 		_add_workshop_fixture()
 
+	# --touch=1 (with --res=844x390): a touch device, so the on-screen buttons draw.
+	if str(_args.get("touch", "0")) == "1":
+		DotPlatform.touch_override = 1
+
 	var client := LmClient.new()
 	client.start_level = int(_args.get("level", "1"))
 	add_child(client)
