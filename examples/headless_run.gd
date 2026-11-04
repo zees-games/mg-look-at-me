@@ -130,7 +130,16 @@ func _test_voice() -> void:
 	_check(heard.has(3) and absf(heard[3] - expected_wall) < 0.02, "through a wall it is turned down by the occlusion gain", "%.3f expected %.3f" % [heard.get(3, -1.0), expected_wall])
 	_check(heard.has(3) and heard.has(2) and expected_wall < expected_clear and not heard.has(5), "a wall is quieter than open floor, and past the radius nothing is sent")
 
-	# Witches: a relayed frame is a sound for a moment, and the cvar's field turns it off.
+	_voice_witches_hear()
+
+	services.free()
+	router.free()
+	await get_tree().process_frame
+	_finished_section()
+
+
+## Witches: a relayed frame is a sound for a moment, and the cvar's field turns it off.
+func _voice_witches_hear() -> void:
 	var p: LmPlayer = game.players[&"a"]
 	p.voice_left = 0.0
 	var quiet := game.noise_radius(p)
@@ -143,11 +152,6 @@ func _test_voice() -> void:
 	_check(game.noise_radius(p) == 0.0, "and not when the switch is off")
 	game.config.witch_hear_voice = true
 	p.voice_left = 0.0
-
-	services.free()
-	router.free()
-	await get_tree().process_frame
-	_finished_section()
 
 
 ## Sanity scares, demons and the look-behind whisper: the director's schedule against the meter,

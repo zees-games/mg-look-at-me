@@ -55,53 +55,14 @@ func _ready() -> void:
 	# 4. The witch, seen from across a room and out of her sight: her walk, her hum, her steps.
 	# From the middle of whichever of her two rooms she is not in, waiting for a moment she
 	# is in view, within 12 m, and not looking this way.
-	var seconds := game.seconds_now()
-	var pose := {}
-	var her := Vector3.ZERO
-	var on_her_walk: Array = []
-	for point: Array in level.doc["witches"][0]["path"]:
-		if str(point[0]) == "room" and not on_her_walk.has(str(point[1])):
-			on_her_walk.append(str(point[1]))
-	for i in 600:
-		seconds = game.seconds_now()
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
-		her = level.position + (pose["at"] as Vector3)
-		var hers := level.room_at(pose["at"])
-		# The next room on her walk from the one she is in: she comes through its door.
-		var mine: String = on_her_walk[(on_her_walk.find(hers) + 1) % on_her_walk.size()] if on_her_walk.has(hers) else on_her_walk[0]
-		var spot := level.position + level.room_centre(mine)
-		_stand(me, spot, her + Vector3(0, 1.4, 0))
-		await get_tree().physics_frame
-		if spot.distance_to(her) < 12.0 and spot.distance_to(her) > 5.0 and game.exposure(me, level, 0, game.seconds_now()) == 0.0 and hers != "":
-			break
+	await _seek_view(game, level, me)
 	await _beat("4_witch_walking", 0.2)
-	var facing := 0.0
 	# 5. In her sight, 3 m in front of her: the stinger, her eyes flare, she reaches.
-	for i in 90:
-		seconds = game.seconds_now()
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
-		facing = float(pose["facing"]) + float(pose["head"])
-		var ahead := Vector3(-sin(facing), 0, -cos(facing))
-		her = level.position + (pose["at"] as Vector3)
-		# Only where 3 m in front of her is the room she is in: never inside a wall.
-		if level.room_at((pose["at"] as Vector3) + ahead * 3.0) == level.room_at(pose["at"]):
-			_stand(me, her + ahead * 3.0, her + Vector3(0, 1.6, 0))
-		me.meter = minf(me.meter, 0.3)
-		await get_tree().physics_frame
+	await _stare(game, level, me, 90, 0.3)
 	await _beat("5_seen", 0.1)
 
 	# 6. Still in it: the meter fills and the heart races.
-	for i in 45:
-		seconds = game.seconds_now()
-		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
-		facing = float(pose["facing"]) + float(pose["head"])
-		var ahead := Vector3(-sin(facing), 0, -cos(facing))
-		her = level.position + (pose["at"] as Vector3)
-		# Only where 3 m in front of her is the room she is in: never inside a wall.
-		if level.room_at((pose["at"] as Vector3) + ahead * 3.0) == level.room_at(pose["at"]):
-			_stand(me, her + ahead * 3.0, her + Vector3(0, 1.6, 0))
-		me.meter = minf(me.meter, 0.85)
-		await get_tree().physics_frame
+	await _stare(game, level, me, 45, 0.85)
 	await _beat("6_heartbeat", 0.1)
 
 	# 7. Caught: her face in yours, a shriek.
@@ -123,6 +84,44 @@ func _ready() -> void:
 	var saved := wav.save_to_wav(path) if wav != null else ERR_UNAVAILABLE
 	print("recorded %s (%s), %.1f s, driver %s" % [path, error_string(saved), float(wav.data.size()) / float(wav.mix_rate * 4) if wav != null else 0.0, AudioServer.get_driver_name()])
 	get_tree().quit(0 if saved == OK else 1)
+
+
+## Waits for a moment she is in view, within 12 m, and not looking this way, from the middle
+## of whichever of her two rooms the player is not in.
+func _seek_view(game: LmGame, level: LmLevel, me: LmPlayer) -> void:
+	var seconds := game.seconds_now()
+	var pose := {}
+	var her := Vector3.ZERO
+	var on_her_walk: Array = []
+	for point: Array in level.doc["witches"][0]["path"]:
+		if str(point[0]) == "room" and not on_her_walk.has(str(point[1])):
+			on_her_walk.append(str(point[1]))
+	for i in 600:
+		seconds = game.seconds_now()
+		pose = level.witch_pose(0, seconds, game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
+		her = level.position + (pose["at"] as Vector3)
+		var hers := level.room_at(pose["at"])
+		# The next room on her walk from the one she is in: she comes through its door.
+		var mine: String = on_her_walk[(on_her_walk.find(hers) + 1) % on_her_walk.size()] if on_her_walk.has(hers) else on_her_walk[0]
+		var spot := level.position + level.room_centre(mine)
+		_stand(me, spot, her + Vector3(0, 1.4, 0))
+		await get_tree().physics_frame
+		if spot.distance_to(her) < 12.0 and spot.distance_to(her) > 5.0 and game.exposure(me, level, 0, game.seconds_now()) == 0.0 and hers != "":
+			break
+
+
+## Stands the player 3 m in front of the witch for frames, holding the meter at or under cap.
+func _stare(game: LmGame, level: LmLevel, me: LmPlayer, frames: int, cap: float) -> void:
+	for i in frames:
+		var pose: Dictionary = level.witch_pose(0, game.seconds_now(), game.config.witch_speed_scale, game.config.witch_head_sweep, game.config.witch_door_seconds)
+		var facing := float(pose["facing"]) + float(pose["head"])
+		var ahead := Vector3(-sin(facing), 0, -cos(facing))
+		var her := level.position + (pose["at"] as Vector3)
+		# Only where 3 m in front of her is the room she is in: never inside a wall.
+		if level.room_at((pose["at"] as Vector3) + ahead * 3.0) == level.room_at(pose["at"]):
+			_stand(me, her + ahead * 3.0, her + Vector3(0, 1.6, 0))
+		me.meter = minf(me.meter, cap)
+		await get_tree().physics_frame
 
 
 ## The player at [param from], looking at [param at].

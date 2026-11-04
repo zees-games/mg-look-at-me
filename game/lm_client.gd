@@ -416,6 +416,11 @@ func _build_hud() -> void:
 	_vignette.material = material
 	_hud.add_child(_vignette)
 
+	_build_hud_text()
+	_build_hud_controls()
+
+
+func _build_hud_text() -> void:
 	# The step and what you hold, top left, as wide as the window and wrapping inside it. They
 	# were Labels with no width, and at some window sizes the step ran off the edge ("…d key",
 	# the first play test); a long step now takes a second line instead.
@@ -449,6 +454,9 @@ func _build_hud() -> void:
 	_meter_bar.add_theme_stylebox_override("fill", fill)
 	_hud.add_child(_meter_bar)
 
+
+
+func _build_hud_controls() -> void:
 	# Under the crosshair: what the use key does right now. Its colours are the menu's theme
 	# (set on the HUD's root, see [method _build_settings]) with [method piece_theme]'s accent.
 	prompt = DotKeyPrompt.new()

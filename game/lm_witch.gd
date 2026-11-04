@@ -132,6 +132,12 @@ func _dress() -> void:
 	skirt.position = Vector3(0, HEIGHT * 0.26 + 0.02, 0)
 	add_child(skirt)
 
+	var head := _mount_head()
+	_dress_head(head, black)
+
+
+## The node her hat, hair and eyes hang from, on the head bone when she has a skeleton.
+func _mount_head() -> Node3D:
 	var head := Node3D.new()
 	head.name = "HeadMount"
 
@@ -148,7 +154,10 @@ func _dress() -> void:
 	else:
 		head.position = Vector3(0, HEIGHT, 0)
 		add_child(head)
+	return head
 
+
+func _dress_head(head: Node3D, black: StandardMaterial3D) -> void:
 	var brim := MeshInstance3D.new()
 	var brim_mesh := CylinderMesh.new()
 	brim_mesh.top_radius = 0.46

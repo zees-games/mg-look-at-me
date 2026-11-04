@@ -589,35 +589,9 @@ func _test_rotation_file() -> void:
 	_check(game.houses.has(&"rot_2") and not game.rotating_ids().has(&"rot_2") and not game.in_rotation(&"rot_2"),
 		"and stays installed but is not what the rotation offers")
 
-	if vote != null:
-		vote.call("refresh_houses")
-		var ballot: Array = []
-		for choice in (vote.get("source") as DotVoteListSource).entries:
-			ballot.append(String(choice.id))
-		_check(ballot.has("rot_0") and not ballot.has("rot_2") and not ballot.has("asylum"),
-			"never on a ballot", str(ballot))
-		var refused := _run_command("nominate rot_2")
-		_check(not _said(refused, "Nominated"), "refused by nominate", ", ".join(refused))
-		var accepted := _run_command("nominate rot_0")
-		# A ballot may be running already, which refuses any nomination; what matters is that a
-		# house in the rotation is known to nominate and an unlisted one is not.
-		_check(not _said(accepted, "nothing called"), "while one in the rotation is known to it", ", ".join(accepted))
-	else:
-		_check(false, "never on a ballot", "no vote")
-		_check(false, "refused by nominate", "no vote")
-		_check(false, "while one in the rotation is known to it", "no vote")
+	_rotation_ballot(vote)
 
-	var out_row: Dictionary = {}
-	var in_row: Dictionary = {}
-	for row: Dictionary in game.house_rows():
-		if row["id"] == "rot_2":
-			out_row = row
-		elif row["id"] == "rot_0":
-			in_row = row
-	_check(not out_row.is_empty() and not bool(out_row["in_rotation"])
-			and str(out_row["name"]).contains("not in rotation"), "the house list marks it")
-	_check(not in_row.is_empty() and bool(in_row["in_rotation"])
-			and not str(in_row["name"]).contains("not in rotation"), "and leaves the rotating ones alone")
+	_rotation_rows()
 
 	var before := game.house_id
 	_check(game.change_house(&"rot_2").ok and game.house_id == &"rot_2",
@@ -628,13 +602,7 @@ func _test_rotation_file() -> void:
 		"a rotation switch takes effect")
 	_check(not game.switch_rotation("nowhere").ok, "and an unknown rotation changes nothing")
 
-	var seen: Array = []
-	for _i in 4:
-		var id := game.next_house()
-		seen.append(String(id))
-		game._rotation.note_played(id)
-	_check(seen[0] != seen[1] and seen[0] == seen[2] and seen[1] == seen[3]
-			and keep_b.has(seen[0]) and keep_b.has(seen[1]), "a cycle walks the rotation in turn", str(seen))
+	_rotation_cycle(keep_b)
 
 	_check(game.command_names("lm_house") == PackedStringArray(["gohouse"])
 			and game.command_names("lm_winners") == PackedStringArray(["lm_winners"]),
@@ -661,6 +629,50 @@ func _test_rotation_file() -> void:
 	if vote != null:
 		vote.call("refresh_houses")
 	_finished_section()
+
+
+func _rotation_ballot(vote: Node) -> void:
+	if vote != null:
+		vote.call("refresh_houses")
+		var ballot: Array = []
+		for choice in (vote.get("source") as DotVoteListSource).entries:
+			ballot.append(String(choice.id))
+		_check(ballot.has("rot_0") and not ballot.has("rot_2") and not ballot.has("asylum"),
+			"never on a ballot", str(ballot))
+		var refused := _run_command("nominate rot_2")
+		_check(not _said(refused, "Nominated"), "refused by nominate", ", ".join(refused))
+		var accepted := _run_command("nominate rot_0")
+		# A ballot may be running already, which refuses any nomination; what matters is that a
+		# house in the rotation is known to nominate and an unlisted one is not.
+		_check(not _said(accepted, "nothing called"), "while one in the rotation is known to it", ", ".join(accepted))
+	else:
+		_check(false, "never on a ballot", "no vote")
+		_check(false, "refused by nominate", "no vote")
+		_check(false, "while one in the rotation is known to it", "no vote")
+
+
+func _rotation_rows() -> void:
+	var out_row: Dictionary = {}
+	var in_row: Dictionary = {}
+	for row: Dictionary in game.house_rows():
+		if row["id"] == "rot_2":
+			out_row = row
+		elif row["id"] == "rot_0":
+			in_row = row
+	_check(not out_row.is_empty() and not bool(out_row["in_rotation"])
+			and str(out_row["name"]).contains("not in rotation"), "the house list marks it")
+	_check(not in_row.is_empty() and bool(in_row["in_rotation"])
+			and not str(in_row["name"]).contains("not in rotation"), "and leaves the rotating ones alone")
+
+
+func _rotation_cycle(keep_b: Array) -> void:
+	var seen: Array = []
+	for _i in 4:
+		var id := game.next_house()
+		seen.append(String(id))
+		game._rotation.note_played(id)
+	_check(seen[0] != seen[1] and seen[0] == seen[2] and seen[1] == seen[3]
+			and keep_b.has(seen[0]) and keep_b.has(seen[1]), "a cycle walks the rotation in turn", str(seen))
 
 
 func _until(condition: Callable, seconds: float) -> bool:

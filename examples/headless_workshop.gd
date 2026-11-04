@@ -38,12 +38,7 @@ func _write_house(dir: String, doc_id: String, with_level: bool) -> void:
 		file.close()
 
 
-func _test() -> void:
-	_entered += 1
-	_write_house("ws_cellar", "ws_cellar", true)
-	_write_house("ws_surf", "ws_surf", true)
-	_write_house("ws_bad", "somebody_else", true)
-
+func _add_fixture_pack() -> DotContentIndex:
 	var index := DotContentIndex.shared()
 	index.set_session(DotContentIndex.SESSION_SOLO)
 	var kind := "lookatme"
@@ -58,6 +53,16 @@ func _test() -> void:
 	})
 	_check(added.ok and (added.value as Array).size() == 3, "the fixture pack is in the index")
 	_check(LmGame.accepted_map_kinds() == PackedStringArray([kind]), "provides.json accepts the kind lookatme")
+	return index
+
+
+func _test() -> void:
+	_entered += 1
+	_write_house("ws_cellar", "ws_cellar", true)
+	_write_house("ws_surf", "ws_surf", true)
+	_write_house("ws_bad", "somebody_else", true)
+
+	var index := _add_fixture_pack()
 
 	var game := LmGame.new()
 	game.draws = false

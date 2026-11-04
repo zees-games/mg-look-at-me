@@ -395,6 +395,16 @@ func _plan(client: Node, level: LmLevel, floor_index: int) -> void:
 		var at: Vector3 = level.stations[id]["at"]
 		if absf(at.y - base) < 1.0:
 			_mark(level, at + Vector3(0, 2.0, 1.2), str(level.stations[id]["doc"]["name"]), Color(0.5, 0.9, 1.0), 40)
+	_mark_events(level, floor_index)
+	_mark_doors(level, base)
+
+	for i in level.witches.size():
+		for point: Vector3 in level.witches[i]["points"]:
+			if absf(point.y - base) < 1.0:
+				_mark(level, point + Vector3(0, 2.6, 0), "w%d" % i, Color(0.9, 0.4, 1.0), 32)
+
+
+func _mark_events(level: LmLevel, floor_index: int) -> void:
 	for id: String in level.events:
 		var event: Dictionary = level.events[id]
 		var where := ""
@@ -408,6 +418,9 @@ func _plan(client: Node, level: LmLevel, floor_index: int) -> void:
 		if where != "" and int(level.rooms[where]["floor"]) == floor_index:
 			var at: Vector3 = level._room_point(where, event.get("at", [0.5, 0.75]))
 			_mark(level, at + Vector3(0, 2.5, 0), "! %s" % str(event["do"]), Color(1.0, 0.35, 0.3), 48)
+
+
+func _mark_doors(level: LmLevel, base: float) -> void:
 	# The doors, in their colours, over the walls: a plan with no doors in it is a set of boxes.
 	for id: String in level.doors:
 		var door: Dictionary = level.doors[id]
@@ -426,11 +439,6 @@ func _plan(client: Node, level: LmLevel, floor_index: int) -> void:
 		mark.material_override = paint
 		level.add_child(mark)
 		mark.position = middle + Vector3(0, 4.0, 0)
-
-	for i in level.witches.size():
-		for point: Vector3 in level.witches[i]["points"]:
-			if absf(point.y - base) < 1.0:
-				_mark(level, point + Vector3(0, 2.6, 0), "w%d" % i, Color(0.9, 0.4, 1.0), 32)
 
 
 func _mark(level: Node3D, at: Vector3, text: String, colour: Color, size: int) -> void:

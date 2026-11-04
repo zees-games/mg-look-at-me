@@ -218,28 +218,7 @@ func _boot() -> bool:
 ## A client: a [DotClientLink] on ENet only, in a world of its own (its player is a body, and
 ## the server's is another one in the same place), and the netcode `LmClient._build_netcode`
 ## builds, minus everything that draws.
-func _connect() -> bool:
-	_section("a client on ENet joins through the relay and is sent the house")
-
-	var view := SubViewport.new()
-	view.own_world_3d = true
-	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(view)
-	_client_side = Node.new()
-	_client_side.name = "ClientSide"
-	view.add_child(_client_side)
-	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _client_side.get_path())
-
-	_link = DotClientLink.new()
-	_link.name = "Server"
-	_link.player_name = "Walker"
-	_link.transport_preference = "udp"
-	_link.udp_address = "127.0.0.1:%d" % _relay.port()
-
-	_client_side.add_child(_link)
-	_link.spawned.connect(func() -> void: _spawned[0] = true)
-	_link.disconnected.connect(func(reason: String) -> void: _gone[0] = reason)
-
+func _build_client_net() -> DotResult:
 	_client_game = LmGame.new()
 	_client_game.name = "World"
 	_client_game.authoritative = false
@@ -273,6 +252,32 @@ func _connect() -> bool:
 	_client_net.messages.seal()
 	# What LmClient feeds it.
 	_client_bridge.rtt_source = func() -> float: return float(maxi(0, _link.ping_ms()))
+	return attached
+
+
+func _connect() -> bool:
+	_section("a client on ENet joins through the relay and is sent the house")
+
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(view)
+	_client_side = Node.new()
+	_client_side.name = "ClientSide"
+	view.add_child(_client_side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _client_side.get_path())
+
+	_link = DotClientLink.new()
+	_link.name = "Server"
+	_link.player_name = "Walker"
+	_link.transport_preference = "udp"
+	_link.udp_address = "127.0.0.1:%d" % _relay.port()
+
+	_client_side.add_child(_link)
+	_link.spawned.connect(func() -> void: _spawned[0] = true)
+	_link.disconnected.connect(func(reason: String) -> void: _gone[0] = reason)
+
+	var attached := _build_client_net()
 
 	_link.connect_to_server("127.0.0.1:%d" % PORT)
 	await _until(func() -> bool:
@@ -325,6 +330,57 @@ func _physics_process(delta: float) -> void:
 			_client_bridge.client_tick(_client_net.clock.input_tick() - (ticks - 1 - i), move)
 
 
+func _switch_house(house: String, key: StringName, t0: int, throttle_low: Array) -> void:
+	_run_command("lm_house %s" % house)
+	# Walking while it arrives: the commands keep going, as a player's would.
+	_move = _leg(0)
+	# A frame as long as the delivered client's while it built the house (dot-server-deploy's
+	# lookatme_client measured 600 ms): one process, so both ends stall, as a real server
+	# does on a long frame of its own. Acknowledgements read after it are late by its length.
+	for i in range(HITCHES):
+		await _seconds(0.25)
+		OS.delay_msec(HITCH_MS)
+	var arrived := await _until(func() -> bool:
+		throttle_low[0] = mini(throttle_low[0], _client_throttle())
+		throttle_low[1] = mini(throttle_low[1], _server_throttle())
+		return _client_game.house_id == StringName(house) and _client_game.levels.size() == _server_game.levels.size() \
+			and _client_game.players.has(key), RELIABLE_SECONDS)
+	var house_note := "%s, %d levels in %.1f s" % [house, _client_game.levels.size(), (Time.get_ticks_msec() - t0) / 1000.0]
+	_check(arrived and _server_game.house_id == StringName(house), "the new house arrives while the client walks", house_note)
+
+
+## Back and forth across the room the player stands in, so the walk stays on open floor; returns
+## the metres walked. base is the link counters at the start: inputs sent, got, snapshots sent, got.
+func _walk_legs(deadline: int, server_player: LmPlayer, throttle_low: Array, t0: int, base: Array) -> float:
+	var server_link := _server_link()
+	var client_link: Node = _client_bridge.link
+	var travelled := 0.0
+	var last := server_player.global_position
+	var leg := 0
+
+	while Time.get_ticks_msec() < deadline:
+		_move = _leg(leg)
+		var leg_end := Time.get_ticks_msec() + 700
+
+		while Time.get_ticks_msec() < mini(leg_end, deadline):
+			await get_tree().physics_frame
+			travelled += server_player.global_position.distance_to(last)
+			last = server_player.global_position
+			throttle_low[0] = mini(throttle_low[0], _client_throttle())
+			throttle_low[1] = mini(throttle_low[1], _server_throttle())
+
+		leg += 1
+
+		if _verbose:
+			print("    t=%.1f inputs %d/%d snapshots %d/%d throttle client %d server %d" % [
+				(Time.get_ticks_msec() - t0) / 1000.0,
+				int(server_link.get("inputs_received")) - base[1], int(client_link.get("inputs_sent")) - base[0],
+				int(client_link.get("snapshots_received")) - base[3], int(server_link.get("snapshots_sent")) - base[2],
+				_client_throttle(), _server_throttle()])
+
+	return travelled
+
+
 func _walk_window(window: Array) -> void:
 	var title := str(window[0])
 	_section("walking, %s" % title)
@@ -345,25 +401,9 @@ func _walk_window(window: Array) -> void:
 	var seconds := float(window[4])
 	var house := str(window[5])
 	var deadline := t0 + int(seconds * 1000.0)
-	var house_note := ""
 
 	if house != "":
-		_run_command("lm_house %s" % house)
-		# Walking while it arrives: the commands keep going, as a player's would.
-		_move = _leg(0)
-		# A frame as long as the delivered client's while it built the house (dot-server-deploy's
-		# lookatme_client measured 600 ms): one process, so both ends stall, as a real server
-		# does on a long frame of its own. Acknowledgements read after it are late by its length.
-		for i in range(HITCHES):
-			await _seconds(0.25)
-			OS.delay_msec(HITCH_MS)
-		var arrived := await _until(func() -> bool:
-			throttle_low[0] = mini(throttle_low[0], _client_throttle())
-			throttle_low[1] = mini(throttle_low[1], _server_throttle())
-			return _client_game.house_id == StringName(house) and _client_game.levels.size() == _server_game.levels.size() \
-				and _client_game.players.has(key), RELIABLE_SECONDS)
-		house_note = "%s, %d levels in %.1f s" % [house, _client_game.levels.size(), (Time.get_ticks_msec() - t0) / 1000.0]
-		_check(arrived and _server_game.house_id == StringName(house), "the new house arrives while the client walks", house_note)
+		await _switch_house(house, key, t0, throttle_low)
 		deadline = maxi(deadline, Time.get_ticks_msec() + 3000)
 
 	var server_player: LmPlayer = _server_game.players.get(key, null)
@@ -375,31 +415,8 @@ func _walk_window(window: Array) -> void:
 		_done()
 		return
 
-	# Back and forth across the room the player stands in, so the walk stays on open floor.
-	var start := server_player.global_position
-	var travelled := 0.0
-	var last := start
-	var leg := 0
 
-	while Time.get_ticks_msec() < deadline:
-		_move = _leg(leg)
-		var leg_end := Time.get_ticks_msec() + 700
-
-		while Time.get_ticks_msec() < mini(leg_end, deadline):
-			await get_tree().physics_frame
-			travelled += server_player.global_position.distance_to(last)
-			last = server_player.global_position
-			throttle_low[0] = mini(throttle_low[0], _client_throttle())
-			throttle_low[1] = mini(throttle_low[1], _server_throttle())
-
-		leg += 1
-
-		if _verbose:
-			print("    t=%.1f inputs %d/%d snapshots %d/%d throttle client %d server %d" % [
-				(Time.get_ticks_msec() - t0) / 1000.0,
-				int(server_link.get("inputs_received")) - in_got, int(client_link.get("inputs_sent")) - in_sent,
-				int(client_link.get("snapshots_received")) - snap_got, int(server_link.get("snapshots_sent")) - snap_sent,
-				_client_throttle(), _server_throttle()])
+	var travelled := await _walk_legs(deadline, server_player, throttle_low, t0, [in_sent, in_got, snap_sent, snap_got])
 
 	_move = DotFpsCommand.new()
 	await _seconds(0.8)
