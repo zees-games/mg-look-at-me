@@ -109,3 +109,5 @@ In the order they are worth doing.
 
 1. **Publishing**: the pack is `tmc/lookatme` (dot-server-deploy `content/lookatme/`), and the release order is the family's.
 2. **The GitHub repository** is the owner's to create.
+
+- Publish: `tools/publish.sh --version V` (or `--bump patch`) wraps dot-cloud's publish_pack.sh with this pack's id, exclusions and lock; pass `--site` and `--token-file`.
