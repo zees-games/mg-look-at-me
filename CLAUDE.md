@@ -4,7 +4,7 @@ A dark house, thirty-two levels deep and up to three floors high, with witches w
 
 Read the family-wide conventions in [`../../CLAUDE.md`](../../CLAUDE.md) first, and dot-player-controller's `CLAUDE.md` before touching movement. This file is only about what this game decides.
 
-**Built 2026-10-06, in one session**: offline first (the house, the 32 levels, the witches, the meter, per-player doors, the commands, winning, a playable client), then networked the same day — a module, a bridge with predicted players, a mirroring client, chat and voice — and joined by a real client over a real socket in a delivered pack (dot-server-deploy's `examples/lookatme_client`, 26 checks, a second client over a throttled WebSocket and a second tab of the same guest among them). Seen in headless Chromium against a local server (a fresh shell export): it joins, builds all 32 levels and then the Asylum on `lm_house asylum`, with no "Buffer payload full". Not published. Remote set (`gamemann/mg-look-at-me`), nothing pushed.
+**Built 2026-10-06, in one session**: offline first (the house, the 32 levels, the witches, the meter, per-player doors, the commands, winning, a playable client), then networked the same day — a module, a bridge with predicted players, a mirroring client, chat and voice — and joined by a real client over a real socket in a delivered pack (dot-server-deploy's `examples/lookatme_client`, a second client over a throttled WebSocket and a second tab of the same guest among them). Seen in headless Chromium against a local server (a fresh shell export): it joins, builds all 32 levels and then the Asylum on `lm_house asylum`, with no "Buffer payload full". Not published. Remote set (`gamemann/mg-look-at-me`), nothing pushed.
 
 ## Layout
 
@@ -36,7 +36,7 @@ scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas (tools/make_witch.py)
 assets/clown/   the clown hallucination's model, CC-BY (CREDITS.md; tools/make_clown.py); game/lm_clown.gd draws it, LmScares schedules it (lm_clown_* cvars: chance, wait and damage are curves over the meter; so are the demon and look-behind spikes, lm_demon_spike_min/max, lm_look_behind_spike_min/max, lm_spike_curve); tools/shot.sh --view=clown|clownlunge
-examples/        headless_run (23 sections, 187 checks), headless_net (9, 38), headless_lossy (5, 30), dedicated (12, 69), headless_workshop (1, 19), headless_config (1, 22)
+examples/        headless_run, headless_net, headless_lossy, dedicated, headless_workshop, headless_config
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd
 ```
 
@@ -70,7 +70,7 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 - **A READY before the player is seated is kept** (`_ready_unseated`) and answered by `add_player`: over ENet with loss it overtakes the link's `loaded`. [design](docs/design.md#the-house-on-the-wire)
 - **One account, one player: the newest connection wins** (two tabs of a guest share a device id); the older is taken out and kicked with "You joined from another tab or window", never left on a link whose keys move nothing. [design](docs/design.md#one-account-one-connection)
 - **Movement and doors are predicted**; progress goes to its owner alone. [design](docs/design.md#decision-5-movement-is-predicted-and-so-are-the-doors)
-- **Workshop houses** (`provides.json`: `accepts.kinds` `["map"]`, `map_kinds` `["lookatme"]`): a pack's `map` entry has `map_kind: lookatme` and its `scene` is the pack's `house.json` with the house's level documents beside it; the document's `id` must equal the entry's and the directory must hold a level, or the entry is refused (logged, never listed). `LmGame.follow_content` reads `DotContentIndex.shared()` on every `house_rows()`, `listed_houses()` and `change_house()`, so the M menu, the vote and a change of house see a solo subscription as "Name [Pack]" and an online session none; the game's own ids win. The vote takes `listed_houses` through `entries_fn` and not dot-vote's `follow_content`, which cannot leave out a refused document. `examples/headless_workshop` (19 checks) holds it; `tools/shot.sh --view=mapmenu --workshop` renders the M menu.
+- **Workshop houses** (`provides.json`: `accepts.kinds` `["map"]`, `map_kinds` `["lookatme"]`): a pack's `map` entry has `map_kind: lookatme` and its `scene` is the pack's `house.json` with the house's level documents beside it; the document's `id` must equal the entry's and the directory must hold a level, or the entry is refused (logged, never listed). `LmGame.follow_content` reads `DotContentIndex.shared()` on every `house_rows()`, `listed_houses()` and `change_house()`, so the M menu, the vote and a change of house see a solo subscription as "Name [Pack]" and an online session none; the game's own ids win. The vote takes `listed_houses` through `entries_fn` and not dot-vote's `follow_content`, which cannot leave out a refused document. `examples/headless_workshop` holds it; `tools/shot.sh --view=mapmenu --workshop` renders the M menu.
 - **A house is a map**, voted between. [design](docs/design.md#decision-6-a-house-is-a-map-and-the-players-vote-between-them)
 - **A TMC account is its site avatar.** [design](docs/design.md#decision-7-a-tmc-account-walks-the-house-as-its-site-avatar)
 - **Sound is a dot-audio catalogue of files** (`audio/`, written by `tools/make_sounds.py`, every file at a -2 dBFS peak); loudness is each def's `gain_db`, measured in the recorded mix, with a -1 dB hard limiter on master. [horror](docs/horror.md#sound)
@@ -88,11 +88,11 @@ One line each; the reasoning is in [docs/design.md](docs/design.md) (Decisions 1
 godot --headless --path . --import
 find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | while read f; do
     godot --headless --path . --check-only --script "res://${f#./}"; done
-godot --headless --path . res://examples/headless_run.tscn   # 20 sections, 151 checks: the solver plays all 32 levels, events, stairs, the third floor
+godot --headless --path . res://examples/headless_run.tscn   # the solver plays all 32 levels, events, stairs, the third floor
 ./game.sh soak [house] [minutes]                             # bot soak, docs/soak.md
-godot --headless --path . res://examples/headless_net.tscn   # 9 sections, 38 checks: a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
-godot --headless --path . res://examples/headless_lossy.tscn # 5 sections, 30 checks: a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
-godot --headless --path . res://examples/dedicated.tscn      # 10 sections, 50 checks: cfg/maps.yml (rotation file), also a real ENet client behind its cover is not caught and is once it lifts, and a module loaded again leaves one net link
+godot --headless --path . res://examples/headless_net.tscn   # a READY before the seat, the house paced and deflated, predicted, a lost input packet recovered from the copies, through a door open for one, a face that arrives late, the click, one account on two connections
+godot --headless --path . res://examples/headless_lossy.tscn # a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
+godot --headless --path . res://examples/dedicated.tscn      # cfg/maps.yml (rotation file), also a real ENet client behind its cover is not caught and is once it lifts, and a module loaded again leaves one net link
 tools/build_levels.py --check
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
 tools/shot.sh --view=above --level=8 --floor=1 --res=1400x1400   # a plan of one floor; look at it after any builder change

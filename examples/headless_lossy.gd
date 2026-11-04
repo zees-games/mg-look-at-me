@@ -377,7 +377,8 @@ func _walk_window(window: Array) -> void:
 
 	# Back and forth across the room the player stands in, so the walk stays on open floor.
 	var start := server_player.global_position
-	var furthest := 0.0
+	var travelled := 0.0
+	var last := start
 	var leg := 0
 
 	while Time.get_ticks_msec() < deadline:
@@ -386,7 +387,8 @@ func _walk_window(window: Array) -> void:
 
 		while Time.get_ticks_msec() < mini(leg_end, deadline):
 			await get_tree().physics_frame
-			furthest = maxf(furthest, server_player.global_position.distance_to(start))
+			travelled += server_player.global_position.distance_to(last)
+			last = server_player.global_position
 			throttle_low[0] = mini(throttle_low[0], _client_throttle())
 			throttle_low[1] = mini(throttle_low[1], _server_throttle())
 
@@ -422,7 +424,7 @@ func _walk_window(window: Array) -> void:
 	_check(throttle_low[0] == 32 and throttle_low[1] == 32,
 		"ENet's packet throttle never dropped an unreliable packet at either end",
 		"lowest client %d, server %d" % [throttle_low[0], throttle_low[1]])
-	_check(furthest > 2.0, "the client's keys walk the server's player", "%.1f m" % furthest)
+	_check(travelled > 2.0, "the client's keys walk the server's player", "%.1f m walked" % travelled)
 	var gap := mine.controller.state.position.distance_to(server_player.controller.state.position)
 	_check(gap < 0.5, "and the client's prediction ends within half a metre of it", "%.3f m" % gap)
 	_check(_link.phase == DotClientLink.Phase.PLAYING and _gone[0] == "", "the client is still connected", _gone[0])
