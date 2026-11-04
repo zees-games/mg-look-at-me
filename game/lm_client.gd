@@ -41,6 +41,7 @@ func _ready() -> void:
 	_build_view()
 
 	_build_hud()
+	_build_touch()
 	_apply_mood()
 	_build_effects()
 	chat = new_chat()
@@ -289,17 +290,65 @@ func _adopt_player(p: LmPlayer) -> void:
 		platform.gate.freeze(player)
 
 	if _offline:
-		player.sampler = DotFpsSampler.new(player.controller.tunables)
+		player.sampler = _make_sampler(player.controller.tunables)
 		DotFpsSampler.register_default_actions(player.sampler)
+		_bind_touch_sampler(player.sampler)
 	else:
-		_sampler = DotFpsSampler.new(player.controller.tunables)
+		_sampler = _make_sampler(player.controller.tunables)
 		DotFpsSampler.register_default_actions(_sampler)
+		_bind_touch_sampler(_sampler)
 
 	if settings != null:
 		settings.bind_look(player.controller.tunables)
 
 	if platform != null:
 		_suspend_input(platform.is_input_blocked())
+
+
+## A stick and a look drag on a phone, the keyboard and mouse elsewhere.
+func _make_sampler(tunables: DotFpsTunables) -> DotFpsSampler:
+	if not DotPlatform.has_touch():
+		return DotFpsSampler.new(tunables)
+	var touch_sampler := DotFpsTouchSampler.new(tunables)
+	touch_sampler.set_screen_width(1152.0)
+	return touch_sampler
+
+
+## A touch sampler leaves a finger on a button to the button, and knows the screen's width.
+func _bind_touch_sampler(sampler: DotFpsSampler) -> void:
+	if touch == null or not sampler is DotFpsTouchSampler:
+		return
+	var touch_sampler := sampler as DotFpsTouchSampler
+	touch_sampler.ignore_fn = touch.contains_point
+	touch_sampler.set_screen_width(get_viewport().get_visible_rect().size.x)
+
+
+## The phone's buttons, over the HUD. Not built elsewhere.
+func _build_touch() -> void:
+	if not LmTouch.wanted():
+		return
+	touch = LmTouch.new()
+	touch.build()
+	touch.pressed.connect(_on_touch_button.bind(true))
+	touch.released.connect(_on_touch_button.bind(false))
+	add_child(touch)
+	_bind_touch_sampler(_sampler if not _offline else (player.sampler if player != null else null))
+
+
+## A button press does what its key does.
+func _on_touch_button(id: StringName, down: bool) -> void:
+	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
+
+	match id:
+		&"jump", &"crouch":
+			if sampler is DotFpsTouchSampler:
+				(sampler as DotFpsTouchSampler).hold(DotFpsCommand.BUTTON_JUMP if id == &"jump" else DotFpsCommand.BUTTON_CROUCH, down)
+		&"use":
+			if down and not _covered() and not _command.visible:
+				_act("use")
+		&"flashlight":
+			if down and not _covered() and not _command.visible:
+				_act("flashlight")
 
 
 ## The netcode, built inside `_ready` (inside the shell's scene load), as every game here does.
@@ -378,6 +427,10 @@ func _refresh_key_line() -> void:
 	var k := func(action: StringName, fallback: String) -> String:
 		var text := DotInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
 		return fallback if text == DotInputBinding.UNBOUND else text
+	if DotPlatform.has_touch():
+		_key_line.text = ""
+		_key_line.visible = false
+		return
 	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command   %s house   %s help" % [
 		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "F5"),
 		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"dot_menu_maps", "M"),
@@ -427,7 +480,8 @@ func _build_hud_text() -> void:
 	_objective = VBoxContainer.new()
 	_objective.name = "Objective"
 	_objective.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_objective.offset_left = 20.0
+	# On touch the menu button owns the top-left corner.
+	_objective.offset_left = 120.0 if LmTouch.wanted() else 20.0
 	_objective.offset_top = 14.0
 	_objective.offset_right = -20.0
 	_objective.mouse_filter = Control.MOUSE_FILTER_IGNORE

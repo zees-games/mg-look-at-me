@@ -12,6 +12,7 @@ const LmServices := preload("lm_services.gd")
 const LmAudio := preload("lm_audio.gd")
 const LmWitch := preload("lm_witch.gd")
 const LmScares := preload("lm_scares.gd")
+const LmTouch := preload("lm_touch.gd")
 const LmScareView := preload("lm_scare_view.gd")
 
 ## Where dot-server's client publishes its link before the game scene loads.
@@ -30,6 +31,8 @@ const LAMP_COLOUR := Color(1.0, 0.80, 0.48)
 
 ## The key line along the bottom ([method _refresh_key_line]).
 var _key_line: Label = null
+## The phone's buttons; null on a device without touch.
+var touch: LmTouch = null
 
 @export var local_key: StringName = &"you"
 @export var local_name: String = "You"

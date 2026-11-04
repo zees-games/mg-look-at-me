@@ -99,9 +99,10 @@ func mouse_drives_view() -> bool:
 ## no Control can swallow it. While the command line is open the player's sampler is held aside.
 func _input(event: InputEvent) -> void:
 	var motion := event is InputEventMouseMotion
+	var finger := event is InputEventScreenTouch or event is InputEventScreenDrag
 	# A wheel tick is a press and a release in one frame, so polling misses it; the sampler
 	# latches it (it can be bound to jump), but only if it is handed mouse buttons too.
-	if not (motion or event is InputEventMouseButton) or _covered():
+	if not (motion or finger or event is InputEventMouseButton) or _covered():
 		return
 
 	if motion and not mouse_drives_view():
@@ -269,6 +270,9 @@ func _act(action: String, args: Dictionary = {}) -> void:
 
 
 func _process(delta: float) -> void:
+	if touch != null:
+		touch.buttons.visible = not _covered() and not (platform != null and platform.is_input_blocked())
+
 	if net != null and net.is_running():
 		net.interpolate_frame(-1.0)
 
@@ -328,7 +332,7 @@ func _process(delta: float) -> void:
 	if target.is_empty():
 		prompt.clear()
 	else:
-		prompt.show_prompt(String(target["text"]), DotInputBinding.describe_action(USE_ACTION))
+		prompt.show_prompt(String(target["text"]), "" if touch != null else DotInputBinding.describe_action(USE_ACTION))
 	_meter_bar.value = player.meter
 	_hear_player(level)
 	_present(delta)
