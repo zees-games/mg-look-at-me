@@ -1,0 +1,54 @@
+{
+	"format": "dot-stat-defs",
+	"version": 1,
+	"stats": [
+		{
+			"key": "lm.levels_done",
+			"name": "Levels got through",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "levels",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "lm.best_level",
+			"name": "Deepest level",
+			"description": "",
+			"kind": "BEST",
+			"unit": "level",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "lm.catches",
+			"name": "Times she saw you",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "catches",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "lm.wins",
+			"name": "Times out of the whole house",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "wins",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		}
+	]
+}
