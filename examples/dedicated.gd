@@ -17,8 +17,8 @@ const SECTIONS := 12
 const CHECKS := 74
 
 const SERVER_DIR := "user://lm_dedicated"
-const PORT := 28951
-const QUERY_PORT := 28952
+var PORT := LMTestPorts.free_port(2)
+var QUERY_PORT := PORT + 1
 const TICK_RATE := 60
 
 var _entered := 0

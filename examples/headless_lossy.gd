@@ -18,7 +18,7 @@ const WINDOW_CHECKS := 7
 const SECTIONS := 5
 const CHECKS := 7 + 3 * WINDOW_CHECKS + 2
 
-const PORT := 28961
+var PORT := LMTestPorts.free_port()
 const DATA := "user://lm_lossy"
 
 ## Name, loss and delay each way (ms), jitter (ms), seconds walked, and the house the server changes to as the
