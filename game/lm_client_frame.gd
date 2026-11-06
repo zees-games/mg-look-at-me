@@ -137,20 +137,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key.is_action(LmBindings.FLASHLIGHT):
 		_act("flashlight")
 	elif key.is_action(LmBindings.VIEW):
-		var wanted := game.view_rules.toggled(third_person)
-		if wanted == third_person and game.view_rules.refusal() != "":
-			_say(game.view_rules.refusal())
-		third_person = wanted
+		_toggle_view()
 	elif key.is_action(LmBindings.COMMAND) or key.keycode == KEY_ENTER:
-		_command.visible = true
-		# Typing is not walking: the sampler is detached until the line is sent.
-		_held_sampler = player.sampler
-		player.sampler = null
-		_command.text = "/"
-		_command.grab_focus()
-		_command.caret_column = 1
-		# Held, not just freed: a click outside or a menu closing must not recapture it mid-word.
-		platform.hold_pointer(&"command")
+		_open_command()
 	elif key.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		# And the settings: a released pointer with nothing to click was half a key. The
@@ -158,6 +147,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		# Escape it left alone.
 		if settings != null:
 			settings.open()
+
+
+## First or third person, where the server allows it.
+func _toggle_view() -> void:
+	var wanted := game.view_rules.toggled(third_person)
+	if wanted == third_person and game.view_rules.refusal() != "":
+		_say(game.view_rules.refusal())
+	third_person = wanted
+
+
+## The command line, with "/" in it. Typing is not walking: the sampler is detached until the line is sent.
+func _open_command() -> void:
+	_command.visible = true
+	_held_sampler = player.sampler
+	player.sampler = null
+	_command.text = "/"
+	_command.grab_focus()
+	_command.caret_column = 1
+	# Held, not just freed: a click outside or a menu closing must not recapture it mid-word.
+	platform.hold_pointer(&"command")
 
 
 ## The house's sounds. Without one (a broken catalogue) the house is silent, which is all.

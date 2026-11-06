@@ -333,7 +333,7 @@ func _build_touch() -> void:
 	touch.released.connect(_on_touch_button.bind(false))
 	add_child(touch)
 	if platform != null:
-		platform.fit_touch_buttons(touch.buttons, LmTouch.layout())
+		LmTouch.touch_layout().apply(touch.buttons, platform)
 	_bind_touch_sampler(_sampler if not _offline else (player.sampler if player != null else null))
 
 
@@ -345,12 +345,37 @@ func _on_touch_button(id: StringName, down: bool) -> void:
 		&"jump", &"crouch":
 			if sampler is DotFpsTouchSampler:
 				(sampler as DotFpsTouchSampler).hold(DotFpsCommand.BUTTON_JUMP if id == &"jump" else DotFpsCommand.BUTTON_CROUCH, down)
+		LmTouch.BOARD:
+			var board: Object = platform.board if platform != null else null
+			if board != null and not _covered():
+				board.call(&"open" if down else &"close")
+		_:
+			if down and not _covered() and not _command.visible:
+				_touch_tap(id)
+
+
+## The keys that are a single press: what each button does on the way down.
+func _touch_tap(id: StringName) -> void:
+	var menu: Object = platform.menu if platform != null else null
+	match id:
 		&"use":
-			if down and not _covered() and not _command.visible:
-				_act("use")
-		&"flashlight":
-			if down and not _covered() and not _command.visible:
-				_act("flashlight")
+			_act("use")
+		LmTouch.FLASHLIGHT:
+			_act("flashlight")
+		LmTouch.CAMERA:
+			_toggle_view()
+		LmTouch.CHAT:
+			_open_command()
+		LmTouch.HOUSE:
+			if menu != null:
+				menu.call(&"open_maps")
+		LmTouch.HELP:
+			if menu != null:
+				menu.call(&"open_help")
+		LmTouch.GAG, LmTouch.MUTE:
+			var look: Object = platform.look_mute if platform != null else null
+			if look != null:
+				look.call(&"tap", Time.get_ticks_msec(), id == LmTouch.MUTE)
 
 
 ## The netcode, built inside `_ready` (inside the shell's scene load), as every game here does.
