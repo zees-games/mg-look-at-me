@@ -5,7 +5,7 @@ const LmTouch := preload("../game/lm_touch.gd")
 ## The touch layout: the buttons fit a phone at three sizes without overlapping, and each DotTouchButtons is freed.
 ## Run: `godot --headless --path . res://examples/headless_touch.tscn`
 
-const CHECKS := 12
+const CHECKS := 13
 
 
 func _ready() -> void:
@@ -15,7 +15,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("mg-look-at-me: touch buttons")
-	var sets: Dictionary = {"look": LmTouch.layout()}
+	var sets: Dictionary = {"look": LmTouch.touch_layout().buttons()}
 	for label: String in sets:
 		var layout: Array[Dictionary] = sets[label]
 		var ids: Array[StringName] = []
@@ -38,6 +38,11 @@ func _run() -> void:
 			_check(clash == "", "%s: no two buttons overlap at %dx%d" % [label, size.x, size.y], clash)
 			_check(_min_diameter(layout) >= 44.0, "%s: every button is at least 44 px at %dx%d" % [label, size.x, size.y])
 			buttons.free()
+	var want: Array = [&"use", &"jump", &"crouch", &"flashlight"]
+	var got: Array = LmTouch.touch_layout().ids()
+	got.sort()
+	want.sort()
+	_check(got == want, "the layout is the canonical use, jump, crouch and the flashlight", str(got))
 	DotPlatform.touch_override = 0
 	_check(not LmTouch.wanted(), "no touch: the client builds no buttons")
 	var off := DotTouchButtons.new()

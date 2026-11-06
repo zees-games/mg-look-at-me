@@ -18,14 +18,18 @@ static func wanted() -> bool:
 	return DotPlatform.has_touch()
 
 
-## Offsets are from the bottom-right corner, towards the middle; 390 px tall leaves little to spare.
-static func layout() -> Array[Dictionary]:
-	return [
-		{"id": &"use", "label": "USE", "offset": Vector2(66, 76), "radius": 46.0},
-		{"id": &"jump", "label": "JUMP", "offset": Vector2(160, 40), "radius": 32.0},
-		{"id": &"flashlight", "label": "LIGHT", "offset": Vector2(40, 160), "radius": 26.0},
-		{"id": &"crouch", "label": "DUCK", "offset": Vector2(132, 130), "radius": 28.0},
-	]
+## dot-game's platformer preset without sprint, board and chat, plus the flashlight in the corner home.
+static func touch_layout() -> DotGameTouchLayout:
+	var res := DotGameTouchLayout.build(DotGameTouchLayout.PLATFORMER, {
+		DotGameTouchLayout.SPRINT: null,
+		DotGameTouchLayout.BOARD: null,
+		DotGameTouchLayout.CHAT: null,
+		&"flashlight": {"slot": &"corner", "label": "LIGHT"},
+	})
+	if not res.ok:
+		push_error("mg-look-at-me touch layout refused: %s" % str(res.error))
+		return DotGameTouchLayout.custom()
+	return res.value
 
 
 func _init() -> void:
@@ -33,14 +37,14 @@ func _init() -> void:
 	layer = 6
 
 
-func build() -> void:
+func build(client: Object = null) -> void:
 	buttons = DotTouchButtons.new()
 	buttons.name = "Buttons"
 	buttons.only_on_touch = false
 	buttons.margin = EDGE_MARGIN
 	buttons.set_anchors_preset(Control.PRESET_FULL_RECT)
 	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	buttons.set_buttons(layout())
+	touch_layout().apply(buttons, client)
 	buttons.button_down.connect(func(id: StringName) -> void: pressed.emit(id))
 	buttons.button_up.connect(func(id: StringName) -> void: released.emit(id))
 	add_child(buttons)

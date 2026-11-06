@@ -328,12 +328,10 @@ func _build_touch() -> void:
 	if not LmTouch.wanted():
 		return
 	touch = LmTouch.new()
-	touch.build()
+	touch.build(platform)
 	touch.pressed.connect(_on_touch_button.bind(true))
 	touch.released.connect(_on_touch_button.bind(false))
 	add_child(touch)
-	if platform != null:
-		platform.fit_touch_buttons(touch.buttons, LmTouch.layout())
 	_bind_touch_sampler(_sampler if not _offline else (player.sampler if player != null else null))
 
 
