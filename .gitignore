@@ -54,3 +54,6 @@ tools/__pycache__/
 
 # bootstrap-link: lam-maps/houses/lam_villa_night
 /houses/lam_villa_night
+
+# bootstrap-link: lam-maps/houses/lam_functionalist_night
+/houses/lam_functionalist_night
