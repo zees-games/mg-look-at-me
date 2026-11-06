@@ -495,6 +495,10 @@ def layout_level(house_id, layout_path, seed_base, difficulty):
         doc["id"] = "%s_01" % house_id
         doc["number"] = 1
         doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
+        if layout.get("mood"):
+            doc["mood"] = layout["mood"]
+        if layout.get("author"):
+            doc["author"] = layout["author"]
         if not solve(doc):
             continue
         # A room whose furniture fails the proof is dealt again with a salt in its seed, the rest
@@ -901,7 +905,28 @@ def stats_line(doc):
         len(doc["steps"]), ",".join("%s %d" % kv for kv in sorted(kinds.items())), len(doc["witches"]), len(compact(doc)))
 
 
+def main_external(argv):
+    """A house of one level laid out in a map repository: --layout FILE --id ID --out DIR [--seed N] [--difficulty N] [--check].
+    The document and house.json go to DIR (a Workshop house is the pack's house.json with the level beside it)."""
+    opts = dict(zip(argv[::2], argv[1::2])) if "--check" not in argv else dict(zip([a for a in argv if a != "--check"][::2], [a for a in argv if a != "--check"][1::2]))
+    layout_path, house_id, out = opts["--layout"], opts["--id"], opts["--out"]
+    doc = layout_level(house_id, os.path.abspath(layout_path), int(opts.get("--seed", 9000)), int(opts.get("--difficulty", 24)))
+    title = json.load(open(layout_path))["title"]
+    files = {"house.json": json.dumps({"kind": "house", "id": house_id, "name": title}, indent="\t") + "\n", doc["id"] + ".json": text_of(doc)}
+    os.makedirs(out, exist_ok=True)
+    stale = [n for n, t in files.items() if not os.path.exists(os.path.join(out, n)) or open(os.path.join(out, n)).read() != t]
+    if "--check" in argv:
+        print("stale: " + ", ".join(stale) if stale else "up to date")
+        return 1 if stale else 0
+    for n, t in files.items():
+        open(os.path.join(out, n), "w").write(t)
+    print("wrote %s (%d bytes compact)" % (doc["id"], len(compact(doc))))
+    return 0
+
+
 def main():
+    if "--layout" in sys.argv:
+        return main_external(sys.argv[1:])
     check = "--check" in sys.argv
     stats = "--stats" in sys.argv
     stale, broken, unfit = [], [], []

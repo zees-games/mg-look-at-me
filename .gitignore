@@ -51,3 +51,6 @@ tools/__pycache__/
 /addons/dot_spawn
 /addons/dot_team
 /addons/dot_flashlight
+
+# bootstrap-link: lam-maps/houses/lam_villa_night
+/houses/lam_villa_night

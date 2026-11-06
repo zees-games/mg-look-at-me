@@ -561,7 +561,7 @@ func _test_events() -> void:
 
 func _test_houses() -> void:
 	_section("houses")
-	_check(game.houses.size() == 3 and game.houses.has(&"asylum") and game.houses.has(&"forgotten") and game.house_id == &"house", "three houses, playing the House (%s)" % [game.houses.keys()])
+	_check(game.houses.size() >= 3 and game.houses.has(&"asylum") and game.houses.has(&"forgotten") and game.house_id == &"house", "the built-in houses (and any linked map house), playing the House (%s)" % [game.houses.keys()])
 	var a: LmPlayer = game.players[&"a"]
 	a.best = 9
 	game.send_to(a, 9)
