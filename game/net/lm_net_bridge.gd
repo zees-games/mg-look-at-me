@@ -71,18 +71,6 @@ func open_link(parent: Node) -> void:
 	DotGameLink.attach(link, parent, self, LmNetLink.NODE_NAME)
 
 
-func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
-	if link == null:
-		return
-
-	if delivery == DotNetMessage.Delivery.UNRELIABLE:
-		link.send_snapshot(peer_id, payload)
-	elif net.is_server:
-		link.send_event(peer_id, payload)
-	else:
-		link.send_request(payload)
-
-
 static func session_key(session_id: int) -> StringName:
 	return StringName("s%d" % session_id)
 
@@ -416,16 +404,6 @@ func receive_request(peer_id: int, payload: PackedByteArray) -> DotResult:
 
 func receive_event(payload: PackedByteArray) -> DotResult:
 	return net.receive(payload, 1) if net != null else DotResult.fail(DotError.CODE_STATE, "No manager.")
-
-
-func receive_snapshot(payload: PackedByteArray) -> DotResult:
-	if net == null or net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only a client receives these.")
-
-	if rtt_source.is_valid():
-		net.stats.note_rtt(float(rtt_source.call()))
-
-	return net.receive_snapshot(payload)
 
 
 func _on_request(message: DotNetMessage) -> void:
