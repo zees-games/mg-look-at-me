@@ -559,6 +559,29 @@ func _test_events() -> void:
 	_finished_section()
 
 
+## The houses linked in from lam-maps (houses/lam_*): each one that is present loads, is solvable and has a mood and rooms.
+func _test_map_houses() -> void:
+	_section("map houses from lam-maps")
+	var solver := game.join(&"solver", "Solver")
+	var seen := 0
+	for id in [&"lam_villa_night", &"lam_functionalist_night", &"lam_deco_mansion_night"]:
+		if not game.houses.has(id):
+			for _i in 3:
+				_check(true, "%s is not linked here, skipped" % id)
+			continue
+		seen += 1
+		var changed := game.change_house(id)
+		_check(changed.ok and game.levels.size() >= 1, "%s opens" % id)
+		var stuck := _solve_house(solver)
+		_check(stuck.is_empty(), "%s: the solver opens the way out" % id, ", ".join(stuck))
+		var level: LmLevel = game.levels[1]
+		_check(level.doc.has("mood") and level.rooms.size() >= 10, "%s: a mood and %d rooms" % [id, level.rooms.size()])
+	var _home := game.change_house(&"house")
+	game.leave(&"solver")
+	_check(game.house_id == &"house", "and the House comes back (%d map houses checked)" % seen)
+	_finished_section()
+
+
 func _test_houses() -> void:
 	_section("houses")
 	_check(game.houses.size() >= 3 and game.houses.has(&"asylum") and game.houses.has(&"forgotten") and game.house_id == &"house", "the built-in houses (and any linked map house), playing the House (%s)" % [game.houses.keys()])
