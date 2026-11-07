@@ -73,7 +73,7 @@ func _test() -> void:
 	await get_tree().physics_frame
 
 	var vote := LmVote.new()
-	vote.houses_fn = game.listed_houses
+	vote.maps_fn = game.listed_houses
 	add_child(vote)
 	_check(vote.setup().ok, "the vote is built")
 

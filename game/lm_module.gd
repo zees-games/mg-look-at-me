@@ -209,7 +209,7 @@ func _add_commands(world: LmGame) -> void:
 		world.config.map_rotation_file = new_value.strip_edges()
 		var _read := world.load_rotation()
 		if vote != null:
-			vote.refresh_houses())
+			vote.refresh_maps())
 
 
 ## dot-workbench over the config; the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
@@ -341,7 +341,7 @@ func _build_vote(world: LmGame) -> void:
 	vote.name = "HouseVote"
 	vote.commands_spec_fn = world.rotation_commands
 	vote.house_minutes = world.config.house_minutes
-	vote.houses_fn = func() -> Array:
+	vote.maps_fn = func() -> Array:
 		return world.rotating_houses()
 	vote.apply_fn = func(id: StringName) -> DotResult:
 		return world.change_house(id)
@@ -404,10 +404,10 @@ func _build_vote(world: LmGame) -> void:
 	if menu_half is Object:
 		(menu_half as Object).set(&"change_fn", world.change_house)
 		(menu_half as Object).set(&"rows_fn", func(_rows: Array) -> Array: return world.house_rows())
-	vote.note_house(world.house_id)
+	vote.note_map(world.house_id)
 	world.house_changed.connect(func(id: StringName) -> void:
 		if vote != null:
-			vote.note_house(id))
+			vote.note_map(id))
 
 	if server != null:
 		server.client_disconnected.connect(func(session: DotClientSession, _reason: String) -> void:
@@ -462,7 +462,7 @@ func _cmd_rotation(ctx: DotCmdContext) -> void:
 		return
 
 	if vote != null:
-		vote.refresh_houses()
+		vote.refresh_maps()
 
 	ctx.reply("Rotation: %s" % ctx.arg(0))
 
@@ -472,7 +472,7 @@ func _cmd_maps_reload(ctx: DotCmdContext) -> void:
 	var read := world.load_rotation()
 
 	if vote != null:
-		vote.refresh_houses()
+		vote.refresh_maps()
 
 	ctx.reply("maps.yml read." if read.ok else read.error.message)
 
