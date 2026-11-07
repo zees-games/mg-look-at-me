@@ -1,4 +1,4 @@
-extends Node
+extends DotGameNetIo
 
 ## The bridge's state and the client half: asking the server, applying what it sends.
 
@@ -50,14 +50,11 @@ signal superseded(peer_id: int, key: StringName)
 const SUPERSEDED_REASON := "You joined from another tab or window"
 
 var game: LmGame = null
-var net: DotNetManager = null
-var link: LmNetLink = null
 ## Carries the game's profile runtime over this manager (rows down, for a remote admin's panel).
 var profile_link: DotNetProfileLink = null
 
 var local_key: StringName = &""
 var voice_relay_fn: Callable = Callable()
-var rtt_source: Callable = Callable()
 
 ## [code]func(peer_id, session_id) -> StringName[/code]: the key a player's progress and win are
 ## kept under. The module returns the account uid; unset, the session.
