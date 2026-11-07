@@ -437,29 +437,54 @@ def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_
 
 def layout_grower(rng, layout):
     """A Grower filled from a layout instead of grown: the rooms are where the layout puts them, and
-    the doors are a tree through the walls they share, walked from the first room (the start)."""
+    the doors are a tree through the walls they share, walked from the first room (the start).
+
+    A room may say its `floor` (0 the ground); a `stair` (with `up`, at least 4 cells long that way)
+    spans its floor and the next, and only its foot landing opens on its floor and its head landing
+    on the one above, as in a grown house. Nothing needs to stand under a laid-out room. A room's
+    `from` names the neighbour its door is cut from (otherwise the first reached)."""
     g = Grower(rng)
     specs = layout["rooms"]
     cells = {}
+    # Per room, per floor, the cells a door may be cut beside.
+    door_cells = []
     for i, sp in enumerate(specs):
-        for c in g.cells(sp["x"], sp["z"], sp["w"], sp["d"]):
-            if c in cells:
-                raise SystemExit("layout: %s overlaps %s" % (sp["name"], specs[cells[c]]["name"]))
-            cells[c] = i
-    # Neighbours: for each pair, the cells on the shared wall, as (cell of a, side, cell of b).
+        floor = int(sp.get("floor", 0))
+        if floor < 0:
+            raise SystemExit("layout: %s is below the ground floor" % sp["name"])
+        own = g.cells(sp["x"], sp["z"], sp["w"], sp["d"])
+        if sp["kind"] == "stair":
+            if sp.get("up") not in DIRS:
+                raise SystemExit("layout: stairwell %s does not say which way is up" % sp["name"])
+            if (sp["w"] if sp["up"] in "ew" else sp["d"]) < 4:
+                raise SystemExit("layout: stairwell %s is shorter than 4 cells up its run" % sp["name"])
+            door_cells.append({floor: set(stair_landing(sp, high=False)), floor + 1: set(stair_landing(sp, high=True))})
+            spans = (floor, floor + 1)
+        else:
+            door_cells.append({floor: set(own)})
+            spans = (floor,)
+        for f in spans:
+            for c in own:
+                if (c[0], c[1], f) in cells:
+                    raise SystemExit("layout: %s overlaps %s on floor %d" % (sp["name"], specs[cells[(c[0], c[1], f)]]["name"], f))
+                cells[(c[0], c[1], f)] = i
+    # Neighbours: for each pair, the door cells on the shared wall, as (cell of a, side, floor).
     edges = {i: {} for i in range(len(specs))}
-    for (cx, cz), i in cells.items():
-        for side, (dx, dz) in DIRS.items():
-            j = cells.get((cx + dx, cz + dz))
-            if j is not None and j != i:
-                edges[i].setdefault(j, []).append(((cx, cz), side))
+    for i, per_floor in enumerate(door_cells):
+        for f, own in per_floor.items():
+            for (cx, cz) in own:
+                for side, (dx, dz) in DIRS.items():
+                    j = cells.get((cx + dx, cz + dz, f))
+                    if j is not None and j != i and (cx + dx, cz + dz) in door_cells[j].get(f, ()):
+                        edges[i].setdefault(j, []).append(((cx, cz), side, f))
     seen = {0: None}
     order = [0]
     queue = [0]
     while queue:
         i = queue.pop(0)
         for j in sorted(edges[i]):
-            if j not in seen:
+            # `from` names the one neighbour a room's door is cut from.
+            if j not in seen and specs[j].get("from", specs[i]["name"]) == specs[i]["name"]:
                 seen[j] = i
                 order.append(j)
                 queue.append(j)
@@ -470,21 +495,41 @@ def layout_grower(rng, layout):
     for i in order:
         sp = specs[i]
         parent = None if seen[i] is None else ids[seen[i]]
-        room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], 0, parent)
+        extra = {"up": sp["up"]} if sp["kind"] == "stair" else None
+        room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], int(sp.get("floor", 0)), parent, extra)
         room["light"] = sp.get("light", 0.0)
         ids[i] = room["id"]
         if seen[i] is not None:
             shared = sorted(edges[seen[i]][i])
-            cell, side = shared[len(shared) // 2]
-            room["door"] = {"at": door_at(cell, side), "floor": 0}
+            cell, side, f = shared[len(shared) // 2]
+            room["door"] = {"at": door_at(cell, side), "floor": f}
     return g
+
+
+def floors_without_parts(doc):
+    """Floors of a laid-out house with three rooms or more and nothing on them to find or use (a
+    floor the puzzle never sends you to is a floor nobody climbs to), and the top floor unless the
+    gold key is up there."""
+    floor_of = {r["id"]: r["floor"] for r in doc["rooms"]}
+    counts = {}
+    for r in doc["rooms"]:
+        if r["kind"] != "stair":
+            counts[r["floor"]] = counts.get(r["floor"], 0) + 1
+    used = {floor_of[x["room"]] for x in doc["items"]} | {floor_of[s["room"]] for s in doc["stations"] if s.get("room")}
+    missing = [f for f, c in counts.items() if c >= 3 and f not in used]
+    # The gold key (or the chest it is in) is on the top floor: the climb is the level's last.
+    gold = [x["room"] for x in doc["items"] if x["id"] == "key_gold"] + [s["room"] for s in doc["stations"] if s.get("gives") == "key_gold"]
+    top = max(counts)
+    if top > 0 and gold and floor_of[gold[0]] != top:
+        missing.append(top)
+    return missing
 
 
 def layout_level(house_id, layout_path, seed_base, difficulty):
     """The one level of a laid-out house, dealt and proven like a grown one."""
     layout = json.load(open(os.path.join(HERE, "..", layout_path)))
     p = plan(difficulty)
-    p["floors"] = 1
+    p["floors"] = 1 + max(int(r.get("floor", 0)) + (1 if r["kind"] == "stair" else 0) for r in layout["rooms"])
     for attempt in range(200):
         rng = random.Random(seed_base * 1000 + attempt)
         g = layout_grower(rng, layout)
@@ -495,7 +540,11 @@ def layout_level(house_id, layout_path, seed_base, difficulty):
         doc["id"] = "%s_01" % house_id
         doc["number"] = 1
         doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
-        if not solve(doc):
+        if layout.get("mood"):
+            doc["mood"] = layout["mood"]
+        if layout.get("author"):
+            doc["author"] = layout["author"]
+        if not solve(doc) or floors_without_parts(doc):
             continue
         # A room whose furniture fails the proof is dealt again with a salt in its seed, the rest
         # stay as they were. The salts are not in the document: the props are.
@@ -901,7 +950,28 @@ def stats_line(doc):
         len(doc["steps"]), ",".join("%s %d" % kv for kv in sorted(kinds.items())), len(doc["witches"]), len(compact(doc)))
 
 
+def main_external(argv):
+    """A house of one level laid out in a map repository: --layout FILE --id ID --out DIR [--seed N] [--difficulty N] [--check].
+    The document and house.json go to DIR (a Workshop house is the pack's house.json with the level beside it)."""
+    opts = dict(zip(argv[::2], argv[1::2])) if "--check" not in argv else dict(zip([a for a in argv if a != "--check"][::2], [a for a in argv if a != "--check"][1::2]))
+    layout_path, house_id, out = opts["--layout"], opts["--id"], opts["--out"]
+    doc = layout_level(house_id, os.path.abspath(layout_path), int(opts.get("--seed", 9000)), int(opts.get("--difficulty", 24)))
+    title = json.load(open(layout_path))["title"]
+    files = {"house.json": json.dumps({"kind": "house", "id": house_id, "name": title}, indent="\t") + "\n", doc["id"] + ".json": text_of(doc)}
+    os.makedirs(out, exist_ok=True)
+    stale = [n for n, t in files.items() if not os.path.exists(os.path.join(out, n)) or open(os.path.join(out, n)).read() != t]
+    if "--check" in argv:
+        print("stale: " + ", ".join(stale) if stale else "up to date")
+        return 1 if stale else 0
+    for n, t in files.items():
+        open(os.path.join(out, n), "w").write(t)
+    print("wrote %s (%d bytes compact)" % (doc["id"], len(compact(doc))))
+    return 0
+
+
 def main():
+    if "--layout" in sys.argv:
+        return main_external(sys.argv[1:])
     check = "--check" in sys.argv
     stats = "--stats" in sys.argv
     stale, broken, unfit = [], [], []

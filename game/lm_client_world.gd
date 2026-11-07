@@ -221,6 +221,15 @@ func rest_sanity() -> void:
 		_flash_rect.color = Color(0, 0, 0, 0)
 
 
+## The level document's optional `mood` (fog, fog_afraid, fog_colour, ambient, ambient_colour): a level that is
+## outdoors at night wants more fog than a house; without one the game's own values stand.
+func _level_mood() -> Dictionary:
+	if game == null or player == null or not game.levels.has(player.level):
+		return {}
+	var level: LmLevel = game.levels[player.level]
+	return level.doc.get("mood", {})
+
+
 ## The house closes in as the meter rises: the fog thickens and goes faintly red, and the
 ## flashlight stutters. Cheap, and all of it the client's own. The stutter is a flash, so
 ## "allow flashes" off keeps the beam steady.
@@ -229,8 +238,14 @@ func _dread(delta: float, caught: bool) -> void:
 	_dread_level = move_toward(_dread_level, fear, delta * 0.5)
 
 	if _env != null:
-		_env.fog_density = lerpf(FOG_CALM, FOG_AFRAID, _dread_level)
-		_env.fog_light_color = Color(0.015, 0.015, 0.025).lerp(Color(0.07, 0.008, 0.008), _dread_level)
+		var mood := _level_mood()
+		var calm := float(mood.get("fog", FOG_CALM))
+		var base: Color = Color.from_string(str(mood.get("fog_colour", "")), Color(0.015, 0.015, 0.025))
+		_env.fog_density = lerpf(calm, float(mood.get("fog_afraid", FOG_AFRAID)), _dread_level)
+		_env.fog_light_color = base.lerp(Color(0.07, 0.008, 0.008), _dread_level)
+		if mood.has("ambient"):
+			_env.ambient_light_energy = float(mood["ambient"])
+			_env.ambient_light_color = Color.from_string(str(mood.get("ambient_colour", "")), Color(0.45, 0.5, 0.68))
 
 	if flashlight == null:
 		return

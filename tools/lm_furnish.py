@@ -107,7 +107,7 @@ THEMES = [
     ("study", "study"), ("office", "study"), ("night station", "study"), ("porter", "study"), ("dispensary", "study"), ("pharmacy", "study"),
     ("matron", "study"),
     ("music", "sitting"), ("morning", "sitting"), ("drawing", "sitting"), ("smoking", "sitting"), ("parlour", "sitting"),
-    ("day room", "sitting"), ("visiting", "sitting"), ("conservatory", "garden"), ("lobby", "sitting"), ("reception", "sitting"),
+    ("day room", "sitting"), ("visiting", "sitting"), ("conservatory", "garden"), ("terrace", "garden"), ("court", "garden"), ("lobby", "sitting"), ("reception", "sitting"),
     ("hall", "hall"), ("landing", "hall"),
     ("chapel", "chapel"), ("mortuary", "chapel"),
     ("workshop", "workshop"), ("gun", "workshop"),
