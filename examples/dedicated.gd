@@ -627,13 +627,13 @@ func _test_rotation_file() -> void:
 	game.apply_rotation()
 	var _back := game.change_house(before if game.houses.has(before) else &"house")
 	if vote != null:
-		vote.call("refresh_houses")
+		vote.call("refresh_maps")
 	_finished_section()
 
 
 func _rotation_ballot(vote: Node) -> void:
 	if vote != null:
-		vote.call("refresh_houses")
+		vote.call("refresh_maps")
 		var ballot: Array = []
 		for choice in (vote.get("source") as DotVoteListSource).entries:
 			ballot.append(String(choice.id))

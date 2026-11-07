@@ -1,8 +1,9 @@
-extends Node
+extends DotVoteTimedGame
 
 ## The players choose the next house through dot-vote ([DotVoteDirector] over a [DotVoteListSource] of this
-## server's houses). No rounds, so dot-vote's clock decides: a house plays [member LmConfig.house_minutes], then a
-## ballot opens with every house, the current one and an extension; `!rtv` works any time. Server side only.
+## server's houses): dot-vote's [DotVoteTimedGame] with Look At Me's names. No rounds, so dot-vote's clock decides: a house plays
+## [member LmConfig.house_minutes], then a ballot opens with every house, the current one and an extension; `!rtv` works any time.
+## Server side only. The rest is dot-vote's settings (`user://cfg/lookatme_vote.json`, `game.yml` metadata `house_vote:`).
 
 const CHANNEL := "lookatme.vote"
 
@@ -16,110 +17,23 @@ const COMMAND_NAMES := {"vote": "vote"}
 ## Minutes a house is played before the ballot (LmConfig.house_minutes). 0: only rock the vote.
 var house_minutes: float = 45.0
 
-## The file a server owner configures the vote in, keyed as [DotVoteRules]. Layered: [code]_rules() < game.yml
-## metadata house_vote: < this file < DOT_VOTE_* < --vote-*[/code]. Empty skips it; `{"enabled": false}` turns
-## the vote off and the rotation stays on its house.
-@export var config_path: String = "user://cfg/lookatme_vote.json"
 
-## [code]func() -> Array[/code] of [code][id, name][/code] pairs: every house a ballot may offer.
-var houses_fn: Callable = Callable()
-
-## [code]func(id: StringName) -> DotResult[/code]: play this house now.
-var apply_fn: Callable = Callable()
-
-## [code]func() -> Array[/code] of voter ids (StringName): the people who may vote. Stand-ins
-## are not voters — a ballot they could swing is not the players' choice.
-var voters_fn: Callable = Callable()
-
-## Says a line to everybody.
-var announce_fn: Callable = Callable()
-
-## Whether a voter is an admin, for dot-vote's admin bypasses.
-var is_admin_fn: Callable = Callable()
-
-## [code]func(state: Dictionary)[/code]: the ballot as a client draws it, sent when it changes.
-var ballot_fn: Callable = Callable()
-
-## [code]func(voter: StringName) -> Dictionary[/code]: a voter's name and avatar, for the ballot.
-var people_fn: Callable = Callable()
-
-## `() -> Dictionary`: maps.yml's `commands:` block, so an operator renames vote, rtv and
-## nominate without this game naming any of them. Unset renames nothing.
-var commands_spec_fn: Callable = Callable()
-
-var director: DotVoteDirector = null
-var source: DotVoteListSource = null
-var commands: DotVoteCommands = null
-var feed: DotVoteBallotFeed = null
+func _init() -> void:
+	channel = CHANNEL
+	metadata_key = METADATA_KEY
+	command_names = COMMAND_NAMES
+	noun = "house"
+	config_path = "user://cfg/lookatme_vote.json"
+	# Every house the game lists, Workshop ones labelled "Name [Pack]", read again before each ballot. Not dot-vote's follow_content: it
+	# cannot leave out a pack document the game refused, and a ballot must not offer a house that cannot open.
+	follows_content = false
+	# Reports no round and no score, yet always took an operator's trigger as given; and registers as the vote service.
+	drops_unfed = false
+	register_service = true
 
 
-
-## Builds the director. Fails when the rules do not validate, never because there are too few
-## houses: a server that gains one gets a ballot with it from the next refresh.
-func setup() -> DotResult:
-	source = DotVoteListSource.new()
-	source.label = "houses"
-	source.apply_fn = func(id: StringName) -> DotResult:
-		return apply_fn.call(id) if apply_fn.is_valid() else DotResult.success(id)
-	# Every house the game lists, Workshop ones labelled "Name [Pack]", read again before each ballot. Not
-	# dot-vote's follow_content: it cannot leave out a pack document the game refused, and a ballot must not
-	# offer a house that cannot open.
-	source.entries_fn = _own_houses
-	refresh_houses()
-
-	director = DotVoteDirector.new()
-	director.name = "VoteDirector"
-	director.rules = configured_rules()
-	director.source = source
-	director.auto_apply = true
-	# The host calls begin() whenever a house opens, which a vote's change is one cause of
-	# and an operator's lm_house another; both firing would put one play in the
-	# history twice. See DotVoteDirector.begin_on_apply.
-	director.begin_on_apply = false
-	# The server's tick drives it, not the frame clock.
-	director.self_advance = false
-	director.round_based = false
-
-	director.player_count_fn = func() -> int:
-		return _voters().size()
-	director.voters_fn = _voters
-	director.is_admin_fn = func(voter: StringName) -> bool:
-		return is_admin_fn.is_valid() and bool(is_admin_fn.call(voter))
-	director.announce_fn = func(line: String) -> void:
-		if announce_fn.is_valid():
-			announce_fn.call(line)
-
-	add_child(director)
-
-	director.vote_closed.connect(func(result: DotVoteResult) -> void:
-		DotLog.info(CHANNEL, "the house vote closed", {"winner": String(result.winner_id), "votes": result.votes_cast})
-	)
-
-	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
-		if ballot_fn.is_valid():
-			ballot_fn.call(state)
-	)
-	feed.title = "Vote for the next house"
-	feed.command = COMMAND_NAMES["vote"]
-	feed.people_fn = func(voter: StringName) -> Dictionary:
-		return people_fn.call(voter) if people_fn.is_valid() else {}
-
-	return DotResult.success(self)
-
-
-## [method _rules] under the server owner's layers. A layer that does not validate is refused
-## whole, with the reason logged, and the defaults stand.
-func configured_rules() -> DotVoteRules:
-	var rules := _rules()
-	var loaded := rules.layer_over_defaults(
-		config_path, DotVoteGameSource.running_game_metadata(METADATA_KEY)
-	)
-	DotLog.result(CHANNEL, "the house vote's rules", loaded)
-	return rules
-
-
-## What a server that never ends wants from dot-vote by default. Every line is a default an
-## operator overrides in [member config_path].
+## A time limit and a ballot with every house, the current one and an extension; at once, since there is no round to wait for and
+## everybody is sent to the new lobby anyway.
 func _rules() -> DotVoteRules:
 	var rules := DotVoteRules.new()
 
@@ -143,99 +57,5 @@ func _rules() -> DotVoteRules:
 	return rules
 
 
-## Reads the house list again: on boot, and after one is added.
-func refresh_houses() -> void:
-	if source == null:
-		return
-
-	source.entries.clear()
-
-	for choice in _own_houses():
-		var _added := source.add(choice)
-
-
-## The houses the game lists, as choices.
-func _own_houses() -> Array:
-	var out: Array = []
-
-	if not houses_fn.is_valid():
-		return out
-
-	for pair: Variant in houses_fn.call():
-		var row: Array = pair
-		out.append(DotVoteChoice.of(StringName(str(row[0])), str(row[1])))
-
-	return out
-
-
-## A house opened (by the vote or an operator): the director's clock starts over on it.
-func note_house(id: StringName) -> void:
-	if director == null:
-		return
-
-	source.current = id
-	director.begin(id)
-
-
-## One tick: dot-vote's clock opens the ballot when the house's time is nearly up.
-func advance(delta: float) -> void:
-	if director == null:
-		return
-
-	director.advance(delta)
-
-	if feed != null:
-		feed.poll()
-
-
-func forget_voter(voter: StringName) -> void:
-	if director != null:
-		director.forget_voter(voter)
-
-
-func is_voting() -> bool:
-	return director != null and director.is_voting()
-
-
-## dot-vote's commands on [param host]: `vote`, `rtv`, `nominate` and the operator's. Voters
-## are the bare session id, the same spelling [member voters_fn] lists — dot-vote's default is
-## `u<userid>`, and two spellings of one voter is a player who rocks the vote twice.
-func install_commands(host: Object) -> DotResult:
-	if director == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no vote to command.")
-
-	commands = DotVoteCommands.new()
-	commands.director = director
-	commands.names = COMMAND_NAMES.duplicate()
-	# maps.yml's `commands:` block, read on every bind.
-	commands.spec_fn = commands_spec_fn
-	commands.voter_fn = func(ctx: Object) -> StringName:
-		var session: Variant = ctx.get("session")
-
-		if session is Object and (session as Object).get("userid") != null:
-			return StringName(str((session as Object).get("userid")))
-
-		return &"console"
-
-	var bound := commands.bind(host)
-
-	if feed != null:
-		feed.command = commands.command_name("vote")
-
-	return bound
-
-
-func _voters() -> Array:
-	return voters_fn.call() if voters_fn.is_valid() else []
-
-
-func describe() -> Dictionary:
-	return {
-		"houses": source.entries.size() if source != null else 0,
-		"house_minutes": house_minutes,
-		"director": director.describe() if director != null else {},
-	}
-
-
-func describe_lines() -> PackedStringArray:
-	return director.describe_lines() if director != null else PackedStringArray()
+func _describe_extra() -> Dictionary:
+	return {"house_minutes": house_minutes}
