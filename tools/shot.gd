@@ -16,6 +16,10 @@ func _ready() -> void:
 	if _args.has("workshop") or "--workshop" in OS.get_cmdline_user_args():
 		_add_workshop_fixture()
 
+	# --touch: the phone layout (buttons, no keyboard hints).
+	if "--touch" in OS.get_cmdline_user_args():
+		DotPlatform.touch_override = 1
+
 	var client := LmClient.new()
 	client.start_level = int(_args.get("level", "1"))
 	add_child(client)
@@ -318,6 +322,13 @@ func _stage_action(client: Node, me: Node3D, kind: StringName, id: String) -> vo
 
 func _save(client: Node) -> void:
 	var platform: DotGameClient = client.get("platform")
+	# The cover lifts a moment after the player exists; --view=cover is the one that wants it up.
+	var waited := 0
+	while platform != null and not platform.is_shown() and str(_args.get("view", "")) != "cover" and waited < 600:
+		await get_tree().process_frame
+		waited += 1
+	if waited > 0:
+		await get_tree().create_timer(1.5).timeout
 	print("cover %s" % ("lifted" if platform == null or platform.is_shown() else "up"))
 	var path := ProjectSettings.globalize_path(str(_args.get("out", "res://screenshots/shot.png")))
 	var saved := get_viewport().get_texture().get_image().save_png(path)
