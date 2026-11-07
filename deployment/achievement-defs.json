@@ -1,0 +1,90 @@
+{
+	"format": "dot-achievement-defs",
+	"version": 1,
+	"achievements": [
+		{
+			"key": "lm.first_door",
+			"name": "Through the Front Door",
+			"description": "Get through level 1.",
+			"points": 10,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "lm.levels_done",
+					"op": "at_least",
+					"value": 1.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "lm.halfway",
+			"name": "Halfway Down",
+			"description": "Reach level 16.",
+			"points": 30,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "lm.depth",
+			"tier": 1,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "lm.best_level",
+					"op": "at_least",
+					"value": 16.0,
+					"merge": "highest"
+				}
+			]
+		},
+		{
+			"key": "lm.out",
+			"name": "Out",
+			"description": "Get out of the whole house.",
+			"points": 100,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": false,
+			"series": "lm.depth",
+			"tier": 2,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "lm.wins",
+					"op": "at_least",
+					"value": 1.0,
+					"merge": "sum"
+				}
+			]
+		},
+		{
+			"key": "lm.look_at_me",
+			"name": "Look At Me",
+			"description": "Be seen a hundred times.",
+			"points": 10,
+			"category": "",
+			"icon": "",
+			"hidden": false,
+			"secret": true,
+			"series": "",
+			"tier": 0,
+			"requireAll": true,
+			"rules": [
+				{
+					"stat": "lm.catches",
+					"op": "at_least",
+					"value": 100.0,
+					"merge": "sum"
+				}
+			]
+		}
+	]
+}
