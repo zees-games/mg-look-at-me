@@ -51,3 +51,11 @@ tools/__pycache__/
 /addons/dot_spawn
 /addons/dot_team
 /addons/dot_flashlight
+
+# The Look At Me maps are lam-maps, a repository and a pack of their own: one house each, linked into houses/.
+# bootstrap-link: lam-maps/houses/lam_villa_night
+/houses/lam_villa_night
+# bootstrap-link: lam-maps/houses/lam_functionalist_night
+/houses/lam_functionalist_night
+# bootstrap-link: lam-maps/houses/lam_deco_mansion_night
+/houses/lam_deco_mansion_night
