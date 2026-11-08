@@ -43,5 +43,16 @@
   "author": "Kenney and TMC",
   "url": "https://kenney.nl",
   "title": "Kenney Impact, RPG and Interface sounds plus sounds synthesised for this game (audio/CREDITS.md)"
+ },
+ {
+  "paths": [
+   "houses/asylum",
+   "tools/layouts/asylum.json",
+   "tools/convert/asylum.json"
+  ],
+  "licence": "MIT",
+  "author": "TMC",
+  "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=903842886",
+  "title": "The Asylum: levels made for this game on a plan converted from Blackbrook Asylum by The Old Swashbuckler (plan only; no source art, text or geometry)"
  }
 ]

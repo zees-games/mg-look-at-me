@@ -62,15 +62,6 @@ ROOM_NAMES = [
 CORRIDOR_NAMES = ["Corridor", "Passage", "Back Passage", "Long Corridor", "Servants' Passage", "Hallway"]
 STAIR_NAMES = ["Stairs", "Back Stairs", "Servants' Stairs", "Great Stairs"]
 
-ASYLUM_ROOMS = [
-    "Ward A", "Ward B", "Ward C", "Day Room", "Dispensary", "Records", "Hydrotherapy", "Kitchen",
-    "Laundry", "Chapel", "Isolation", "Office", "Mortuary", "Boiler Room", "Visiting Room", "Showers",
-    "Refectory", "Storeroom", "Infirmary", "Treatment Room", "Linen Room", "Porter's Lodge",
-    "Padded Cell", "Night Station", "Pharmacy", "Library", "Workshop", "Matron's Office",
-]
-ASYLUM_CORRIDORS = ["Ward Corridor", "Corridor", "Service Passage", "East Corridor", "West Corridor"]
-ASYLUM_STAIRS = ["Stairs", "Fire Stairs", "Service Stairs"]
-
 LEVEL_NAMES = [
     "The Front Door", "Supper", "Bath Time", "The Pantry", "Lessons", "Lights Out", "The Nursery",
     "Down Below", "Visitors", "Quiet, Please", "Wash Day", "Evensong", "Up the Stairs", "Pressure",
@@ -92,7 +83,13 @@ ASYLUM_NAMES = [
 # house is a directory of the same documents.
 HOUSES = {
     "house": ("levels", LEVELS, 1000, LEVEL_NAMES, "The Lobby", "The House", ROOM_NAMES, CORRIDOR_NAMES, STAIR_NAMES),
-    "asylum": ("houses/asylum", 20, 5000, ASYLUM_NAMES, "Reception", "The Asylum", ASYLUM_ROOMS, ASYLUM_CORRIDORS, ASYLUM_STAIRS),
+}
+
+# Houses converted from a Workshop map's plan (dot-map-convert bsp_house.py, spec in tools/convert/),
+# so every house has a real building under it; level n is the first plan(n) rooms from the entrance.
+# id -> (directory, layout, seed base, how many levels, level names).
+CONVERTED = {
+    "asylum": ("houses/asylum", "tools/layouts/asylum.json", 5000, 20, ASYLUM_NAMES),
 }
 
 # Houses laid out by hand over a Workshop map's plan (tools/bsp_layout.py reads the plan; the layout
@@ -525,21 +522,21 @@ def floors_without_parts(doc):
     return missing
 
 
-def layout_level(house_id, layout_path, seed_base, difficulty):
-    """The one level of a laid-out house, dealt and proven like a grown one."""
-    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
-    p = plan(difficulty)
+def deal_layout(layout, seed, n, p, level_names, total, house_id, one_level=False, glimpse=True):
+    """A laid-out or converted plan dealt and proven like a grown level; None if no dealing fits."""
+    p = dict(p)
     p["floors"] = 1 + max(int(r.get("floor", 0)) + (1 if r["kind"] == "stair" else 0) for r in layout["rooms"])
     for attempt in range(200):
-        rng = random.Random(seed_base * 1000 + attempt)
+        rng = random.Random(seed * 1000 + attempt)
         g = layout_grower(rng, layout)
-        if not glimpse_corridors(g) or exit_of(g) is None:
+        if (glimpse and not glimpse_corridors(g)) or exit_of(g) is None:
             continue
-        # n is the difficulty (speeds, sight, glimpses read it); the document is level 1 of 1.
-        doc = furnish_puzzles(rng, g, difficulty, p, [layout["name"]] * difficulty, 1, house_id)
-        doc["id"] = "%s_01" % house_id
-        doc["number"] = 1
-        doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
+        doc = furnish_puzzles(rng, g, n, p, level_names, total, house_id)
+        if one_level:
+            # n is the difficulty (speeds, sight, glimpses read it); the document is level 1 of 1.
+            doc["id"] = "%s_01" % house_id
+            doc["number"] = 1
+            doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
         if layout.get("mood"):
             doc["mood"] = layout["mood"]
         if layout.get("author"):
@@ -561,7 +558,55 @@ def layout_level(house_id, layout_path, seed_base, difficulty):
         doc.pop("furnish_salt", None)
         if len(compact(doc)) <= MAX_BYTES and not prove(doc):
             return doc
-    raise SystemExit("layout %s: no dealing of its puzzles fits" % layout_path)
+    return None
+
+
+def layout_level(house_id, layout_path, seed_base, difficulty):
+    """The one level of a laid-out house, dealt and proven like a grown one."""
+    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
+    doc = deal_layout(layout, seed_base, difficulty, plan(difficulty), [layout["name"]] * difficulty, 1, house_id, one_level=True)
+    if doc is None:
+        raise SystemExit("layout %s: no dealing of its puzzles fits" % layout_path)
+    return doc
+
+
+def cut_plan(rooms, count):
+    """The first [count] rooms of a converted plan (its rooms are in tree order from the entrance),
+    without an upper floor of fewer than three rooms: a stairwell to one attic is no floor."""
+    keep = rooms[:count]
+    while True:
+        on = {}
+        for r in keep:
+            if r["kind"] != "stair":
+                on[r["floor"]] = on.get(r["floor"], 0) + 1
+        thin = [f for f, c in on.items() if f > 0 and c < 3]
+        stairs_up = {r["floor"] + 1 for r in keep if r["kind"] == "stair"}
+        thin += [f for f in stairs_up if f not in on]
+        if not thin:
+            return keep
+        f = min(thin)
+        gone = {r["name"] for r in keep if r["floor"] >= f or (r["kind"] == "stair" and r["floor"] + 1 >= f)}
+        # And whatever was entered through them.
+        for r in keep:
+            if r.get("from") in gone:
+                gone.add(r["name"])
+        keep = [r for r in keep if r["name"] not in gone]
+
+
+def converted_level(n, house_id, layout_path, seed_base, total, level_names):
+    """Level n of a converted house: the plan cut to plan(n)'s size (more of it while a cut will
+    not deal). A converted plan has the long corridors its source has, so a cut may have none
+    and no glimpse down one."""
+    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
+    p = plan(n)
+    for count in range(p["rooms"], len(layout["rooms"]) + 1):
+        rooms = cut_plan(layout["rooms"], count)
+        if len(rooms) < min(p["rooms"], len(layout["rooms"])) and count < len(layout["rooms"]):
+            continue
+        doc = deal_layout(dict(layout, rooms=rooms), seed_base + n, n, p, level_names, total, house_id, glimpse=False)
+        if doc is not None:
+            return doc
+    raise SystemExit("%s level %d: no cut of %s deals" % (house_id, n, layout_path))
 
 
 def top_floor(g):
@@ -1008,6 +1053,36 @@ def main():
                 f.write(text)
             written += 1
 
+    for house_id, (directory, layout_path, seed_base, total, level_names) in CONVERTED.items():
+        out = os.path.join(HERE, "..", directory)
+        os.makedirs(out, exist_ok=True)
+        title = json.load(open(os.path.join(HERE, "..", layout_path)))["title"]
+        meta = os.path.join(out, "house.json")
+        meta_text = json.dumps({"kind": "house", "id": house_id, "name": title}, indent="\t") + "\n"
+        if check:
+            if not os.path.exists(meta) or open(meta).read() != meta_text:
+                stale.append(house_id + "/house.json")
+        elif not stats:
+            with open(meta, "w") as f:
+                f.write(meta_text)
+        for n in range(1, total + 1):
+            doc = converted_level(n, house_id, layout_path, seed_base, total, level_names)
+            if not solve(doc):
+                broken.append(doc["id"])
+            unfit.extend(prove(doc))
+            if stats:
+                print(stats_line(doc))
+                continue
+            path = os.path.join(out, doc["id"] + ".json")
+            text = text_of(doc)
+            if check:
+                if not os.path.exists(path) or open(path).read() != text:
+                    stale.append(doc["id"])
+                continue
+            with open(path, "w") as f:
+                f.write(text)
+            written += 1
+
     for house_id, (directory, layout_path, seed_base, difficulty) in LAYOUTS.items():
         out = os.path.join(HERE, "..", directory)
         os.makedirs(out, exist_ok=True)
@@ -1045,7 +1120,7 @@ def main():
         print("not what tools/build_levels.py writes:", ", ".join(stale))
         return 1
     if not check and not stats:
-        print("wrote %d levels in %d houses, every one finishable" % (written, len(HOUSES) + len(LAYOUTS)))
+        print("wrote %d levels in %d houses, every one finishable" % (written, len(HOUSES) + len(CONVERTED) + len(LAYOUTS)))
     return 0
 
 
