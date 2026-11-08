@@ -1,0 +1,54 @@
+{
+ "name": "The Asylum",
+ "title": "The Asylum",
+ "scale": 0.0254,
+ "grow": 1.0,
+ "source": {
+  "workshop": 903842886,
+  "title": "Blackbrook Asylum",
+  "author": "The Old Swashbuckler",
+  "page": "https://steamcommunity.com/sharedfiles/filedetails/?id=903842886"
+ },
+ "storeys": [
+  {
+   "floor": 0,
+   "z": [
+    -40,
+    230
+   ],
+   "yard": false
+  },
+  {
+   "floor": 1,
+   "z": [
+    240,
+    440
+   ]
+  }
+ ],
+ "stairs": [
+  {
+   "name": "Stairs",
+   "floor": 0,
+   "x": 13,
+   "z": 8,
+   "w": 3,
+   "d": 3,
+   "up": "n",
+   "y": [
+    130,
+    416
+   ]
+  }
+ ],
+ "mood": "indoor_hall",
+ "erode": 1.0,
+ "min_area": 3.0,
+ "fill": 0.4,
+ "min_cells": 1,
+ "mode": "mesh",
+ "cell": 2.0,
+ "pack": "gm_blackbrook_asylum",
+ "pack_metres_per_unit": 0.01905,
+ "start_name": "Reception"
+}

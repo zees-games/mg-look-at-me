@@ -62,15 +62,6 @@ ROOM_NAMES = [
 CORRIDOR_NAMES = ["Corridor", "Passage", "Back Passage", "Long Corridor", "Servants' Passage", "Hallway"]
 STAIR_NAMES = ["Stairs", "Back Stairs", "Servants' Stairs", "Great Stairs"]
 
-ASYLUM_ROOMS = [
-    "Ward A", "Ward B", "Ward C", "Day Room", "Dispensary", "Records", "Hydrotherapy", "Kitchen",
-    "Laundry", "Chapel", "Isolation", "Office", "Mortuary", "Boiler Room", "Visiting Room", "Showers",
-    "Refectory", "Storeroom", "Infirmary", "Treatment Room", "Linen Room", "Porter's Lodge",
-    "Padded Cell", "Night Station", "Pharmacy", "Library", "Workshop", "Matron's Office",
-]
-ASYLUM_CORRIDORS = ["Ward Corridor", "Corridor", "Service Passage", "East Corridor", "West Corridor"]
-ASYLUM_STAIRS = ["Stairs", "Fire Stairs", "Service Stairs"]
-
 LEVEL_NAMES = [
     "The Front Door", "Supper", "Bath Time", "The Pantry", "Lessons", "Lights Out", "The Nursery",
     "Down Below", "Visitors", "Quiet, Please", "Wash Day", "Evensong", "Up the Stairs", "Pressure",
@@ -92,7 +83,13 @@ ASYLUM_NAMES = [
 # house is a directory of the same documents.
 HOUSES = {
     "house": ("levels", LEVELS, 1000, LEVEL_NAMES, "The Lobby", "The House", ROOM_NAMES, CORRIDOR_NAMES, STAIR_NAMES),
-    "asylum": ("houses/asylum", 20, 5000, ASYLUM_NAMES, "Reception", "The Asylum", ASYLUM_ROOMS, ASYLUM_CORRIDORS, ASYLUM_STAIRS),
+}
+
+# Houses converted from a Workshop map's plan (dot-map-convert bsp_house.py, spec in tools/convert/),
+# so every house has a real building under it; level n is the first plan(n) rooms from the entrance.
+# id -> (directory, layout, seed base, how many levels, level names).
+CONVERTED = {
+    "asylum": ("houses/asylum", "tools/layouts/asylum.json", 5000, 20, ASYLUM_NAMES),
 }
 
 # Houses laid out by hand over a Workshop map's plan (tools/bsp_layout.py reads the plan; the layout
@@ -134,6 +131,8 @@ class Grower:
         self.by_id = {}
         self.occupied = {}
         self.doors = []
+        self.cell = CELL
+        self.world = None
 
     def cells(self, x, z, w, d):
         return [(x + i, z + j) for i in range(w) for j in range(d)]
@@ -444,6 +443,10 @@ def layout_grower(rng, layout):
     on the one above, as in a grown house. Nothing needs to stand under a laid-out room. A room's
     `from` names the neighbour its door is cut from (otherwise the first reached)."""
     g = Grower(rng)
+    g.cell = float(layout.get("cell", CELL))
+    g.world = layout.get("world")
+    if g.world is not None:
+        return world_grower(g, layout)
     specs = layout["rooms"]
     cells = {}
     # Per room, per floor, the cells a door may be cut beside.
@@ -506,6 +509,98 @@ def layout_grower(rng, layout):
     return g
 
 
+def world_grower(g, layout):
+    """A Grower over a converted map's own building (bsp_house.py mesh mode): rooms are pieces of
+    the map's rooms, each entered through the doorway the map has (`door`: its centre `c` in metres
+    and width `w`, `open` for an arch with no door), and every room keeps its floor height `y`."""
+    cell = g.cell
+    specs = layout["rooms"]
+    index = {sp["name"]: i for i, sp in enumerate(specs)}
+    taken = {}
+    ids = {}
+    for i, sp in enumerate(specs):
+        floor = int(sp.get("floor", 0))
+        if sp["kind"] == "stair":
+            if sp.get("up") not in DIRS:
+                raise SystemExit("layout: stairwell %s does not say which way is up" % sp["name"])
+            # The map's own stairs are walked as it built them: room for a landing at each end.
+            if (sp["w"] if sp["up"] in "ew" else sp["d"]) * cell < 6.0:
+                raise SystemExit("layout: stairwell %s is shorter than 6 m up its run" % sp["name"])
+        for f in ((floor, floor + 1) if sp["kind"] == "stair" else (floor,)):
+            for c in g.cells(sp["x"], sp["z"], sp["w"], sp["d"]):
+                if (c[0], c[1], f) in taken:
+                    raise SystemExit("layout: %s overlaps %s on floor %d" % (sp["name"], specs[taken[(c[0], c[1], f)]]["name"], f))
+                taken[(c[0], c[1], f)] = i
+        parent = None
+        if i > 0:
+            if sp.get("from") not in index or index[sp["from"]] not in ids or "door" not in sp:
+                raise SystemExit("layout: %s is not entered from a room before it" % sp["name"])
+            parent = ids[index[sp["from"]]]
+        extra = {"y": float(sp.get("y", 0.0)), "openings": sp.get("openings", [])}
+        if sp["kind"] == "stair":
+            extra.update({"up": sp["up"], "y2": float(sp["y2"])})
+        room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], floor, parent, extra)
+        room["light"] = sp.get("light", 0.0)
+        ids[i] = room["id"]
+        if parent is not None:
+            d = sp["door"]
+            other = g.by_id[parent]
+            # On the floor of whichever side is not a stairwell: a stairwell spans two.
+            inner = other if room["kind"] == "stair" else room
+            room["door"] = {"at": [round(d["c"][0] / cell, 3), round(d["c"][1] / cell, 3)], "floor": inner["floor"],
+                            "side": d["side"], "w": float(d["w"]), "y": inner["y"], "open": bool(d.get("open"))}
+    return g
+
+
+def world_exit(g):
+    """The way out of a converted house: a doorway of the map's onto the open, on the ground floor,
+    in the deepest room that has one. (room, opening) or None."""
+    best = None
+    for room in g.rooms:
+        if room["floor"] != 0 or room["kind"] == "stair" or room["spawn"]:
+            continue
+        for o in room.get("openings", []):
+            if o.get("out") and o["w"] >= 1.0:
+                key = (room["depth"], room["kind"] == "room", o["w"])
+                if best is None or key > best[0]:
+                    best = (key, room, o)
+    return None if best is None else (best[1], best[2])
+
+
+def world_seals(g, doors):
+    """Boards over the map's doorways a level does not use: one into a room left out of the cut,
+    onto the open (but the way out), or between two rooms that different locks keep apart. An
+    arch between rooms behind the same locks stays open: it is a short cut, not a way round one.
+    Each is [x, z, side, width, y], metres, the side as seen from the first room."""
+    region = {}
+    for room in g.rooms:  # tree order: a parent before its children
+        locked = room["parent"] is not None and any(d["b"] == room["id"] and d["lock"] for d in doors)
+        region[room["id"]] = room["id"] if room["parent"] is None or locked else region[room["parent"]]
+    by_name = {r["name"]: r for r in g.rooms}
+    used = [d for d in doors if "at" in d]
+    seals, seen = [], set()
+    for room in g.rooms:
+        for o in room.get("openings", []):
+            other = by_name.get(o.get("to") or "")
+            if room["kind"] == "stair":
+                y = room["y2"] if o.get("top") else room["y"]
+            elif other is not None and other["kind"] == "stair":
+                continue  # the stairwell's own list has it, and on which landing
+            else:
+                y = room["y"]
+            key = (round(o["c"][0], 1), round(o["c"][1], 1), round(y))
+            if key in seen:
+                continue
+            seen.add(key)
+            if any(abs(d["at"][0] * g.cell - o["c"][0]) < 0.05 and abs(d["at"][1] * g.cell - o["c"][1]) < 0.05 for d in used):
+                continue
+            if other is not None and region[other["id"]] == region[room["id"]]:
+                continue
+            w = o.get("span", o["w"]) + 0.3
+            seals.append([round(o["c"][0], 2), round(o["c"][1], 2), o["side"], round(w, 2), round(y, 2)])
+    return seals
+
+
 def floors_without_parts(doc):
     """Floors of a laid-out house with three rooms or more and nothing on them to find or use (a
     floor the puzzle never sends you to is a floor nobody climbs to), and the top floor unless the
@@ -525,21 +620,21 @@ def floors_without_parts(doc):
     return missing
 
 
-def layout_level(house_id, layout_path, seed_base, difficulty):
-    """The one level of a laid-out house, dealt and proven like a grown one."""
-    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
-    p = plan(difficulty)
+def deal_layout(layout, seed, n, p, level_names, total, house_id, one_level=False, glimpse=True):
+    """A laid-out or converted plan dealt and proven like a grown level; None if no dealing fits."""
+    p = dict(p)
     p["floors"] = 1 + max(int(r.get("floor", 0)) + (1 if r["kind"] == "stair" else 0) for r in layout["rooms"])
     for attempt in range(200):
-        rng = random.Random(seed_base * 1000 + attempt)
+        rng = random.Random(seed * 1000 + attempt)
         g = layout_grower(rng, layout)
-        if not glimpse_corridors(g) or exit_of(g) is None:
+        if (glimpse and not glimpse_corridors(g)) or (world_exit(g) if g.world else exit_of(g)) is None:
             continue
-        # n is the difficulty (speeds, sight, glimpses read it); the document is level 1 of 1.
-        doc = furnish_puzzles(rng, g, difficulty, p, [layout["name"]] * difficulty, 1, house_id)
-        doc["id"] = "%s_01" % house_id
-        doc["number"] = 1
-        doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
+        doc = furnish_puzzles(rng, g, n, p, level_names, total, house_id)
+        if one_level:
+            # n is the difficulty (speeds, sight, glimpses read it); the document is level 1 of 1.
+            doc["id"] = "%s_01" % house_id
+            doc["number"] = 1
+            doc["blurb"] = "A large level: %d rooms." % len(g.rooms)
         if layout.get("mood"):
             doc["mood"] = layout["mood"]
         if layout.get("author"):
@@ -561,7 +656,55 @@ def layout_level(house_id, layout_path, seed_base, difficulty):
         doc.pop("furnish_salt", None)
         if len(compact(doc)) <= MAX_BYTES and not prove(doc):
             return doc
-    raise SystemExit("layout %s: no dealing of its puzzles fits" % layout_path)
+    return None
+
+
+def layout_level(house_id, layout_path, seed_base, difficulty):
+    """The one level of a laid-out house, dealt and proven like a grown one."""
+    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
+    doc = deal_layout(layout, seed_base, difficulty, plan(difficulty), [layout["name"]] * difficulty, 1, house_id, one_level=True)
+    if doc is None:
+        raise SystemExit("layout %s: no dealing of its puzzles fits" % layout_path)
+    return doc
+
+
+def cut_plan(rooms, count):
+    """The first [count] rooms of a converted plan (its rooms are in tree order from the entrance),
+    without an upper floor of fewer than three rooms: a stairwell to one attic is no floor."""
+    keep = rooms[:count]
+    while True:
+        on = {}
+        for r in keep:
+            if r["kind"] != "stair":
+                on[r["floor"]] = on.get(r["floor"], 0) + 1
+        thin = [f for f, c in on.items() if f > 0 and c < 3]
+        stairs_up = {r["floor"] + 1 for r in keep if r["kind"] == "stair"}
+        thin += [f for f in stairs_up if f not in on]
+        if not thin:
+            return keep
+        f = min(thin)
+        gone = {r["name"] for r in keep if r["floor"] >= f or (r["kind"] == "stair" and r["floor"] + 1 >= f)}
+        # And whatever was entered through them.
+        for r in keep:
+            if r.get("from") in gone:
+                gone.add(r["name"])
+        keep = [r for r in keep if r["name"] not in gone]
+
+
+def converted_level(n, house_id, layout_path, seed_base, total, level_names):
+    """Level n of a converted house: the plan cut to plan(n)'s size (more of it while a cut will
+    not deal). A converted plan has the long corridors its source has, so a cut may have none
+    and no glimpse down one."""
+    layout = json.load(open(os.path.join(HERE, "..", layout_path)))
+    p = plan(n)
+    for count in range(p["rooms"], len(layout["rooms"]) + 1):
+        rooms = cut_plan(layout["rooms"], count)
+        if len(rooms) < min(p["rooms"], len(layout["rooms"])) and count < len(layout["rooms"]):
+            continue
+        doc = deal_layout(dict(layout, rooms=rooms), seed_base + n, n, p, level_names, total, house_id, glimpse=False)
+        if doc is not None:
+            return doc
+    raise SystemExit("%s level %d: no cut of %s deals" % (house_id, n, layout_path))
 
 
 def top_floor(g):
@@ -584,7 +727,7 @@ def glimpse_corridors(g):
         far = far_end(room, at)
         if far is None:
             continue
-        dist = ((far[0] - at[0]) ** 2 + (far[1] - at[1]) ** 2) ** 0.5 * CELL
+        dist = ((far[0] - at[0]) ** 2 + (far[1] - at[1]) ** 2) ** 0.5 * g.cell
         if dist >= 8.0:
             out.append((room, far))
     return out
@@ -680,11 +823,16 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
         did = "d%d" % len(doors)
         door = {"id": did, "a": room["parent"], "b": room["id"], "at": [float(v) for v in room["door"]["at"]],
                 "floor": room["door"]["floor"], "lock": "", "label": "Door", "colour": "brown"}
+        for k in ("side", "w", "y"):
+            if k in room["door"]:
+                door[k] = room["door"][k]
+        # An arch in the map's own walls: most stay arches, a few get a gate fitted to lock.
+        arch = bool(room["door"].get("open"))
         # The first door of level 1 is open: the lobby is a lobby, and the game starts past it.
         open_odds = {"room": 0.45, "corridor": 0.65, "stair": 0.5}[room["kind"]]
         if n == 1 and len(doors) == 0:
             kind = "open"
-        elif rng.random() < open_odds:
+        elif rng.random() < (open_odds + 1.0) / 2.0 if arch else rng.random() < open_odds:
             kind = "open"
         else:
             kind = rng.choice(kinds[: p["kinds"]])
@@ -754,17 +902,25 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
             steps.append({"text": "Something is behind a vent", "when": {"holds": key}})
             steps.append({"text": "Open the locked door", "when": {"opened": did}})
 
+        if arch and kind == "open":
+            door["open"] = True
         doors.append(door)
         reachable.append(room["id"])
 
     # The way out: a door on the outer wall of the deepest room on the ground floor, locked
     # behind the gold key, which is somewhere in the house.
-    last, cell, side = exit_of(g)
     gold = {"id": "key_gold", "name": "Gold key", "kind": "key", "colour": "gold"}
     steps.append({"text": "Find the gold key", "when": {"holds": gold["id"]}})
     place_item(gold, "the gold key")
-    doors.append({"id": "exit", "a": last["id"], "b": "", "side": side, "at": [float(v) for v in door_at(cell, side)],
-                  "floor": 0, "lock": gold["id"], "label": "The way out", "colour": "gold", "exit": True})
+    if g.world:
+        last, o = world_exit(g)
+        doors.append({"id": "exit", "a": last["id"], "b": "", "side": o["side"], "w": float(o["w"]), "y": last["y"],
+                      "at": [round(o["c"][0] / g.cell, 3), round(o["c"][1] / g.cell, 3)],
+                      "floor": 0, "lock": gold["id"], "label": "The way out", "colour": "gold", "exit": True})
+    else:
+        last, cell, side = exit_of(g)
+        doors.append({"id": "exit", "a": last["id"], "b": "", "side": side, "at": [float(v) for v in door_at(cell, side)],
+                      "floor": 0, "lock": gold["id"], "label": "The way out", "colour": "gold", "exit": True})
     steps.append({"text": "Get out", "when": {"opened": "exit"}})
 
     events.extend(make_events(rng, g, n, p, doors, items))
@@ -782,15 +938,24 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
              "w": room["w"], "d": room["d"], "floor": room["floor"], "spawn": room["spawn"], "light": float(room["light"])}
         if room["kind"] == "stair":
             r["up"] = room["up"]
+        if g.world:
+            r["y"] = room["y"]
+            if room["kind"] == "stair":
+                r["y2"] = room["y2"]
         out_rooms.append(r)
+
+    world = {}
+    if g.world:
+        world = {"world": {"path": "houses/%s/world/%s/%s" % (prefix, g.world["pack"], g.world["pack"]), "scale": g.world["scale"],
+                           "origin": g.world["origin"]}, "seals": world_seals(g, doors)}
 
     return {
         "format": FORMAT, "kind": "level", "id": "%s_%02d" % (prefix, n), "number": n,
         "name": level_names[n - 1], "author": "mg-look-at-me",
         "blurb": "Level %d of %d." % (n, total),
-        "cell": CELL, "height": HEIGHT, "storey": STOREY,
+        "cell": g.cell, "height": HEIGHT, "storey": STOREY,
         "rooms": out_rooms, "doors": doors, "items": items, "stations": stations,
-        "steps": steps, "events": events, "witches": witches,
+        "steps": steps, "events": events, "witches": witches, **world,
     }
 
 
@@ -816,7 +981,7 @@ def make_events(rng, g, n, p, doors, items):
 
     # A door slams behind you as you go on. Only one you can open again from the other side:
     # unlocked, or locked with something you still hold (nothing that opens a door is used up).
-    slammable = [d for d in doors if not d.get("exit") and not d["lock"].startswith("@") and by_id[d["b"]]["kind"] != "stair"]
+    slammable = [d for d in doors if not d.get("exit") and not d.get("open") and not d["lock"].startswith("@") and by_id[d["b"]]["kind"] != "stair"]
     rng.shuffle(slammable)
     for door in slammable[: p["slams"]]:
         events.append({"id": "ev%d" % len(events), "when": {"entered": door["b"]}, "do": "slam",
@@ -1008,6 +1173,36 @@ def main():
                 f.write(text)
             written += 1
 
+    for house_id, (directory, layout_path, seed_base, total, level_names) in CONVERTED.items():
+        out = os.path.join(HERE, "..", directory)
+        os.makedirs(out, exist_ok=True)
+        title = json.load(open(os.path.join(HERE, "..", layout_path)))["title"]
+        meta = os.path.join(out, "house.json")
+        meta_text = json.dumps({"kind": "house", "id": house_id, "name": title}, indent="\t") + "\n"
+        if check:
+            if not os.path.exists(meta) or open(meta).read() != meta_text:
+                stale.append(house_id + "/house.json")
+        elif not stats:
+            with open(meta, "w") as f:
+                f.write(meta_text)
+        for n in range(1, total + 1):
+            doc = converted_level(n, house_id, layout_path, seed_base, total, level_names)
+            if not solve(doc):
+                broken.append(doc["id"])
+            unfit.extend(prove(doc))
+            if stats:
+                print(stats_line(doc))
+                continue
+            path = os.path.join(out, doc["id"] + ".json")
+            text = text_of(doc)
+            if check:
+                if not os.path.exists(path) or open(path).read() != text:
+                    stale.append(doc["id"])
+                continue
+            with open(path, "w") as f:
+                f.write(text)
+            written += 1
+
     for house_id, (directory, layout_path, seed_base, difficulty) in LAYOUTS.items():
         out = os.path.join(HERE, "..", directory)
         os.makedirs(out, exist_ok=True)
@@ -1045,7 +1240,7 @@ def main():
         print("not what tools/build_levels.py writes:", ", ".join(stale))
         return 1
     if not check and not stats:
-        print("wrote %d levels in %d houses, every one finishable" % (written, len(HOUSES) + len(LAYOUTS)))
+        print("wrote %d levels in %d houses, every one finishable" % (written, len(HOUSES) + len(CONVERTED) + len(LAYOUTS)))
     return 0
 
 

@@ -7,6 +7,7 @@ extends "lm_level_parts.gd"
 ## Model id -> PackedScene, loaded once for every level, and its bounds.
 static var _furniture_scenes: Dictionary = {}
 static var _furniture_bounds: Dictionary = {}
+static var _world_shapes: Dictionary = {}
 
 
 ## Drops the shared furniture scenes so a process can exit without leaking them.
@@ -30,6 +31,12 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 		if kind == "stair" and not str(room.get("up", "")) in ["n", "s", "e", "w"]:
 			return DotResult.fail(DotError.CODE_INVALID, "stairwell %s does not say which way is up" % room["id"])
 
+	if in_world():
+		var built := _build_world()
+
+		if not built.ok:
+			return built
+
 	for door: Dictionary in doc["doors"]:
 		var placed := _place_door(door)
 
@@ -43,6 +50,9 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 
 	for door_id: String in doors:
 		_build_door(door_id)
+
+	for seal: Array in doc.get("seals", []):
+		_build_seal(seal)
 
 	for item: Dictionary in doc["items"]:
 		var at := _room_point(str(item["room"]), item["at"])
@@ -76,6 +86,9 @@ func _place_door(door: Dictionary) -> Dictionary:
 		return {}
 
 	var a: Rect2 = rooms[str(door["a"])]["rect"]
+
+	if in_world():
+		return _place_door_world(door)
 
 	if door.has("at"):
 		return _place_door_at(door, a)
@@ -175,6 +188,159 @@ func _place_door_at(door: Dictionary, a: Rect2) -> Dictionary:
 	return {"centre": Vector3(x, float(floor_index) * storey(), z), "normal": normal, "doc": door, "body": null}
 
 
+## A door in a converted map's own doorway: its centre and width are the doorway's, on the floor
+## of the room it is entered from, facing the way its "side" says.
+func _place_door_world(door: Dictionary) -> Dictionary:
+	var cell := float(doc.get("cell", 2.0))
+	var at: Array = door.get("at", [])
+	var normal: Vector3 = {"n": Vector3(0, 0, -1), "s": Vector3(0, 0, 1), "w": Vector3(-1, 0, 0), "e": Vector3(1, 0, 0)}.get(str(door.get("side", "")), Vector3.ZERO)
+
+	if at.size() != 2 or normal == Vector3.ZERO or (str(door.get("b", "")) != "" and not rooms.has(str(door["b"]))):
+		return {}
+
+	# A little over the doorway each way, into its jambs and lintel, so a locked door has no gap round it.
+	return {"centre": Vector3(float(at[0]) * cell, float(door.get("y", 0.0)), float(at[1]) * cell), "normal": normal, "doc": door, "body": null,
+		"width": float(door.get("w", DOOR_WIDTH)) + 0.2, "height": WORLD_DOOR_HEIGHT}
+
+
+## The converted map's building, solid: every hull of its world model, scaled as the document says.
+## Drawn too where this level draws; the drawing is fetched and comes in when it comes.
+func _build_world() -> DotResult:
+	var world: Dictionary = doc["world"]
+	var prefix := LmPaths.rebase("res://" + str(world["path"]))
+	var loaded := DotMapBspMesh.load_prefix(prefix)
+
+	if not loaded.ok:
+		return DotResult.fail(DotError.CODE_INVALID, "the world %s did not load: %s" % [prefix, loaded.error.message])
+
+	var mesh: DotMapBspMesh = loaded.value
+	var k := float(world.get("scale", 1.0))
+	var o: Array = world.get("origin", [0, 0, 0])
+	var origin := Vector3(float(o[0]), float(o[1]), float(o[2]))
+	var body := StaticBody3D.new()
+	body.name = "World"
+	add_child(body)
+	# One shared trimesh per pack: a server builds every level of the house at once, and
+	# 2500 convex nodes a level stalled its physics for over a second (the dedicated suite).
+	var key := "%s|%s|%s" % [prefix, k, origin]
+
+	if not _world_shapes.has(key):
+		_world_shapes[key] = _world_trimesh(mesh, k, origin)
+
+	var collider := CollisionShape3D.new()
+	collider.shape = _world_shapes[key]
+	body.add_child(collider)
+
+	if draws:
+		_draw_world(prefix, Transform3D(Basis.from_scale(Vector3.ONE * k), origin))
+
+	return DotResult.success(body)
+
+
+static func _world_trimesh(mesh: DotMapBspMesh, k: float, origin: Vector3) -> ConcavePolygonShape3D:
+	var faces := PackedVector3Array()
+
+	for model: int in mesh.models():
+		var at: Vector3 = mesh.model_origin(model) * k + origin
+
+		for hull: Dictionary in mesh.hull_shapes(model, PackedStringArray(["solid", "clip", "glass"])):
+			var points := PackedVector3Array()
+
+			for p: Vector3 in (hull["shape"] as ConvexPolygonShape3D).points:
+				points.append(p * k + at)
+
+			_hull_faces(points, faces)
+
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(faces)
+	return shape
+
+
+## A convex hull's faces from its points alone (the pack keeps its planes in the .bin): each
+## plane through three points with every point behind it, once, fanned round its own points.
+static func _hull_faces(points: PackedVector3Array, out: PackedVector3Array) -> void:
+	var n := points.size()
+	var centre := Vector3.ZERO
+
+	for p in points:
+		centre += p
+
+	centre /= maxf(n, 1)
+	var planes: Array[Plane] = []
+
+	for i in n:
+		for j in range(i + 1, n):
+			for m in range(j + 1, n):
+				var normal := (points[j] - points[i]).cross(points[m] - points[i])
+
+				if normal.length() < 1e-6:
+					continue
+
+				normal = normal.normalized()
+
+				if normal.dot(points[i] - centre) < 0.0:
+					normal = -normal
+
+				var plane := Plane(normal, normal.dot(points[i]))
+
+				if planes.any(func(q: Plane) -> bool: return q.normal.dot(normal) > 0.9999 and absf(q.d - plane.d) < 0.002):
+					continue
+
+				var on := PackedVector3Array()
+				var outside := false
+
+				for p in points:
+					var h := plane.distance_to(p)
+
+					if h > 0.002:
+						outside = true
+						break
+
+					if h > -0.002:
+						on.append(p)
+
+				if outside:
+					continue
+
+				planes.append(plane)
+				var mid := Vector3.ZERO
+
+				for p in on:
+					mid += p
+
+				mid /= on.size()
+				var u := (on[0] - mid).normalized()
+				var v := normal.cross(u)
+				var ring: Array = Array(on)
+				ring.sort_custom(func(a: Vector3, b: Vector3) -> bool:
+					return atan2((a - mid).dot(v), (a - mid).dot(u)) < atan2((b - mid).dot(v), (b - mid).dot(u)))
+
+				for t in range(1, ring.size() - 1):
+					out.append(ring[0])
+					out.append(ring[t])
+					out.append(ring[t + 1])
+
+
+func _draw_world(prefix: String, at: Transform3D) -> void:
+	var read: DotResult = await DotMapDrawnWorld.read(prefix, DotRegistry.get_service(&"dot_cloud_client"))
+
+	if not read.ok or not is_inside_tree():
+		DotLog.warn(CHANNEL, "the world was not drawn", {"prefix": prefix, "why": read.error.message if not read.ok else "the level is gone"})
+		return
+
+	var _drawn := DotMapDrawnWorld.attach(self, read.value as DotMapBspMesh, {"transform": at, "surfaces_root": DotMapSurfaces.DEFAULT_ROOT, "probes": 0, "cull": false})
+
+
+## Boards nailed over a converted map's doorway the level does not use: [x, z, side, width, y].
+func _build_seal(seal: Array) -> void:
+	var along_x := str(seal[2]) == "n" or str(seal[2]) == "s"
+	var width := float(seal[3])
+	var size := Vector3(width, WORLD_DOOR_HEIGHT + 0.4, 0.12) if along_x else Vector3(0.12, WORLD_DOOR_HEIGHT + 0.4, width)
+	var board := _box(self, size, Vector3(float(seal[0]), float(seal[4]) + size.y * 0.5, float(seal[1])), _material("door_wood", DOOR_COLOURS["wood"]), true)
+	board.name = "Seal_%d" % get_child_count()
+
+
 func _witch_loop(witch: Dictionary) -> Dictionary:
 	# A stairwell on her walk is the ramp, walked from the end she comes in at: kept as its id
 	# until the points either side of it are known.
@@ -198,7 +364,7 @@ func _witch_loop(witch: Dictionary) -> Dictionary:
 			continue
 
 		var room_id: String = raw[i]
-		var middle := room_base(room_id) + storey() * 0.5
+		var middle := room_base(room_id) + _rise(rooms[room_id]) * 0.5
 		var before: Variant = raw[(i - 1 + raw.size()) % raw.size()]
 		var after: Variant = raw[(i + 1) % raw.size()]
 		var from_below := not (before is Vector3) or (before as Vector3).y < middle
@@ -257,23 +423,14 @@ func _build_room(room_id: String) -> void:
 	# Each room's own paper and its own share of the pattern; the tint is brighter than the old
 	# flat colour because the texture carries the darker stripes and stains.
 	var wall_mat := _surface("wall_%d" % (room_id.hash() % WALLPAPERS.size()), paper * 1.25, "wall", 2.5, shift)
-	var centre := rect.get_center()
-	_box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, base - SLAB * 0.5, centre.y), floor_mat, true)
-	var ceiling := _box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, top + height + SLAB * 0.5, centre.y), _surface("ceiling", Color(0.17, 0.155, 0.14), "ceiling", 3.0, shift), true)
-	ceiling.name = "Ceiling"
+	# A converted map's room is its own walls, floor and stairs: only what is put in it is ours.
+	if in_world():
+		top = base
+		height = 3.0
+	else:
+		_build_shell(root, room_id, rect, base, top, height, floors, floor_mat, wall_mat, shift)
 
-	# A wall a storey at a time, each cut for the doors on that storey; every storey but the
-	# top runs up through the slabs to the next.
-	for storey_index in floors:
-		var bottom := base + float(storey_index) * storey()
-		var band := storey() if storey_index < floors - 1 else height
-
-		for side in ["n", "s", "w", "e"]:
-			_build_wall(root, rect, side, bottom, band, wall_mat)
-
-	if str(room["kind"]) == "stair":
-		_build_stair(root, room_id)
-	elif str(room["kind"]) == "room":
+	if str(room["kind"]) == "room":
 		# A corridor is left bare: furniture down both walls of a 4 m passage leaves no passage.
 		if doc.has("props"):
 			# The builder placed it, per room type, and proved it clear of every door, item,
@@ -304,12 +461,33 @@ func _build_room(room_id: String) -> void:
 				lamp.position = Vector3(rect.position.x + rect.size.x * (float(i) + 0.5) / float(across), top + height - 0.4,
 					rect.position.y + rect.size.y * (float(j) + 0.5) / float(down))
 				root.add_child(lamp)
-				var bulb := _box(root, Vector3(0.3, 0.2, 0.3), lamp.position + Vector3(0, 0.25, 0), _material("bulb", Color(1.0, 0.85, 0.6), 2.0), false)
+				# Under a converted map's ceiling the bulb hangs free, not in our ceiling slab, so it
+				# carries its own shape (the collision audit).
+				var bulb := _box(root, Vector3(0.3, 0.2, 0.3), lamp.position + Vector3(0, 0.25, 0), _material("bulb", Color(1.0, 0.85, 0.6), 2.0), in_world())
 				list.append({"light": lamp, "bulb": bulb, "energy": lamp.light_energy})
 
 		lamps[room_id] = list
 
 	# A room's name is on the wall over each of its doors, seen from the room you are leaving ([method _build_door]).
+
+
+## A built house's room: floor, ceiling, a wall a storey at a time (each cut for the doors on that
+## storey; every storey but the top runs up through the slabs to the next) and a stairwell's ramp.
+func _build_shell(root: Node, room_id: String, rect: Rect2, base: float, top: float, height: float, floors: int, floor_mat: Material, wall_mat: Material, shift: float) -> void:
+	var centre := rect.get_center()
+	_box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, base - SLAB * 0.5, centre.y), floor_mat, true)
+	var ceiling := _box(root, Vector3(rect.size.x, SLAB, rect.size.y), Vector3(centre.x, top + height + SLAB * 0.5, centre.y), _surface("ceiling", Color(0.17, 0.155, 0.14), "ceiling", 3.0, shift), true)
+	ceiling.name = "Ceiling"
+
+	for storey_index in floors:
+		var bottom := base + float(storey_index) * storey()
+		var band := storey() if storey_index < floors - 1 else height
+
+		for side in ["n", "s", "w", "e"]:
+			_build_wall(root, rect, side, bottom, band, wall_mat)
+
+	if str(rooms[room_id]["kind"]) == "stair":
+		_build_stair(root, room_id)
 
 
 ## Furniture along one wall, solid to a witch's sight. Never in front of a door, nor further from the wall than an item

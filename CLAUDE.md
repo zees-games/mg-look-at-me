@@ -30,7 +30,7 @@ game/
   lm_bot.gd      a stand-in player (tests and the soak only): walks the puzzle with real movement and E; see docs/soak.md
   lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
-houses/asylum/   The Asylum: asylum_01 .. asylum_20, the same builder
+houses/asylum/   The Asylum: asylum_01 .. asylum_20, cut from a converted plan (tools/convert, docs/converted-houses.md)
 houses/forgotten/ The Forgotten Wing: one 51-room level laid over a Workshop map's plan (tools/layouts/forgotten.json, tools/bsp_layout.py, docs/map-bases.md)
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)

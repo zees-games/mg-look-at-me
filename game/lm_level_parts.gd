@@ -183,9 +183,16 @@ func _wall_piece(root: Node, along_x: bool, fixed: float, from: float, to: float
 func _build_door(door_id: String) -> void:
 	var door: Dictionary = doors[door_id]
 	var normal: Vector3 = door["normal"]
-	var size := Vector3(DOOR_WIDTH, DOOR_HEIGHT, WALL * 2.0) if absf(normal.z) > 0.5 else Vector3(WALL * 2.0, DOOR_HEIGHT, DOOR_WIDTH)
+
+	# An arch of a converted map's left as one: nothing in it to open.
+	if bool(door["doc"].get("open", false)):
+		return
+
+	var width := float(door.get("width", DOOR_WIDTH))
+	var tall := float(door.get("height", DOOR_HEIGHT))
+	var size := Vector3(width, tall, WALL * 2.0) if absf(normal.z) > 0.5 else Vector3(WALL * 2.0, tall, width)
 	var colour: Color = DOOR_COLOURS.get(str(door["doc"].get("colour", "brown")), Color(0.3, 0.19, 0.11))
-	var body := _box(self, size, (door["centre"] as Vector3) + Vector3(0, DOOR_HEIGHT * 0.5, 0), _material("door_" + str(door["doc"].get("colour", "")), colour), true)
+	var body := _box(self, size, (door["centre"] as Vector3) + Vector3(0, tall * 0.5, 0), _material("door_" + str(door["doc"].get("colour", "")), colour), true)
 	body.name = "Door_%s" % door_id
 	door["body"] = body
 
@@ -220,8 +227,8 @@ func _build_door(door_id: String) -> void:
 		var named := "Out" if exit else str(rooms.get(into, {}).get("doc", {}).get("name", ""))
 		if named == "":
 			continue
-		var plaque_at: Vector3 = (door["centre"] as Vector3) + normal * face * (WALL + 0.02) + Vector3(0, DOOR_HEIGHT + 0.32, 0)
-		var plaque := _box(self, Vector3(DOOR_WIDTH * 0.8, 0.24, 0.02) if absf(normal.z) > 0.5 else Vector3(0.02, 0.24, DOOR_WIDTH * 0.8),
+		var plaque_at: Vector3 = (door["centre"] as Vector3) + normal * face * (WALL + 0.02) + Vector3(0, tall + 0.32, 0)
+		var plaque := _box(self, Vector3(minf(width, DOOR_WIDTH) * 0.8, 0.24, 0.02) if absf(normal.z) > 0.5 else Vector3(0.02, 0.24, minf(width, DOOR_WIDTH) * 0.8),
 			plaque_at, _material("plaque", Color(0.12, 0.09, 0.07)), false)
 		plaque.name = "Plaque_%s_%s" % [door_id, "b" if face > 0.0 else "a"]
 		var sign := Label3D.new()
