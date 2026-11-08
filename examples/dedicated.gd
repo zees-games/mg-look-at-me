@@ -14,7 +14,7 @@ const LmRequest := preload("../game/net/lm_request.gd")
 const LmScares := preload("../game/lm_scares.gd")
 
 const SECTIONS := 12
-const CHECKS := 74
+const CHECKS := 76
 
 const SERVER_DIR := "user://lm_dedicated"
 var PORT := LMTestPorts.free_port(2)
@@ -168,6 +168,13 @@ func _test_stats_report() -> void:
 	_check(not progress.stats.report_to_backbone, "off stops it again")
 	DotRegistry.unregister_instance(&"dot_backbone_client", client)
 	client.free()
+
+	_check(progress.stats.schema.has(&"rank_score") and progress.rank != null, "rank_score is declared and the rank is set up")
+	var _held := DotStatsValues.new()
+	_held.values = {"lm.wins": 2.0}
+	progress.rank.seed_baseline(&"lm-rank", _held)
+	var _life: float = progress.rank.publish_lifetime(&"lm-rank", DotStatsValues.new(), progress.stats.schema)
+	_check(_life == 10.0, "a stored lifetime baseline (2 wins) is what the published rank is built on")
 
 
 ## Config cvars, the workbench, and dot-team's block rules through dot-game's DotGameNoblock.
