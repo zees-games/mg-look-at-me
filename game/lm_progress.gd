@@ -5,7 +5,6 @@ extends Node
 ## It listens and nothing calls it: the house's own signals are the whole input. Server only.
 
 const LmGame := preload("lm_game.gd")
-const LmStatsRelay := preload("lm_stats_relay.gd")
 
 const CHANNEL := "lookatme.progress"
 
@@ -27,8 +26,6 @@ var link: DotAchievementStatsLink = null
 
 ## Only the stats report is filed under dot-game's stable key; `game.players` and awards keep `uid:...`.
 var stats_feed := DotGameStatsFeed.new()
-var relay := LmStatsRelay.new()
-
 ## world key -> [stats key, userid], noted at admission by [method note_session].
 var _stats_keys: Dictionary = {}
 
@@ -114,8 +111,7 @@ func setup(world: LmGame, directory: String, report: bool) -> DotResult:
 	link = DotAchievementStatsLink.new()
 	link.name = "StatsLink"
 	link.tracker = achievements
-	relay.follow(stats)
-	link.stats = relay
+	link.stats = stats
 	add_child(link)
 	var linked := link.start()
 
@@ -180,7 +176,7 @@ func record(key: StringName, stat: StringName, value: float = 1.0) -> void:
 
 	if not stats.has_player(_stats_key(key)):
 		stats.begin(_stats_key(key), str(player.get("display_name")))
-		relay.record_of[_stats_key(key)] = key
+		link.key_map[_stats_key(key)] = key
 		_begin(key)
 
 	var filed := stats.record(_stats_key(key), stat, value)
@@ -201,7 +197,7 @@ func leave(key: StringName) -> void:
 		return
 
 	var _values := stats.end(_stats_key(key))
-	relay.record_of.erase(_stats_key(key))
+	link.key_map.erase(_stats_key(key))
 
 	if _stats_keys.has(key):
 		stats_feed.forget(int(_stats_keys[key][1]))
