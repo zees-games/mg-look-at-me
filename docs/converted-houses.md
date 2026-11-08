@@ -2,11 +2,14 @@
 
 The owner's rule (2026-11-08): every house is a converted Steam Workshop map, heavily altered (layout, rooms and props changed), with our own or free art only. This is how a house is converted, what is altered, and what is left for later.
 
-## The design: a converted plan, not converted meshes
+## The design: the source's geometry, our house on top
 
-A house in this game is rooms on the 4 m grid (`docs/levels.md`), and everything else reads that grid: per-player doors, keys and the puzzle proof, the witches' walks, `room_at`/`floor_at`, the furniture proof and the level message size. So a converted house is the source map's **plan**, converted automatically and laid on the grid, and the builder deals our puzzles, furniture and witches on it as it does for every house. The source's meshes, textures, props, sounds and text are never used.
+A converted house has two parts:
 
-This is the least risky way to take a map whole: nothing in the game changes, only a layout, and the builder proves every level solvable as it writes it. Loading the source's own world meshes (phase 2, below) would touch every one of those systems at once.
+- The source map's **geometry**, converted by dot-map-convert (`bsp.py mesh`) with every texture and model mapped to a free or own one. It ships as a world pack next to the levels (`houses/<house>/world/<pack>/`). The source's textures, models, sounds and text are never used.
+- The source's **plan**: rooms, floors, stairs and the openings between them, read off the same geometry. The builder deals our puzzles, doors, keys, furniture, witches and events on it, and proves every level solvable as it writes it.
+
+A house without a world pack (the built-in House, the Forgotten Wing) is still rooms on the 4 m grid (`docs/levels.md`), with walls we build.
 
 ## The pipeline
 
@@ -28,17 +31,16 @@ Regenerate the Asylum's layout with:
 
 ## What is altered
 
-- **Size.** The plan is grown (×2 for the Asylum) and snapped to the 4 m grid, so the rooms are this game's 8 to 16 m and not the source's.
-- **Layout.** Rooms the tree does not reach and the small nooks are dropped. The stairwells are ours (8 by 16 m), placed by the spec and carved out of both floors they span, so the way between floors changes. A spec can mirror the plan, carve cells out of it and rename rooms (`alter`).
+- **Size.** A grid house's plan is grown and snapped to the 4 m grid, so its rooms are this game's 8 to 16 m. A house with a world pack keeps the source's size (on the pack's scale) and a 2 m cell.
+- **Layout.** Rooms the tree does not reach and the small nooks are dropped. On a grid house the stairwells are ours (8 by 16 m), placed by the spec and carved out of both floors they span, so the way between floors changes. On a house with a world pack they are the source's own stairs. A spec can mirror the plan, carve cells out of it and rename rooms (`alter`).
 - **Rooms.** Names, furniture (Kenney, by name), puzzles, keys, witches, lights and events are this game's own, dealt again on every level.
 - **Levels.** One source plan becomes twenty levels, each a bigger cut of it.
 
 ## The Asylum
 
-From [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=903842886) by The Old Swashbuckler (page checked 2026-10-20: no licence stated and no request against porting, sharing or reuploading). Its layout has three floors, about 5,500 m², and is dealt as levels of 15 to 34 rooms.
+From [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=903842886) by The Old Swashbuckler (page checked 2026-10-20: no licence stated and no request against porting, sharing or reuploading). Its layout has two floors joined by the source's stairs, and is dealt as levels of 18 to 34 rooms.
 
-- Levels 1 to 4 are the ground floor alone. The house's other floors are only reached up the stairwells, and the nearest long corridor is on the top floor. So the first four levels have no glimpse event: the builder asks for one on a converted house only when the cut has a long corridor.
-- From level 5 every level has all three floors.
+- Every level has both floors and a glimpse event: the builder asks for one on a converted house only when the cut has a long corridor.
 - The old hand-grown Asylum (the builder's own rooms and seed) is gone.
 
 ## Queue
@@ -50,11 +52,19 @@ Each needs its own spec and a check of its page for a request against porting. A
 - **The House** (the built-in 32 levels): needs a base chosen from the shortlist in `docs/map-bases.md`.
 - **The lam-maps houses**: the same converter, through `build_levels.py --layout`.
 
-## Phase 2: the source's meshes (owner's call)
+## Phase 2: the source's meshes (the Asylum)
 
-Drawing the converted world mesh, with the source's textures and props mapped to free assets, would look much more like a real building. It is not done, because each of these would have to change first:
+The Asylum draws and collides with its converted world (`houses/asylum/world/gm_blackbrook_asylum/`). How each limit of the grid house was met:
 
-- A level document is held under 48,000 bytes (`MAX_BYTES`) and sent in a 32 KB window: a mesh does not fit in a level message.
-- `room_at` and `floor_at` read the grid; a mesh's floors and stairs do not.
-- Witches walk grid lanes, and the furniture proof keeps those lanes clear.
-- Doors are per player and cut in grid walls.
+- **Message size.** The mesh is not in the level message. A level names its pack (`world`: path, scale, origin) and every client and server loads it from the house's files. The levels stay under `MAX_BYTES`.
+- **Rooms and floors.** The layout's rooms are the source's own, in metres, each at its real floor height (`y`, and `y2` at the top of a stair). `room_at`, `floor_at` and `stair_point` read those heights, not the grid's storeys.
+- **Collision.** The pack's solid, clip and glass hulls become one shared trimesh per pack. A server builds every level of a house at once, and one convex shape per hull per level stalled it.
+- **Doors.** Doors and locks go only in the source's openings, at the opening's width (up to 2.4 m) and height. An opening a level does not use as a door is sealed with a plank wall, so a cut of the house is closed. The exit is a ground-floor opening to the outside.
+- **Witches.** Witches still walk the builder's lanes between room centres and door middles.
+
+Not done yet:
+
+- Some of the source's floor pieces are not reached by the room tree and are left out of the levels.
+- Witches glide up stairs and can pass through walls that are not straight.
+- An opening the converter missed is a hole in the cut; a wall it missed may stand across a room.
+- A door's name plaque can sit inside a thick source wall.

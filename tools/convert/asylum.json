@@ -2,7 +2,7 @@
  "name": "The Asylum",
  "title": "The Asylum",
  "scale": 0.0254,
- "grow": 2.0,
+ "grow": 1.0,
  "source": {
   "workshop": 903842886,
   "title": "Blackbrook Asylum",
@@ -14,8 +14,9 @@
    "floor": 0,
    "z": [
     -40,
-    200
-   ]
+    230
+   ],
+   "yard": false
   },
   {
    "floor": 1,
@@ -23,39 +24,31 @@
     240,
     440
    ]
-  },
-  {
-   "floor": 2,
-   "z": [
-    480,
-    560
-   ]
   }
  ],
  "stairs": [
   {
    "name": "Stairs",
    "floor": 0,
-   "x": 9,
-   "z": 6,
-   "w": 4,
-   "d": 2,
-   "up": "e"
-  },
-  {
-   "name": "Upper Stairs",
-   "floor": 1,
    "x": 13,
    "z": 8,
-   "w": 4,
-   "d": 2,
-   "up": "w"
+   "w": 3,
+   "d": 3,
+   "up": "n",
+   "y": [
+    130,
+    416
+   ]
   }
  ],
  "mood": "indoor_hall",
- "start_name": "Reception",
- "erode": 0.5,
+ "erode": 1.0,
  "min_area": 3.0,
  "fill": 0.4,
- "min_cells": 2
+ "min_cells": 1,
+ "mode": "mesh",
+ "cell": 2.0,
+ "pack": "gm_blackbrook_asylum",
+ "pack_metres_per_unit": 0.01905,
+ "start_name": "Reception"
 }

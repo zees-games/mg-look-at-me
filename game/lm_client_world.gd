@@ -497,7 +497,8 @@ func _swing_doors(delta: float) -> void:
 		body.set_meta(&"swing", now)
 		var normal: Vector3 = door["normal"]
 		# The hinge is one edge of the door; it swings into the room it opens into.
-		var hinge := Vector3(-LmLevel.DOOR_WIDTH * 0.5, 0, 0) if absf(normal.z) > 0.5 else Vector3(0, 0, -LmLevel.DOOR_WIDTH * 0.5)
+		var width := float(door.get("width", LmLevel.DOOR_WIDTH))
+		var hinge := Vector3(-width * 0.5, 0, 0) if absf(normal.z) > 0.5 else Vector3(0, 0, -width * 0.5)
 		var turn := Basis(Vector3.UP, now * (1.0 if normal.z + normal.x > 0.0 else -1.0))
 		for child in body.get_children():
 			if child is VisualInstance3D:

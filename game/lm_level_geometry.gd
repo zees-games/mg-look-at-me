@@ -37,6 +37,10 @@ const DOOR_WIDTH := 1.5
 const DOOR_HEIGHT := 2.3
 
 
+## A door fitted in a converted map's doorway: up into its lintel, which is higher than a built house's.
+const WORLD_DOOR_HEIGHT := 2.9
+
+
 const WALL := 0.15
 
 
@@ -117,9 +121,26 @@ func storey() -> float:
 	return float(doc.get("storey", float(doc.get("height", 3.2)) + SLAB * 2.0))
 
 
-## The height of [param room_id]'s floor, local to the level.
+## The height of [param room_id]'s floor, local to the level: a converted map's rooms each have
+## their own ("y"), as the map built them.
 func room_base(room_id: String) -> float:
+	if in_world():
+		return float(rooms[room_id]["doc"].get("y", 0.0))
+
 	return float(rooms[room_id]["floor"]) * storey()
+
+
+## Whether this level stands in a converted map's own building (the document's "world").
+func in_world() -> bool:
+	return doc.has("world")
+
+
+## Metres a stairwell climbs, foot to head; a storey in a built house.
+func _rise(room: Dictionary) -> float:
+	if in_world() and room["doc"].has("y2"):
+		return float(room["doc"]["y2"]) - float(room["doc"].get("y", 0.0))
+
+	return storey()
 
 
 func _spans_floor(room: Dictionary, floor_index: int) -> bool:
@@ -145,7 +166,7 @@ func floor_at(room_id: String, local: Vector3) -> float:
 
 	var cell := float(doc.get("cell", 8.0))
 	var run := _stair_length(room) - cell * 2.0
-	return base + clampf((_along_stair(room, local) - cell) / maxf(run, 0.01), 0.0, 1.0) * storey()
+	return base + clampf((_along_stair(room, local) - cell) / maxf(run, 0.01), 0.0, 1.0) * _rise(room)
 
 
 func _stair_length(room: Dictionary) -> float:
@@ -184,7 +205,7 @@ func stair_point(room_id: String, head: bool) -> Vector3:
 			point = Vector3(centre.x, 0.0, rect.position.y + s)
 		_:
 			point = Vector3(centre.x, 0.0, rect.end.y - s)
-	point.y = room_base(room_id) + (storey() if head else 0.0)
+	point.y = room_base(room_id) + (_rise(room) if head else 0.0)
 	return point
 
 
@@ -221,6 +242,17 @@ func room_at(local: Vector3) -> String:
 		if not (room["rect"] as Rect2).grow(0.05).has_point(Vector2(local.x, local.z)):
 			continue
 
+		if in_world():
+			# A converted map's floors are not a storey apart: a room owns its own floor's height
+			# and two metres over it, a stairwell from its foot to over its head.
+			var y := float(room["doc"].get("y", 0.0))
+			var top := float(room["doc"].get("y2", y))
+
+			if local.y >= y - 1.0 and local.y < top + 2.0:
+				return room_id
+
+			continue
+
 		var base := float(room["floor"]) * high
 
 		if local.y >= base - 0.9 and local.y < base + float(room["floors"]) * high - 0.9:
@@ -237,6 +269,12 @@ func is_out(local: Vector3) -> bool:
 		return false
 
 	var past: float = (local - (exit["centre"] as Vector3)).dot(exit["normal"])
+
+	# A converted map's rooms do not fill it, so "in no room" is not "out": out of the way out.
+	if in_world():
+		var flat := Vector2(local.x - exit["centre"].x, local.z - exit["centre"].z)
+		return past > 0.6 and flat.length() <= 3.0 and room_at(local) == ""
+
 	return past > 0.6 and room_at(local) == ""
 
 
