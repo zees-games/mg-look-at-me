@@ -137,20 +137,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key.is_action(LmBindings.FLASHLIGHT):
 		_act("flashlight")
 	elif key.is_action(LmBindings.VIEW):
-		var wanted := game.view_rules.toggled(third_person)
-		if wanted == third_person and game.view_rules.refusal() != "":
-			_say(game.view_rules.refusal())
-		third_person = wanted
+		_toggle_view()
 	elif key.is_action(LmBindings.COMMAND) or key.keycode == KEY_ENTER:
-		_command.visible = true
-		# Typing is not walking: the sampler is detached until the line is sent.
-		_held_sampler = player.sampler
-		player.sampler = null
-		_command.text = "/"
-		_command.grab_focus()
-		_command.caret_column = 1
-		# Held, not just freed: a click outside or a menu closing must not recapture it mid-word.
-		platform.hold_pointer(&"command")
+		_open_command()
 	elif key.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		# And the settings: a released pointer with nothing to click was half a key. The
@@ -231,6 +220,29 @@ func _build_effects() -> void:
 	# Over the world and the vignette, under the words: a flash that dims "SHE SEES YOU" is
 	# hiding the one line that says what happened.
 	_hud.move_child(_flash_rect, _vignette.get_index() + 1)
+
+
+## F5, or the phone's camera button.
+func _toggle_view() -> void:
+	var wanted := game.view_rules.toggled(third_person)
+	if wanted == third_person and game.view_rules.refusal() != "":
+		_say(game.view_rules.refusal())
+	third_person = wanted
+
+
+## The command line: `/` or Enter, or the phone's command button.
+func _open_command() -> void:
+	if player == null:
+		return
+	_command.visible = true
+	# Typing is not walking: the sampler is detached until the line is sent.
+	_held_sampler = player.sampler
+	player.sampler = null
+	_command.text = "/"
+	_command.grab_focus()
+	_command.caret_column = 1
+	# Held, not just freed: a click outside or a menu closing must not recapture it mid-word.
+	platform.hold_pointer(&"command")
 
 
 func _act(action: String, args: Dictionary = {}) -> void:

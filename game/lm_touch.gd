@@ -18,12 +18,18 @@ static func wanted() -> bool:
 	return DotPlatform.has_touch()
 
 
-## dot-game's platformer preset without sprint, board and chat, plus the flashlight in the corner home.
+## dot-game's platformer preset without sprint and chat, plus the flashlight in the corner home and a button for every key
+## the keyboard has: camera (F5), command line, scoreboard (Tab, held), map list (M), and look-to-gag and look-to-mute (G, K).
+## Help (H) is the menu's own button, which opens "Help & commands".
 static func touch_layout() -> DotGameTouchLayout:
 	var res := DotGameTouchLayout.build(DotGameTouchLayout.PLATFORMER, {
 		DotGameTouchLayout.SPRINT: null,
-		DotGameTouchLayout.BOARD: null,
 		DotGameTouchLayout.CHAT: null,
+		DotGameTouchLayout.CAMERA: &"row1",
+		DotGameTouchLayout.COMMAND: &"row2",
+		DotGameTouchLayout.MAPS: &"row4",
+		DotGameTouchLayout.GAG: &"secondary",
+		DotGameTouchLayout.MUTE: &"inner",
 		&"flashlight": {"slot": &"corner", "label": "LIGHT"},
 	})
 	if not res.ok:

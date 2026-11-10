@@ -38,11 +38,11 @@ func _run() -> void:
 			_check(clash == "", "%s: no two buttons overlap at %dx%d" % [label, size.x, size.y], clash)
 			_check(_min_diameter(layout) >= 44.0, "%s: every button is at least 44 px at %dx%d" % [label, size.x, size.y])
 			buttons.free()
-	var want: Array = [&"use", &"jump", &"crouch", &"flashlight"]
+	var want: Array = [&"use", &"jump", &"crouch", &"flashlight", &"camera", &"command", &"board", &"maps", &"gag", &"mute"]
 	var got: Array = LmTouch.touch_layout().ids()
 	got.sort()
 	want.sort()
-	_check(got == want, "the layout is the canonical use, jump, crouch and the flashlight", str(got))
+	_check(got == want, "the layout is the canonical use, jump, crouch, the flashlight, and a button for the camera, command line, scoreboard, map list, gag and mute keys", str(got))
 	DotPlatform.touch_override = 0
 	_check(not LmTouch.wanted(), "no touch: the client builds no buttons")
 	var off := DotTouchButtons.new()
