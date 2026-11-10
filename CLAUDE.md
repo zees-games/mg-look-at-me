@@ -94,6 +94,7 @@ godot --headless --path . res://examples/headless_net.tscn   # a READY before th
 godot --headless --path . res://examples/headless_lossy.tscn # a client on ENet through dot-net's relay at 60 ms, walking while the house changes, 0% and 5% loss; -- --stock-throttle is the control
 godot --headless --path . res://examples/dedicated.tscn      # cfg/maps.yml (rotation file), also a real ENet client behind its cover is not caught and is once it lifts, and a module loaded again leaves one net link
 tools/build_levels.py --check
+python3 tools/test_build_levels.py                           # laid-out cellars and fixed locks
 tools/shot.sh; tools/shot.sh --view=witch --level=8; tools/shot.sh --view=third
 tools/shot.sh --view=above --level=8 --floor=1 --res=1400x1400   # a plan of one floor; look at it after any builder change
 tools/shot.sh --view=glimpse --level=8 --seconds=0.6             # her at the end of a corridor

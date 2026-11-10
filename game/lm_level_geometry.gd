@@ -275,7 +275,8 @@ func is_out(local: Vector3) -> bool:
 		var flat := Vector2(local.x - exit["centre"].x, local.z - exit["centre"].z)
 		return past > 0.6 and flat.length() <= 3.0 and room_at(local) == ""
 
-	return past > 0.6 and room_at(local) == ""
+	# Under the ground is never out, even in a wall between cellar rooms.
+	return past > 0.6 and local.y > (exit["centre"] as Vector3).y - 0.9 and room_at(local) == ""
 
 
 
@@ -341,12 +342,20 @@ func door_rid(door_id: String) -> RID:
 	return (body as CollisionObject3D).get_rid() if body is CollisionObject3D else RID()
 
 
-## How many floors the level has, counting a stairwell's head.
+## How many floors the level has, counting a stairwell's head and any cellar under the ground.
 func floor_count() -> int:
 	var top := 0
 	for room_id: String in rooms:
 		top = maxi(top, int(rooms[room_id]["floor"]) + int(rooms[room_id]["floors"]) - 1)
-	return top + 1
+	return top - lowest_floor() + 1
+
+
+## The lowest floor: 0, or below it for a cellar.
+func lowest_floor() -> int:
+	var low := 0
+	for room_id: String in rooms:
+		low = mini(low, int(rooms[room_id]["floor"]))
+	return low
 
 
 ## Floor area in square metres, a stairwell counted once per storey.

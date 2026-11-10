@@ -566,7 +566,7 @@ func _test_map_houses() -> void:
 	var seen := 0
 	for id in [&"lam_villa_night", &"lam_functionalist_night", &"lam_deco_mansion_night"]:
 		if not game.houses.has(id):
-			for _i in 3:
+			for _i in 4:
 				_check(true, "%s is not linked here, skipped" % id)
 			continue
 		seen += 1
@@ -576,9 +576,43 @@ func _test_map_houses() -> void:
 		_check(stuck.is_empty(), "%s: the solver opens the way out" % id, ", ".join(stuck))
 		var level: LmLevel = game.levels[1]
 		_check(level.doc.has("mood") and level.rooms.size() >= 10, "%s: a mood and %d rooms" % [id, level.rooms.size()])
+		# The functionalist house goes underground: the solver had something to do down there.
+		var below := (level.items.values() + level.stations.values()).filter(func(t: Dictionary) -> bool: return (t["at"] as Vector3).y < -1.0).size()
+		_check(id != &"lam_functionalist_night" or (level.lowest_floor() < 0 and below > 0), "%s: floors %d to %d, %d things under the ground" % [id, level.lowest_floor(), level.lowest_floor() + level.floor_count() - 1, below])
 	var _home := game.change_house(&"house")
 	game.leave(&"solver")
 	_check(game.house_id == &"house", "and the House comes back (%d map houses checked)" % seen)
+	_finished_section()
+
+
+## A cellar: a lobby on the ground, a stairwell down from it (foot on floor -1, head on 0) and
+## a room at its foot, under the ground and never "out".
+func _test_cellar() -> void:
+	_section("a cellar under the ground floor")
+	var doc := {
+		"cell": 4.0, "height": 3.2, "storey": 3.7, "id": "cellar_test", "props": [], "items": [], "stations": [], "witches": [], "events": [],
+		"rooms": [
+			{"id": "r0", "name": "Lobby", "kind": "room", "x": 0, "z": 0, "w": 2, "d": 2, "floor": 0, "spawn": true},
+			{"id": "r1", "name": "Cellar Stair", "kind": "stair", "up": "w", "x": 2, "z": 0, "w": 4, "d": 1, "floor": -1},
+			{"id": "r2", "name": "Cellar", "kind": "room", "x": 6, "z": 0, "w": 2, "d": 2, "floor": -1},
+		],
+		"doors": [
+			{"id": "d0", "a": "r0", "b": "r1", "at": [2.0, 0.5], "floor": 0, "lock": ""},
+			{"id": "d1", "a": "r1", "b": "r2", "at": [6.0, 0.5], "floor": -1, "lock": ""},
+			{"id": "exit", "a": "r0", "b": "", "at": [0.0, 0.5], "floor": 0, "lock": "", "exit": true},
+		],
+	}
+	var level := LmLevel.new()
+	add_child(level)
+	var built := level.build(doc, false)
+	_check(built.ok and level.doors.size() == 3, "it builds, its doors on the floors they say", str(built))
+	var under := Vector3(28.0, -3.7 + 0.1, 4.0)
+	_check(level.room_base("r2") == -3.7 and level.room_at(under) == "r2" and level.room_at(Vector3(28.0, 0.1, 4.0)) == "",
+		"a point on its floor is in the cellar, one a storey up is in nothing")
+	_check(level.floor_count() == 2 and level.lowest_floor() == -1, "two floors, the lowest -1 (%d, %d)" % [level.floor_count(), level.lowest_floor()])
+	# West of the exit wall, under the ground: past the way out, but not out.
+	_check(level.is_out(Vector3(-2.0, 0.1, 2.0)) and not level.is_out(Vector3(-2.0, -3.6, 2.0)), "out of the way out is out, under it is not")
+	level.queue_free()
 	_finished_section()
 
 

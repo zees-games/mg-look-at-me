@@ -434,14 +434,20 @@ def level(n, seed_base, level_names, lobby_name, total, prefix, names, corridor_
     raise SystemExit("level %d of %s: no house grew that fits its plan" % (n, prefix))
 
 
+# What a laid-out room's `lock` may ask for: the dealt kinds, and a light switch, which is only
+# ever asked for.
+LOCKS = ("open", "key", "lever", "crowbar", "fuse", "bucket", "code", "vent", "switch")
+
+
 def layout_grower(rng, layout):
     """A Grower filled from a layout instead of grown: the rooms are where the layout puts them, and
     the doors are a tree through the walls they share, walked from the first room (the start).
 
-    A room may say its `floor` (0 the ground); a `stair` (with `up`, at least 4 cells long that way)
-    spans its floor and the next, and only its foot landing opens on its floor and its head landing
+    A room may say its `floor` (0 the ground, -1 a cellar under it); a `stair` (with `up`, at least
+    4 cells long that way) spans its floor and the next, and only its foot landing opens on its floor and its head landing
     on the one above, as in a grown house. Nothing needs to stand under a laid-out room. A room's
-    `from` names the neighbour its door is cut from (otherwise the first reached)."""
+    `from` names the neighbour its door is cut from (otherwise the first reached), and its `lock`
+    the kind of lock that door gets (one of LOCKS) instead of a dealt one."""
     g = Grower(rng)
     g.cell = float(layout.get("cell", CELL))
     g.world = layout.get("world")
@@ -453,8 +459,8 @@ def layout_grower(rng, layout):
     door_cells = []
     for i, sp in enumerate(specs):
         floor = int(sp.get("floor", 0))
-        if floor < 0:
-            raise SystemExit("layout: %s is below the ground floor" % sp["name"])
+        if sp.get("lock", "") not in ("",) + LOCKS:
+            raise SystemExit("layout: %s has a lock of no known kind: %s" % (sp["name"], sp["lock"]))
         own = g.cells(sp["x"], sp["z"], sp["w"], sp["d"])
         if sp["kind"] == "stair":
             if sp.get("up") not in DIRS:
@@ -498,7 +504,9 @@ def layout_grower(rng, layout):
     for i in order:
         sp = specs[i]
         parent = None if seen[i] is None else ids[seen[i]]
-        extra = {"up": sp["up"]} if sp["kind"] == "stair" else None
+        extra = {"up": sp["up"]} if sp["kind"] == "stair" else {}
+        if sp.get("lock"):
+            extra["lock"] = sp["lock"]
         room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], int(sp.get("floor", 0)), parent, extra)
         room["light"] = sp.get("light", 0.0)
         ids[i] = room["id"]
@@ -623,7 +631,8 @@ def floors_without_parts(doc):
 def deal_layout(layout, seed, n, p, level_names, total, house_id, one_level=False, glimpse=True):
     """A laid-out or converted plan dealt and proven like a grown level; None if no dealing fits."""
     p = dict(p)
-    p["floors"] = 1 + max(int(r.get("floor", 0)) + (1 if r["kind"] == "stair" else 0) for r in layout["rooms"])
+    p["floors"] = 1 + max(int(r.get("floor", 0)) + (1 if r["kind"] == "stair" else 0) for r in layout["rooms"]) \
+        - min(int(r.get("floor", 0)) for r in layout["rooms"])
     for attempt in range(200):
         rng = random.Random(seed * 1000 + attempt)
         g = layout_grower(rng, layout)
@@ -830,7 +839,9 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
         arch = bool(room["door"].get("open"))
         # The first door of level 1 is open: the lobby is a lobby, and the game starts past it.
         open_odds = {"room": 0.45, "corridor": 0.65, "stair": 0.5}[room["kind"]]
-        if n == 1 and len(doors) == 0:
+        if room.get("lock"):
+            kind = room["lock"]
+        elif n == 1 and len(doors) == 0:
             kind = "open"
         elif rng.random() < (open_odds + 1.0) / 2.0 if arch else rng.random() < open_odds:
             kind = "open"
@@ -867,6 +878,13 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
             stations.append({"id": sid, "name": "Lever", "kind": "lever", "room": r, "at": spot(r), "needs": "", "gives": "", "opens": did, "verb": "Pull the lever"})
             door.update({"lock": "@" + sid, "label": "Gate", "colour": "iron"})
             steps.append({"text": "Find the lever that opens the gate", "when": {"used": sid}})
+        elif kind == "switch":
+            # A lever by another name: the light switch that puts the power back on a door.
+            sid = "switch_%d" % len(doors)
+            r = far_room()
+            stations.append({"id": sid, "name": "Light switch", "kind": "switch", "room": r, "at": spot(r), "needs": "", "gives": "", "opens": did, "verb": "Flip the light switch"})
+            door.update({"lock": "@" + sid, "label": "Powered door", "colour": "steel"})
+            steps.append({"text": "Find the light switch that puts the power back", "when": {"used": sid}})
         elif kind == "fuse":
             item = {"id": "fuse_%d" % len(doors), "name": "Fuse", "kind": "fuse"}
             sid = "fusebox_%d" % len(doors)

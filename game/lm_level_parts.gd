@@ -292,6 +292,11 @@ func _build_station(station: Dictionary, at: Vector3) -> Node3D:
 		"lever":
 			_box(root, Vector3(0.3, 1.0, 0.2), Vector3(0, 0.5, 0), _material("iron", Color(0.2, 0.2, 0.22)), false)
 			_box(root, Vector3(0.06, 0.6, 0.06), Vector3(0, 1.2, 0), _material("handle", Color(0.7, 0.1, 0.1), 0.5), false)
+		"switch":
+			# A plate on a post at hand height, its rocker lit so it can be found in the dark.
+			_box(root, Vector3(0.12, 1.3, 0.12), Vector3(0, 0.65, 0), _material("iron", Color(0.2, 0.2, 0.22)), false)
+			_box(root, Vector3(0.25, 0.35, 0.06), Vector3(0, 1.4, 0), _material("switchplate", Color(0.85, 0.83, 0.78)), false)
+			_box(root, Vector3(0.08, 0.14, 0.05), Vector3(0, 1.4, 0.04), _material("rocker", Color(1.0, 0.7, 0.2), 1.5), false)
 		"fusebox":
 			_box(root, Vector3(0.6, 0.8, 0.25), Vector3(0, 1.3, 0), _material("fusebox", Color(0.4, 0.42, 0.38)), false)
 		"vent":
