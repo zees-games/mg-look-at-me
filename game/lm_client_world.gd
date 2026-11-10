@@ -62,6 +62,8 @@ var _events_shown: Dictionary = {}
 var _events_level := -1
 ## Room id -> seconds into its lamps' dying flicker.
 var _dying: Dictionary = {}
+## Seconds the lamps have been running, for their flicker ([DotLampFlicker]).
+var _lamp_time := 0.0
 ## Her, at the far end of a corridor, for a moment (a "glimpse" event); and for how long.
 var _glimpse: Node3D = null
 var _glimpse_left := 0.0
@@ -566,6 +568,9 @@ func _show_events(delta: float) -> void:
 			for room_id in event.get("rooms", []):
 				if not _dying.has(str(room_id)):
 					level.set_room_light(str(room_id), 0.0)
+
+	_lamp_time += delta
+	level.flicker_lamps(_lamp_time, settings == null or settings.settings.get_bool(&"allow_flashes", true))
 
 	if _glimpse != null:
 		_glimpse_left -= delta

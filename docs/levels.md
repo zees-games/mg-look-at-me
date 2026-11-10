@@ -69,3 +69,7 @@ Every level is built at once, side by side in rows of eight (`LmGame.LEVELS_PER_
 ## Workshop houses
 
 A subscribed pack can offer houses in solo: the entry's `scene` is the pack's `house.json` and the level documents sit beside it, in the format above. Online none are listed. Not done: a pack house is only checked to be a house of the entry's id with at least one level document; the builder's `--check` proofs (clear furniture, reachable doors) are the author's to run.
+
+## Flickering lamps
+
+A room's lamps gutter with dot-lighting's `DotLampFlicker` (a pure function of time and the lamp's seed, so only the client runs it). A room's own `flicker` (0..1) sets how much; without one, a dim room (`light` 0 < l <= 0.2, `LmLevel.DIM_LIGHT`) flickers at 0.6. "Allow flashes" off keeps only the slow drift. A lights-fail event's dark rooms stay dark.

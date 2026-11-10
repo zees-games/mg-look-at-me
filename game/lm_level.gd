@@ -4,6 +4,13 @@ extends "lm_level_parts.gd"
 ## A witch's walk is a pure function of the shared clock, so nothing about her is sent and server sight and client picture cannot disagree.
 ## Doors are per player (one solid body; the opener's controller excludes its RID, see [LmGame]); floors: [method storey], docs/design.md.
 
+## A room whose `light` is at or under this has a dim, failing bulb, and flickers by [constant DIM_FLICKER] unless it says otherwise.
+const DIM_LIGHT := 0.2
+const DIM_FLICKER := 0.6
+
+## Room id -> how much its lamps flicker (0..1); only rooms that do.
+var lamp_flicker: Dictionary = {}
+
 ## Model id -> PackedScene, loaded once for every level, and its bounds.
 static var _furniture_scenes: Dictionary = {}
 static var _furniture_bounds: Dictionary = {}
@@ -305,9 +312,13 @@ func _build_room(room_id: String) -> void:
 					rect.position.y + rect.size.y * (float(j) + 0.5) / float(down))
 				root.add_child(lamp)
 				var bulb := _box(root, Vector3(0.3, 0.2, 0.3), lamp.position + Vector3(0, 0.25, 0), _material("bulb", Color(1.0, 0.85, 0.6), 2.0), false)
-				list.append({"light": lamp, "bulb": bulb, "energy": lamp.light_energy})
+				list.append({"light": lamp, "bulb": bulb, "energy": lamp.light_energy, "fraction": 1.0,
+					"seed": hash(room_id) + i * 31 + j})
 
 		lamps[room_id] = list
+		var amount := lamp_flicker_amount(room["doc"])
+		if amount > 0.0:
+			lamp_flicker[room_id] = amount
 
 	# A room's name is on the wall over each of its doors, seen from the room you are leaving ([method _build_door]).
 
@@ -498,8 +509,30 @@ static func _bounds_of(node: Node3D) -> AABB:
 ## client's, for the lights-fail event; a server has no lamps.
 func set_room_light(room_id: String, fraction: float) -> void:
 	for lamp: Dictionary in lamps.get(room_id, []):
+		lamp["fraction"] = fraction
 		(lamp["light"] as OmniLight3D).light_energy = float(lamp["energy"]) * fraction
 		(lamp["bulb"] as Node3D).visible = fraction > 0.25
+
+
+## How much a room's lamps flicker, 0..1: the room's own `flicker` if it has one, else a dim bulb
+## (`light` at or under [constant DIM_LIGHT]) gutters. A client's; see [DotLampFlicker].
+static func lamp_flicker_amount(room_doc: Dictionary) -> float:
+	if room_doc.has("flicker"):
+		return clampf(float(room_doc["flicker"]), 0.0, 1.0)
+	var light := float(room_doc.get("light", 0.0))
+	return DIM_FLICKER if light > 0.0 and light <= DIM_LIGHT else 0.0
+
+
+## Sets every flickering room's lamps for [param time] seconds in, under whatever the room's lights
+## are doing otherwise (a lights-fail event's fraction). Without [param allow_flashes] only the slow drift stays.
+func flicker_lamps(time: float, allow_flashes: bool) -> void:
+	for room_id: String in lamp_flicker:
+		var amount: float = lamp_flicker[room_id]
+		for lamp: Dictionary in lamps.get(room_id, []):
+			var lit := float(lamp["fraction"])
+			if lit > 0.0:
+				(lamp["light"] as OmniLight3D).light_energy = float(lamp["energy"]) * lit * \
+					DotLampFlicker.scale(int(lamp["seed"]), time, amount, allow_flashes)
 
 
 func describe() -> Dictionary:

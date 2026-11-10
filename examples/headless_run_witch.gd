@@ -101,6 +101,41 @@ func _the_witch_and_the_house_2(client: Node, me: LmPlayer, level: LmLevel, sink
 	_finished_section()
 
 
+## Dim bulbs gutter ([DotLampFlicker]): the night villa's failing lamps flicker, a bright room's do not,
+## a room's own `flicker` wins, and a lights-fail room stays dark.
+func _test_flickering_lamps() -> void:
+	_section("dim lamps flicker")
+	var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://houses/lam_villa_night/lam_villa_night_01.json"))
+	var level := LmLevel.new()
+	add_child(level)
+	var _b := level.build(doc, true)
+	var dim := ""
+	var bright := ""
+	for room_id: String in level.lamp_flicker:
+		dim = room_id
+	for room_id: String in level.lamps:
+		if not level.lamp_flicker.has(room_id):
+			bright = room_id
+	_check(not level.lamp_flicker.is_empty() and bright != "", "the villa has failing lamps and steady ones", str(level.lamp_flicker))
+	var energies := {}
+	var lamp: Dictionary = level.lamps[dim][0]
+	var base := float(lamp["energy"])
+	var most := 0.0
+	for i in 200:
+		level.flicker_lamps(float(i) * 0.05, true)
+		energies[snappedf((lamp["light"] as OmniLight3D).light_energy, 0.01)] = true
+		most = maxf(most, (lamp["light"] as OmniLight3D).light_energy)
+	_check(energies.size() > 10 and most <= base + 0.001, "a failing lamp's brightness varies and never passes its own", "%d values, max %f of %f" % [energies.size(), most, base])
+	var steady: Dictionary = level.lamps[bright][0]
+	_check(is_equal_approx((steady["light"] as OmniLight3D).light_energy, float(steady["energy"])), "a steady lamp is left alone")
+	level.set_room_light(dim, 0.0)
+	level.flicker_lamps(1.0, true)
+	_check(is_zero_approx((lamp["light"] as OmniLight3D).light_energy), "a room whose lights failed stays dark")
+	_check(LmLevel.lamp_flicker_amount({"light": 0.9, "flicker": 0.5}) == 0.5 and LmLevel.lamp_flicker_amount({"light": 0.9}) == 0.0, "a room's own flicker wins; a bright one has none")
+	level.queue_free()
+	_finished_section()
+
+
 ## The events as a player meets them, in a real client: the lamps flicker and go out with a
 ## buzz, a slam is heard where the door is, and she is drawn at the far end of the corridor.
 func _test_the_events_seen_and_heard() -> void:
