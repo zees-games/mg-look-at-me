@@ -339,6 +339,11 @@ func _build_touch() -> void:
 func _on_touch_button(id: StringName, down: bool) -> void:
 	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
 
+	# A release always gets through (a held board must close), whatever covers the screen.
+	if id == DotGameTouchLayout.BOARD:
+		platform.touch_board(down)
+		return
+
 	match id:
 		&"jump", &"crouch":
 			if sampler is DotFpsTouchSampler:
@@ -349,6 +354,18 @@ func _on_touch_button(id: StringName, down: bool) -> void:
 		&"flashlight":
 			if down and not _covered() and not _command.visible:
 				_act("flashlight")
+		DotGameTouchLayout.CAMERA:
+			if down and not _covered() and not _command.visible:
+				_toggle_view()
+		DotGameTouchLayout.COMMAND:
+			if down and not _covered() and not _command.visible:
+				_open_command()
+		DotGameTouchLayout.MAPS:
+			if down and not _covered() and not _command.visible:
+				var _opened := platform.touch_maps()
+		DotGameTouchLayout.GAG, DotGameTouchLayout.MUTE:
+			if down and not _covered() and not _command.visible:
+				var _tapped := platform.touch_look(id == DotGameTouchLayout.MUTE)
 
 
 ## The netcode, built inside `_ready` (inside the shell's scene load), as every game here does.
