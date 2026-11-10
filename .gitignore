@@ -62,3 +62,13 @@ tools/__pycache__/
 /houses/lam_functionalist_night
 # bootstrap-link: lam-maps/houses/lam_deco_mansion_night
 /houses/lam_deco_mansion_night
+
+# More dot-* addons linked locally (dot-bootstrap links them; each is its own repository).
+/addons/dot_bot_record
+/addons/dot_combat
+/addons/dot_player_class
+/addons/dot_server_query
+/addons/dot_spectate
+/addons/dot_sql
+# godot-sqlite comes from dot-bot tools/fetch_sqlite.sh
+/addons/godot-sqlite
