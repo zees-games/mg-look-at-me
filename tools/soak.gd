@@ -2,6 +2,7 @@ extends Node
 
 const LmBot := preload("../game/lm_bot.gd")
 const LmGame := preload("../game/lm_game.gd")
+const LmLevel := preload("../game/lm_level.gd")
 const LmPlayer := preload("../game/lm_player.gd")
 
 ## Bot soak: N stand-ins (LmBot) play one house (the "map") for M simulated minutes through
@@ -55,6 +56,11 @@ func _run() -> void:
 		return
 	var _changed := _game.change_house(StringName(map_id))
 	_game.tick_rate = TICK_RATE
+	# `--no-witches`: the level's scale is what a soak measures, not whether a stand-in (which
+	# ignores witches) survives them, so the witches can be taken out of every level.
+	if OS.get_cmdline_user_args().has("--no-witches"):
+		for level: LmLevel in _game.levels.values():
+			level.witches.clear()
 
 	var taken: Array = []
 	for i in range(cfg.bots):
