@@ -5,7 +5,6 @@ extends Node
 ## It listens and nothing calls it: the house's own signals are the whole input. Server only.
 
 const LmGame := preload("lm_game.gd")
-const LmStatsRelay := preload("lm_stats_relay.gd")
 
 const CHANNEL := "lookatme.progress"
 
@@ -13,6 +12,8 @@ const LEVELS_DONE := &"lm.levels_done"
 const BEST_LEVEL := &"lm.best_level"
 const CATCHES := &"lm.catches"
 const WINS := &"lm.wins"
+## The published skill figure the site orders by (dot-stats' DotStatsRank).
+const RANK_SCORE := &"rank_score"
 
 signal earned(key: StringName, title: String, points: int)
 
@@ -22,13 +23,13 @@ var _report_timer: Timer
 
 var game: LmGame = null
 var stats: DotStatsTracker = null
+## The skill rank: weighted lifetime figures, filed when a level or the house is done.
+var rank: DotStatsRank = null
 var achievements: DotAchievementTracker = null
 var link: DotAchievementStatsLink = null
 
 ## Only the stats report is filed under dot-game's stable key; `game.players` and awards keep `uid:...`.
 var stats_feed := DotGameStatsFeed.new()
-var relay := LmStatsRelay.new()
-
 ## world key -> [stats key, userid], noted at admission by [method note_session].
 var _stats_keys: Dictionary = {}
 
@@ -39,6 +40,7 @@ static func schema() -> DotStatsSchema:
 	_add(out, BEST_LEVEL, DotStatsDef.Kind.BEST, "Deepest level", "level")
 	_add(out, CATCHES, DotStatsDef.Kind.COUNTER, "Times she saw you", "catches")
 	_add(out, WINS, DotStatsDef.Kind.COUNTER, "Times out of the whole house", "wins")
+	DotStatsRank.declare(out, RANK_SCORE, "Rank score")
 	return out
 
 
@@ -114,19 +116,31 @@ func setup(world: LmGame, directory: String, report: bool) -> DotResult:
 	link = DotAchievementStatsLink.new()
 	link.name = "StatsLink"
 	link.tracker = achievements
-	relay.follow(stats)
-	link.stats = relay
+	link.stats = stats
 	add_child(link)
 	var linked := link.start()
 
 	if not linked.ok:
 		return linked.wrap("the stats-to-achievements link")
 
+	rank = DotStatsRank.new()
+	rank.stat_id = RANK_SCORE
+	rank.terms = [
+		{"stat": String(LEVELS_DONE), "weight": 1.0},
+		{"stat": String(WINS), "weight": 5.0},
+		{"stat": String(CATCHES), "weight": -0.05},
+	]
+	rank.record_fn = func(who: Variant, stat: StringName, value: float) -> void: record(StringName(str(who)), stat, value)
+	rank.key_fn = func(who: Variant) -> StringName: return _stats_key(StringName(str(who)))
+
 	game.level_done.connect(func(key: StringName, n: int) -> void:
 		record(key, LEVELS_DONE)
-		record(key, BEST_LEVEL, float(n)))
+		record(key, BEST_LEVEL, float(n))
+		_publish_rank(key))
 	game.caught.connect(func(key: StringName) -> void: record(key, CATCHES))
-	game.won.connect(func(key: StringName) -> void: record(key, WINS))
+	game.won.connect(func(key: StringName) -> void:
+		record(key, WINS)
+		_publish_rank(key))
 	game.player_left.connect(leave)
 	return DotResult.success(self)
 
@@ -179,14 +193,28 @@ func record(key: StringName, stat: StringName, value: float = 1.0) -> void:
 		return
 
 	if not stats.has_player(_stats_key(key)):
+		_load_baseline(key)
 		stats.begin(_stats_key(key), str(player.get("display_name")))
-		relay.record_of[_stats_key(key)] = key
+		link.key_map[_stats_key(key)] = key
 		_begin(key)
 
 	var filed := stats.record(_stats_key(key), stat, value)
 
 	if not filed.ok:
 		DotLog.warn(CHANNEL, "a reading was refused", {"player": String(key), "stat": String(stat), "why": filed.error.message})
+
+
+## Reads the player's stored lifetime totals before this session's figures are flushed into the store (reading later would count them twice). The file store answers without suspending.
+func _load_baseline(key: StringName) -> void:
+	if rank != null and stats.store != null:
+		rank.load_baseline(stats.store, key)
+
+
+## Files the player's rank_score on their lifetime baseline plus this session.
+func _publish_rank(key: StringName) -> void:
+	if rank == null or rank.mode != DotStatsRank.MODE_WEIGHTED or stats == null or not stats.has_player(_stats_key(key)):
+		return
+	var _s := rank.publish_lifetime(key, session_values(key), stats.schema)
 
 
 func _begin(key: StringName) -> void:
@@ -201,7 +229,9 @@ func leave(key: StringName) -> void:
 		return
 
 	var _values := stats.end(_stats_key(key))
-	relay.record_of.erase(_stats_key(key))
+	if rank != null:
+		rank.forget(key)
+	link.key_map.erase(_stats_key(key))
 
 	if _stats_keys.has(key):
 		stats_feed.forget(int(_stats_keys[key][1]))

@@ -8,6 +8,8 @@
 /addons/dot_profile
 /addons/dot_profiler
 /addons/dot_net
+# dot-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
+/addons/dot_sim
 /addons/dot_player
 /addons/dot_player_controller
 /addons/dot_user_avatar
