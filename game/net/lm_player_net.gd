@@ -90,7 +90,9 @@ func pull() -> void:
 	net_won = player.won
 	net_meter = clampf(player.meter, 0.0, 1.0)
 	net_caught = player.caught_left > 0.0
-	net_warp = player.warps & 0xF
+	# Only the server's counts: the client's own warps and ping_ms differ from the snapshot (a predicted pad, replays), so copying them made the prediction disagree with every snapshot (a replay storm).
+	if identity == null or identity.is_authoritative:
+		net_warp = player.warps & 0xF
 
 
 func _net_state_applied(_tick: int) -> void:
