@@ -1,4 +1,5 @@
 extends DotGameCheckSuite
+const LMTestPorts := preload("test_ports.gd")
 
 ## A real look-at-me server and client on ENet through dot-net's lossy UDP relay (`godot --headless --path . res://examples/headless_lossy.tscn [-- --verbose]`).
 ## Only this sees ENet's congestion control react to the 32-level house sent reliably beside snapshots; windows: 60 ms, a house change mid-walk, 5% loss.
