@@ -52,11 +52,8 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	# A house change puts the loading cover back up until the new house is built; wait for it.
 	if _args.has("houses"):
-		var cover: DotGameClient = client.get("platform")
-		var frames := 0
-		while cover != null and not cover.is_shown() and frames < 1200:
-			await get_tree().process_frame
-			frames += 1
+		if not await DotShotGate.wait_lifted(get_tree(), client.get("platform")):
+			printerr("shot: load cover still up after the wait; shooting anyway")
 
 	if view == "mapmenu":
 		var maps: Object = client.get("settings").menu.maps
@@ -323,12 +320,8 @@ func _stage_action(client: Node, me: Node3D, kind: StringName, id: String) -> vo
 func _save(client: Node) -> void:
 	var platform: DotGameClient = client.get("platform")
 	# The cover lifts a moment after the player exists; --view=cover is the one that wants it up.
-	var waited := 0
-	while platform != null and not platform.is_shown() and str(_args.get("view", "")) != "cover" and waited < 600:
-		await get_tree().process_frame
-		waited += 1
-	if waited > 0:
-		await get_tree().create_timer(1.5).timeout
+	if str(_args.get("view", "")) != "cover" and not await DotShotGate.wait_lifted(get_tree(), platform):
+		printerr("shot: load cover still up after the wait; shooting anyway")
 	print("cover %s" % ("lifted" if platform == null or platform.is_shown() else "up"))
 	var path := ProjectSettings.globalize_path(str(_args.get("out", "res://screenshots/shot.png")))
 	var saved := get_viewport().get_texture().get_image().save_png(path)
