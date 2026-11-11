@@ -1,4 +1,5 @@
 extends DotGameCheckSuite
+const LMTestPorts := preload("test_ports.gd")
 
 ## The game as a deployed server runs it: a real [DotServer], the world from the server scene,
 ## the module loaded BY PATH the way an operator names it.
