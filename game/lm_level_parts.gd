@@ -183,6 +183,13 @@ func _build_lift(root: Node, room_id: String, foot: Vector3, dir: Vector3, yaw: 
 	landing.position = foot + dir * (length - cell * 0.5) + Vector3(0, rise * 0.5, 0)
 	landing.rotation.y = yaw
 
+	# A barrier across the head landing's edge over the shaft, up whenever the car is not at the top stop (see lift_pose),
+	# so nobody walks off the landing into an empty shaft. It stands inside the landing, not over the car's footprint.
+	var gate := _box(root, Vector3(0.2, 1.3, width), Vector3.ZERO, _material("lift", Color(0.32, 0.3, 0.27)), true)
+	gate.name = "LiftGate"
+	gate.position = foot + dir * (length - cell + 0.1) + Vector3(0, rise + 0.65, 0)
+	gate.rotation.y = yaw
+
 	var size_y := rise + 0.5
 	var car := _box(root, Vector3(run, size_y, width), Vector3.ZERO, _material("lift", Color(0.32, 0.3, 0.27)), true)
 	car.name = "LiftCar"
@@ -193,7 +200,7 @@ func _build_lift(root: Node, room_id: String, foot: Vector3, dir: Vector3, yaw: 
 	var lift_doc: Dictionary = rooms[room_id]["doc"]
 	lifts[room_id] = {
 		"cycle": DotFpsLiftCycle.new(float(lift_doc.get("rest", 4.0)), float(lift_doc.get("travel", 3.0)), float(lift_doc.get("phase", 0.0))),
-		"body": car, "bottom": foot.y, "rise": rise, "size_y": size_y,
+		"body": car, "gate": gate, "gate_y": gate.position.y, "bottom": foot.y, "rise": rise, "size_y": size_y,
 		"rect": Rect2(Vector2(centre.x, centre.z) - half, half * 2.0),
 	}
 

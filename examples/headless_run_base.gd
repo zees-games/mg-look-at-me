@@ -649,6 +649,20 @@ func _test_lift() -> void:
 		"a rider on the car goes up with it")
 	_check(level.lift_carry(car + Vector3(0, 1.0, 0), 2.5, 3.0) == 0.0 and level.lift_carry(Vector3(-5, 0, 0), 2.5, 3.0) == 0.0,
 		"someone in the air over it, or off it, is not carried")
+	# The head landing is shut by a barrier unless the car stands at the top: nobody walks off it into the empty shaft.
+	var gate := level.lifts["r1"]["gate"] as Node3D
+	var shut_y := float(level.lifts["r1"]["gate_y"])
+	level.lift_pose(0.5)
+	_check(is_equal_approx(gate.position.y, shut_y) and not level.lift_gate_open("r1", 0.5), "car at the foot: the head landing is barred")
+	level.lift_pose(3.0)
+	_check(is_equal_approx(gate.position.y, shut_y), "car on its way up: still barred")
+	level.lift_pose(4.5)
+	_check(gate.position.y < shut_y - 10.0 and level.lift_gate_open("r1", 4.5), "car at the head: the barrier is out of the way")
+	level.lift_pose(7.0)
+	_check(is_equal_approx(gate.position.y, shut_y), "car leaves again: barred")
+	var gate_box := (gate.get_child(0) as CollisionShape3D).shape as BoxShape3D
+	var head_floor: float = bottom + rise
+	_check(shut_y - gate_box.size.y * 0.5 >= head_floor - 0.01 and shut_y - gate_box.size.y * 0.5 <= head_floor + 0.01 and gate_box.size.y >= 1.0, "the barrier stands on the head landing and is waist high or more")
 	level.queue_free()
 	_finished_section()
 
