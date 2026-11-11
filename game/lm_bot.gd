@@ -23,6 +23,8 @@ var idle_seconds := 0.0
 
 var _goal: Dictionary = {}
 var _route: Array[Vector3] = []
+## Waypoint -> {room, y}: the bot goes no nearer until that lift's car is at height y (boarding, or getting off).
+var _gates: Dictionary = {}
 var _skipped: Dictionary = {}
 var _clock := 0.0
 var _progress_at := Vector3.ZERO
@@ -127,8 +129,17 @@ func _walk(body: LmPlayer, local: Vector3, command: DotFpsCommand, delta: float)
 	var flat := Vector2(local.x, local.z)
 	var next := _route[0]
 
+	if _gates.has(next):
+		var gate: Dictionary = _gates[next]
+		var level := game.level_of(body)
+
+		if absf(level.lift_top(str(gate["room"]), game.seconds_now()) - float(gate["y"])) > 0.12:
+			# The car is elsewhere: wait for it, which is not being stuck.
+			_progress_clock = 0.0
+			return
+
 	if flat.distance_to(Vector2(next.x, next.z)) < ARRIVE:
-		_route.remove_at(0)
+		_gates.erase(_route.pop_front())
 		_progress_clock = 0.0
 		return
 
@@ -254,6 +265,7 @@ func _room_for(level: LmLevel, kind: String, id: String, at: Vector3, depth: Dic
 ## Waypoints: through each door on the way, along a stairwell's ramp, then up to the thing.
 func _plan(level: LmLevel, local: Vector3, here: String, came: Dictionary) -> void:
 	_route.clear()
+	_gates.clear()
 	var chain: Array = []
 	var room: String = _goal["room"]
 
@@ -304,6 +316,18 @@ func _other(door: Dictionary, room: String) -> String:
 ## Entering a stairwell by one door and leaving by another: up or down its ramp between them.
 func _stair_walk(level: LmLevel, room: String, entered_at: Vector3) -> void:
 	if str(level.rooms[room]["kind"]) != "stair":
+		return
+
+	if level.is_lift(room):
+		# Board where the car is at your end, ride, and get off at the other: the waits are gates on the two waypoints.
+		var from_foot := Vector2(entered_at.x, entered_at.z).distance_to(Vector2(level.lift_stop_point(room, false).x, level.lift_stop_point(room, false).z)) \
+				<= Vector2(entered_at.x, entered_at.z).distance_to(Vector2(level.lift_stop_point(room, true).x, level.lift_stop_point(room, true).z))
+		var board := level.lift_car_point(room, not from_foot)
+		var leave := level.lift_stop_point(room, from_foot)
+		_gates[board] = {"room": room, "y": board.y}
+		_gates[leave] = {"room": room, "y": leave.y}
+		_route.append(board)
+		_route.append(leave)
 		return
 
 	var foot := level.stair_point(room, false)

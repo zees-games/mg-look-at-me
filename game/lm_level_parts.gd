@@ -136,6 +136,10 @@ func _build_stair(root: Node, room_id: String) -> void:
 	var yaw := atan2(-dir.z, dir.x)
 	var stone := _material("stair", Color(0.2, 0.16, 0.12))
 
+	if bool(room["doc"].get("lift", false)):
+		_build_lift(root, room_id, foot, dir, yaw, run, width, rise, cell, length, stone)
+		return
+
 	# The ramp: a wedge rising along local +x, turned to climb the way the stairs go.
 	var ramp := StaticBody3D.new()
 	ramp.name = "Ramp"
@@ -168,6 +172,30 @@ func _build_stair(root: Node, room_id: String) -> void:
 	landing.name = "HeadLanding"
 	landing.position = foot + dir * (length - cell * 0.5) + Vector3(0, hy, 0)
 	landing.rotation.y = yaw
+
+
+## A lift in place of the ramp: the head landing as before, and between the stops a car, a solid column whose top
+## is the floor you ride (it rises from the foot's floor to the head landing and back on a [DotFpsLiftCycle], a
+## pure function of the shared clock, so nothing about it is sent). A column, so nobody walks or is crushed under it.
+func _build_lift(root: Node, room_id: String, foot: Vector3, dir: Vector3, yaw: float, run: float, width: float, rise: float, cell: float, length: float, stone: Material) -> void:
+	var landing := _box(root, Vector3(cell, rise, width), Vector3.ZERO, stone, true)
+	landing.name = "HeadLanding"
+	landing.position = foot + dir * (length - cell * 0.5) + Vector3(0, rise * 0.5, 0)
+	landing.rotation.y = yaw
+
+	var size_y := rise + 0.5
+	var car := _box(root, Vector3(run, size_y, width), Vector3.ZERO, _material("lift", Color(0.32, 0.3, 0.27)), true)
+	car.name = "LiftCar"
+	var centre := foot + dir * (cell + run * 0.5)
+	car.position = Vector3(centre.x, foot.y - size_y * 0.5, centre.z)
+	car.rotation.y = yaw
+	var half := Vector2(run, width) * 0.5 if absf(dir.x) > 0.5 else Vector2(width, run) * 0.5
+	var lift_doc: Dictionary = rooms[room_id]["doc"]
+	lifts[room_id] = {
+		"cycle": DotFpsLiftCycle.new(float(lift_doc.get("rest", 4.0)), float(lift_doc.get("travel", 3.0)), float(lift_doc.get("phase", 0.0))),
+		"body": car, "bottom": foot.y, "rise": rise, "size_y": size_y,
+		"rect": Rect2(Vector2(centre.x, centre.z) - half, half * 2.0),
+	}
 
 
 func _wall_piece(root: Node, along_x: bool, fixed: float, from: float, to: float, bottom: float, top: float, material: Material) -> void:

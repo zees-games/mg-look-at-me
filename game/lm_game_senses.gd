@@ -22,6 +22,7 @@ func send_to(player: LmPlayer, number: int) -> void:
 func _apply_doors(player: LmPlayer) -> void:
 	var level := level_of(player)
 	var rids: Array[RID] = []
+	player.lift_level = level if level != null and not level.lifts.is_empty() else null
 
 	if level != null:
 		var ids: Dictionary = player.opened.duplicate()

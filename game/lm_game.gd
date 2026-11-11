@@ -187,6 +187,7 @@ func _physics_process(delta: float) -> void:
 
 func step(delta: float) -> void:
 	tick += 1
+	_pose_lifts()
 
 	if not authoritative:
 		return
@@ -324,3 +325,14 @@ func describe_lines() -> PackedStringArray:
 		lines.append("  %s %s" % [(players[key] as LmPlayer).display_name, (players[key] as LmPlayer).describe()])
 
 	return lines
+
+
+## Every level's lift cars at this tick's time, on every end, so a mirror draws the car where the server has it.
+func _pose_lifts() -> void:
+	var seconds := float(tick) / float(maxi(tick_rate, 1))
+
+	for number: int in levels:
+		var level: LmLevel = levels[number]
+
+		if not level.lifts.is_empty():
+			level.lift_pose(seconds)
