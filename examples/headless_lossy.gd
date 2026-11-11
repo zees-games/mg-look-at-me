@@ -30,7 +30,7 @@ const WINDOWS := [
 ]
 
 ## Waits on anything sent reliably: ENet's own contract with dot-core's peer timeouts (30 s),
-## as game-arena's headless_lossy says. A wait on it ends the moment the thing arrives.
+## as game-fatal-contact's headless_lossy says. A wait on it ends the moment the thing arrives.
 const RELIABLE_SECONDS := 35.0
 
 var _entered := 0
