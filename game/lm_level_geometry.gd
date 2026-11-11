@@ -48,7 +48,7 @@ const SLAB := 0.25
 
 
 var doc: Dictionary = {}
-## Room id -> a lift car: {cycle: DotFpsLiftCycle, body, rect (local, xz), bottom, rise, size_y}. Only stairwells that say `lift`.
+## Room id -> a lift car: {cycle: DotFpsLiftCycle, body, gate (barrier on the head landing), gate_y, rect (local, xz), bottom, rise, size_y}. Only stairwells that say `lift`.
 var lifts: Dictionary = {}
 
 
@@ -384,6 +384,14 @@ func lift_pose(seconds: float) -> void:
 	for room_id: String in lifts:
 		var body := lifts[room_id]["body"] as Node3D
 		body.position.y = lift_top(room_id, seconds) - float(lifts[room_id]["size_y"]) * 0.5
+		var gate := lifts[room_id]["gate"] as Node3D
+		# Shut unless the car is at the head; open, it sinks out of the way (a body that moves, like the car).
+		gate.position.y = float(lifts[room_id]["gate_y"]) - (0.0 if not lift_gate_open(room_id, seconds) else 50.0)
+
+
+## Whether the head landing is open at [param seconds]: only while the car stands at the top. Otherwise a barrier shuts it.
+func lift_gate_open(room_id: String, seconds: float) -> bool:
+	return (lifts[room_id]["cycle"] as DotFpsLiftCycle).gate_open(seconds, true)
 
 
 ## How far a rider at [param local] (feet, local to the level) goes up or down with a car between two instants:
