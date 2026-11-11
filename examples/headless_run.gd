@@ -4,8 +4,8 @@ extends "headless_run_witch.gd"
 ## what a witch can see, being caught, the commands, and winning.
 ##   godot --headless --path . res://examples/headless_run.tscn
 
-const SECTIONS := 26
-const CHECKS := 210
+const SECTIONS := 27
+const CHECKS := 215
 
 
 func _ready() -> void:
@@ -37,6 +37,7 @@ func _ready() -> void:
 	_test_houses()
 	_test_map_houses()
 	_test_cellar()
+	_test_lift()
 	await _test_the_client_settings()
 	await _test_sound_and_effects()
 	await _test_the_mouse_turns_the_view()

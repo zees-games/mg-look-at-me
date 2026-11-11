@@ -616,6 +616,43 @@ func _test_cellar() -> void:
 	_finished_section()
 
 
+## A stairwell with "lift": true is a car on a clock in place of the ramp: it builds, poses by time, carries only what stands on it.
+func _test_lift() -> void:
+	_section("a lift in a shaft")
+	var doc := {
+		"cell": 4.0, "height": 3.2, "storey": 3.7, "id": "lift_test", "props": [], "items": [], "stations": [], "witches": [], "events": [],
+		"rooms": [
+			{"id": "r0", "name": "Lobby", "kind": "room", "x": 0, "z": 0, "w": 2, "d": 2, "floor": 0, "spawn": true},
+			{"id": "r1", "name": "Lift Shaft", "kind": "stair", "up": "w", "x": 2, "z": 0, "w": 4, "d": 1, "floor": -1, "lift": true, "rest": 2.0, "travel": 2.0},
+			{"id": "r2", "name": "Cellar", "kind": "room", "x": 6, "z": 0, "w": 2, "d": 2, "floor": -1},
+		],
+		"doors": [
+			{"id": "d0", "a": "r0", "b": "r1", "at": [2.0, 0.5], "floor": 0, "lock": ""},
+			{"id": "d1", "a": "r1", "b": "r2", "at": [6.0, 0.5], "floor": -1, "lock": ""},
+			{"id": "exit", "a": "r0", "b": "", "at": [0.0, 0.5], "floor": 0, "lock": "", "exit": true},
+		],
+	}
+	var level := LmLevel.new()
+	add_child(level)
+	var built := level.build(doc, false)
+	_check(built.ok and level.is_lift("r1") and not level.is_lift("r0"), "it builds with a car in the shaft", str(built))
+	var rise := level.storey()
+	var bottom := level.lift_top("r1", 0.0)
+	_check(is_equal_approx(level.lift_top("r1", 3.0) - bottom, rise * 0.5) and is_equal_approx(level.lift_top("r1", 4.0) - bottom, rise),
+		"the car rests, rises a storey and rests again on its clock", "%.2f %.2f" % [level.lift_top("r1", 3.0), level.lift_top("r1", 4.0)])
+	level.lift_pose(4.0)
+	var body := level.lifts["r1"]["body"] as Node3D
+	_check(is_equal_approx(body.position.y + float(level.lifts["r1"]["size_y"]) * 0.5, bottom + rise), "posing it puts the car's top at the head's floor")
+	var car := level.lift_car_point("r1", false)
+	car.y = level.lift_top("r1", 2.5)
+	_check(is_equal_approx(level.lift_carry(car, 2.5, 3.0), level.lift_top("r1", 3.0) - level.lift_top("r1", 2.5)) and level.lift_carry(car, 2.5, 3.0) > 0.0,
+		"a rider on the car goes up with it")
+	_check(level.lift_carry(car + Vector3(0, 1.0, 0), 2.5, 3.0) == 0.0 and level.lift_carry(Vector3(-5, 0, 0), 2.5, 3.0) == 0.0,
+		"someone in the air over it, or off it, is not carried")
+	level.queue_free()
+	_finished_section()
+
+
 func _test_houses() -> void:
 	_section("houses")
 	_check(game.houses.size() >= 3 and game.houses.has(&"asylum") and game.houses.has(&"forgotten") and game.house_id == &"house", "the built-in houses (and any linked map house), playing the House (%s)" % [game.houses.keys()])

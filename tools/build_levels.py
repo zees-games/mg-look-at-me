@@ -507,6 +507,8 @@ def layout_grower(rng, layout):
         extra = {"up": sp["up"]} if sp["kind"] == "stair" else {}
         if sp.get("lock"):
             extra["lock"] = sp["lock"]
+        if sp["kind"] == "stair":
+            extra.update(lift_keys(sp))
         room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], int(sp.get("floor", 0)), parent, extra)
         room["light"] = sp.get("light", 0.0)
         ids[i] = room["id"]
@@ -515,6 +517,17 @@ def layout_grower(rng, layout):
             cell, side, f = shared[len(shared) // 2]
             room["door"] = {"at": door_at(cell, side), "floor": f}
     return g
+
+
+def lift_keys(sp):
+    """A stairwell with "lift": true is a moving car, not a ramp; rest/travel/phase (seconds) set its cycle."""
+    if not sp.get("lift"):
+        return {}
+    keys = {"lift": True}
+    for k in ("rest", "travel", "phase"):
+        if k in sp:
+            keys[k] = float(sp[k])
+    return keys
 
 
 def world_grower(g, layout):
@@ -547,6 +560,7 @@ def world_grower(g, layout):
         extra = {"y": float(sp.get("y", 0.0)), "openings": sp.get("openings", [])}
         if sp["kind"] == "stair":
             extra.update({"up": sp["up"], "y2": float(sp["y2"])})
+            extra.update(lift_keys(sp))
         room = g.put(sp["name"], sp["kind"], sp["x"], sp["z"], sp["w"], sp["d"], floor, parent, extra)
         room["light"] = sp.get("light", 0.0)
         ids[i] = room["id"]
@@ -956,6 +970,7 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
              "w": room["w"], "d": room["d"], "floor": room["floor"], "spawn": room["spawn"], "light": float(room["light"])}
         if room["kind"] == "stair":
             r["up"] = room["up"]
+            r.update(lift_keys(room))
         if g.world:
             r["y"] = room["y"]
             if room["kind"] == "stair":

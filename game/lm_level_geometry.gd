@@ -48,6 +48,8 @@ const SLAB := 0.25
 
 
 var doc: Dictionary = {}
+## Room id -> a lift car: {cycle: DotFpsLiftCycle, body, rect (local, xz), bottom, rise, size_y}. Only stairwells that say `lift`.
+var lifts: Dictionary = {}
 
 
 ## room id -> {"rect": Rect2 (x, z in metres), "doc": room, "floor": int, "floors": int (2 for
@@ -364,3 +366,61 @@ func floor_area() -> float:
 	for room_id: String in rooms:
 		area += (rooms[room_id]["rect"] as Rect2).get_area() * float(rooms[room_id]["floors"])
 	return area
+
+
+## Whether a stairwell is a lift (its document says `lift`): a car between the stops instead of a ramp.
+func is_lift(room_id: String) -> bool:
+	return lifts.has(room_id)
+
+
+## The car's top height, local to the level, at [param seconds] on the shared clock.
+func lift_top(room_id: String, seconds: float) -> float:
+	var lift: Dictionary = lifts[room_id]
+	return float(lift["bottom"]) + (lift["cycle"] as DotFpsLiftCycle).fraction(seconds) * float(lift["rise"])
+
+
+## Poses every car for [param seconds]; the same call on every end, so the cars agree to the bit.
+func lift_pose(seconds: float) -> void:
+	for room_id: String in lifts:
+		var body := lifts[room_id]["body"] as Node3D
+		body.position.y = lift_top(room_id, seconds) - float(lifts[room_id]["size_y"]) * 0.5
+
+
+## How far a rider at [param local] (feet, local to the level) goes up or down with a car between two instants:
+## zero off a car's footprint or when the feet are not on its top. The game adds it before the move.
+func lift_carry(local: Vector3, from_seconds: float, to_seconds: float) -> float:
+	for room_id: String in lifts:
+		var lift: Dictionary = lifts[room_id]
+		var rect: Rect2 = lift["rect"]
+
+		if rect.has_point(Vector2(local.x, local.z)):
+			return (lift["cycle"] as DotFpsLiftCycle).carry(from_seconds, to_seconds, float(lift["bottom"]), float(lift["rise"]), local.y)
+
+	return 0.0
+
+
+## The middle of the car, at the floor height [param y] when [param head] is false or at the top stop when true.
+func lift_car_point(room_id: String, head: bool) -> Vector3:
+	var rect: Rect2 = lifts[room_id]["rect"]
+	return Vector3(rect.get_center().x, float(lifts[room_id]["bottom"]) + (float(lifts[room_id]["rise"]) if head else 0.0), rect.get_center().y)
+
+
+## The middle of the landing at a lift's foot ([param head] false) or head, where the car lets you off.
+func lift_stop_point(room_id: String, head: bool) -> Vector3:
+	var room: Dictionary = rooms[room_id]
+	var rect: Rect2 = room["rect"]
+	var cell := float(doc.get("cell", 8.0))
+	var s := _stair_length(room) - cell * 0.5 if head else cell * 0.5
+	var centre := rect.get_center()
+	var point: Vector3
+	match str(room["doc"].get("up", "e")):
+		"e":
+			point = Vector3(rect.position.x + s, 0.0, centre.y)
+		"w":
+			point = Vector3(rect.end.x - s, 0.0, centre.y)
+		"s":
+			point = Vector3(centre.x, 0.0, rect.position.y + s)
+		_:
+			point = Vector3(centre.x, 0.0, rect.end.y - s)
+	point.y = float(lifts[room_id]["bottom"]) + (float(lifts[room_id]["rise"]) if head else 0.0)
+	return point

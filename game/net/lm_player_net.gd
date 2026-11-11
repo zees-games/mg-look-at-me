@@ -75,6 +75,7 @@ func _net_simulate(tick: int, delta: float) -> void:
 	else:
 		# The prediction: the same controller, the same command, the same doors excluded.
 		player.controller.apply_command(last_move.duplicate_command())
+		player.carry_lift(tick)
 		player.controller.simulate_tick(tick, delta)
 
 	pull()

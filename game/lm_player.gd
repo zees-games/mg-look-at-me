@@ -21,6 +21,8 @@ var figure: LmFigure = null
 ## The level they are on (1-based), the highest they have reached, and whether they have
 ## finished the last one.
 var level: int = 1
+## The player's level when it has lifts (set by [LmGame]); see [method carry_lift].
+var lift_level: Node3D = null
 var best: int = 1
 var won: bool = false
 
@@ -101,6 +103,23 @@ static func tunables_for(config: LmConfig) -> DotFpsTunables:
 	return t
 
 
+## Rides a lift: before the move on every end that simulates this player, the car is posed for this tick and
+## anyone standing on it goes with it ([DotFpsLiftCycle]; the motor does not carry riders). [member lift_level] is the
+## level when it has lifts, else null.
+func carry_lift(tick: int) -> void:
+	if lift_level == null:
+		return
+
+	var rate := float(maxi(tick_rate, 1))
+	var now := float(tick) / rate
+	var level := lift_level
+	level.lift_pose(now)
+	var dy: float = level.lift_carry(controller.state.position - level.position, float(tick - 1) / rate, now)
+
+	if dy != 0.0:
+		controller.state.position.y += dy
+
+
 func simulate(tick: int, delta: float) -> void:
 	# The world calls this by name, so a body the load gate froze is skipped here.
 	if is_inside_tree() and not can_process():
@@ -112,6 +131,7 @@ func simulate(tick: int, delta: float) -> void:
 		var gate := DotLoadGate.of(self) if is_inside_tree() else null
 		controller.apply_command(sampler.sample(delta) if gate == null or gate.is_open() else DotFpsCommand.new())
 
+	carry_lift(tick)
 	controller.simulate_tick(tick, delta)
 	global_position = controller.state.position
 
