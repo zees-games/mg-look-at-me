@@ -1,8 +1,8 @@
-This is a game to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). In this 3D game, players make their way through a dark house, thirty-two levels deep, while witches walk its rooms. Find what opens the next door before one of them looks at you for too long.
+This is a game to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). In this 3D game, players make their way through a dark house, 32 levels deep, while witches walk its rooms. Find what opens the next door before one of them looks at you for too long.
 
 **This project and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
 
-**Please treat this as partially tested.** The game was built with Claude Code. Its headless test suite passes, but little of it has been in front of real players. Please report anything you run into.
+This game was built with Claude Code and has had little testing with real players, so please report anything odd you run into.
 
 ## How it plays
 You arrive in the lobby, the one lit room in the house and the start of level 1. Every level is a set of rooms behind doors that don't open on their own:
@@ -23,11 +23,19 @@ The top left of the screen always says what to do next. The gold key opens the w
 - **Get out of her fan and the meter drains** after a moment.
 - **If it fills, she has you**, and you're back at the start of the level.
 
-The start room of every level is safe: no witch ever walks into it. Level 1 has one witch, walking the rooms the red key is in; the last levels have six, faster and sharper-eyed.
+The start room of every level is safe: no witch ever walks into it. Level 1 has two witches, and each level adds one more for every three levels (12 on level 32). Later witches walk faster and see further.
 
-Finish all thirty-two and you get a crown everybody else can see.
+Finish all 32 and you get a crown everybody else can see.
 
-There are two **houses**: The House (32 levels) and The Asylum (20). A server plays one at a time, and after 45 minutes the players vote on the next. `!rtv` calls a vote at any time.
+There are five **houses**. A server plays one at a time. After 45 minutes by default (`house_minutes`; 0 means only `!rtv` calls a vote) the players vote on the next. `!rtv` calls a vote at any time. A server holds 24 players by default (`max_players` in `game.yml`).
+
+| House | Levels | What it is |
+| --- | --- | --- |
+| The House (`house`) | 32 | The main game, grown by `tools/build_levels.py` |
+| The Asylum (`asylum`) | 20 | Cut from a converted asylum plan |
+| Forgotten Wing (`forgotten`) | 1 | A 51-room level over a Workshop asylum's plan |
+| The Pit (`ashpit`) | 1 | Converted from a community map |
+| The Mall Deck (`mallparking`) | 1 | Converted from a community map |
 
 ## Controls
 
@@ -81,21 +89,24 @@ Console commands:
 | `lm_winners` | Who has finished the house |
 | `lm_house <id>` | Switch to another house (e.g. `lm_house asylum`) |
 
-Everything else is a setting, also an `lm_<name>` console variable and a key in `cfg/game/mg-look-at-me/config/game.yml`. Put it in `user://cfg/lookatme.json`, or set it with an `LM_*` environment variable or an `--lm-*` argument (the later one wins):
+Everything else is a setting. Each is a key in the files under `cfg/game/mg-look-at-me/` (`config_meter`, `config_witches`, `config_players`, `config_world`, `config_scares`; every key is listed there with its default and range), and an `lm_<name>` console variable. A server operator overrides them in `cfg/server/game/mg-look-at-me/<folder>/game.yml`, in `user://cfg/lookatme.json`, with an `LM_*` environment variable or with an `--lm-*` argument (the later one wins). The main ones, with their defaults:
 
-| Setting | |
-| --- | --- |
-| `exposure_rate`, `decay_rate`, `decay_delay` | How fast the meter fills and drains (it drains slowly: 0.05 a second after two) |
-| `witch_hear_range`, `witch_hear_walls`, `witch_noise_boost`, `witch_noise_seconds`, `witch_light_range` | What a witch hears (footsteps, doors) and how far she sees a lit flashlight |
-| `witch_reaction_seconds`, `witch_turn_rate`, `witch_alert_seconds` | How long she takes to react, how fast her head turns, how long she keeps looking |
-| `witch_door_seconds` | How long she stands opening a door before she walks through |
-| `flashlight_exposure`, `flashlight_sight`, `crouch_exposure`, `still_exposure` | What changes it |
-| `caught_penalty` | What getting caught costs: keep what you hold, or lose the level |
-| `witch_speed_scale`, `witch_sight_scale`, `witch_cone_scale`, `witch_head_sweep` | The witches |
-| `darkness_ambient`, `flashlight_range`, `flashlight_angle` | The dark |
-| `shared_progress` | One player's key opens the door for everybody on that level (off by default) |
-| `allow_third_person` | Whether **C** works |
-| `house_minutes` | How long a house plays before the vote (45) |
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `exposure_rate` | 0.9 | How fast the caught meter fills per second, in full view up close |
+| `decay_rate`, `decay_delay` | 0.05, 2.0 | How fast it drains per second, and how many seconds out of sight before it starts |
+| `flashlight_exposure`, `flashlight_sight` | 1.8, 1.5 | How much a lit flashlight speeds up being seen, and how much further |
+| `crouch_exposure`, `still_exposure` | 0.55, 0.6 | How much crouching, or standing still, slows being seen |
+| `caught_penalty` | 1 | 0 = back to the level's start keeping what you hold, 1 = back to the start and lose what you hold |
+| `witch_speed_scale`, `witch_sight_scale`, `witch_cone_scale` | 1.0 | Scale every witch in the level files |
+| `witch_hear_range` | 9.0 | Metres a witch hears a running player |
+| `witch_light_range` | 28.0 | Metres a witch sees a lit flashlight |
+| `witch_reaction_seconds` | 1.1 | How long she takes to react to a sound or light |
+| `witch_turn_rate` | 75 | Degrees per second her head turns |
+| `witch_alert_seconds` | 4.0 | How long she keeps looking after it stops |
+| `shared_progress` | false | One player's key opens the door for everybody on that level |
+| `allow_third_person` | true | Whether **F5** works |
+| `house_minutes` | 45 | Minutes a house plays before the vote |
 
 ## Writing a level
 A level is one JSON file in `levels/`. It describes:
