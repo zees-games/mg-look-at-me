@@ -2,12 +2,7 @@ This is a game to demonstrate the capabilities of the [**Dot collection**](https
 
 **This project and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
 
-## From Maintainer & WARNING
-This project, along with every asset it is built on, was built initially with **Claude Code** and will continue to be maintained and extended using it. This is because I (`gamemann`) cannot build the entire TMC platform alone (I wish I could lol).
-
-**Please treat this as partially tested.** It has its own headless test suite and that suite passes, but very little of this has been in front of real players yet. Expect rough edges, and please report anything you run into.
-
-I intend on reviewing code, testing, and editing documentation regularly. If you're interested in helping out, please let me know!
+**Please treat this as partially tested.** The game was built with Claude Code. Its headless test suite passes, but little of it has been in front of real players. Please report anything you run into.
 
 ## How it plays
 You arrive in the lobby, the one lit room in the house and the start of level 1. Every level is a set of rooms behind doors that don't open on their own:
@@ -132,9 +127,23 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
 
 ## Credits
-The players are the family's animated people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by Kenney's Blocky Characters' skins. The witch is the same kit's basic zombie (Quaternius, CC0 1.0), recoloured and dressed in code (`assets/witch/`, made by `tools/make_witch.py`). The furniture is Kenney's [Furniture Kit](https://kenney.nl/assets/furniture-kit) (CC0 1.0), furnishing each room by what its plaque says (`tools/lm_furnish.py`), in `assets/kenney/` with their licences and `assets/kenney/CREDITS.md`. The footsteps, creaks, doors and latch are Kenney's Impact Sounds and RPG Audio (CC0), and the flashlight's click is his Interface Sounds (CC0); the ambience, the witch's hum, the stinger, the shriek, the heartbeat, the sanity scare's sudden sound and the demons' whispers (breath through vowel formants, no words) are synthesised for this game by `tools/make_sounds.py` (CC0). `audio/CREDITS.md` lists every file. The clown hallucination is ["Da-Clown #StylizedBustChallenge"](https://sketchfab.com/3d-models/da-clown-stylizedbustchallenge-59bdbb3cc60748b995106b6020b25303) by Nwilly_art (CC Attribution 4.0), with its eyes split off and a jaw bone added (`assets/clown/`, `tools/make_clown.py`). Everything else is drawn in code.
 
-**Map bases.** The Forgotten Wing (`houses/forgotten/`) is laid out over the floor plan of the Steam Workshop map [Forgotten Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=1682965311) by WhiteKnuckles (no licence is stated on its page, which on 2026-10-20 carried no request against porting, sharing or reuploading). Only its plan was used: the rooms, their order and the long halls, rebuilt by hand in this game's own room grid with this game's own art; none of its textures, props, sounds or text is here. If the author wants it taken out, say so and the map goes. Read through dot-map-convert and `tools/bsp_layout.py`; the notes are in [docs/map-bases.md](docs/map-bases.md). The Asylum (`houses/asylum/`) is converted from the plan of the Steam Workshop map [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=903842886) by The Old Swashbuckler (no licence is stated on its page, which on 2026-10-20 carried no request against porting, sharing or reuploading): its rooms, openings and floors were read automatically, grown, cut into twenty levels and furnished, lit and filled by this game; none of its textures, props, sounds or text is here. If the author wants it taken out, say so and the house goes. How a house is converted: [docs/converted-houses.md](docs/converted-houses.md). Two dark houses are converted the same way: The Pit (`houses/ashpit/`, from the Steam Workshop map [Ashpit](https://steamcommunity.com/sharedfiles/filedetails/?id=2902149974) by Redstone.Co) and The Mall Deck (`houses/mallparking/`, the ground deck of [gm_mallparking](https://steamcommunity.com/sharedfiles/filedetails/?id=2619660952) by bean). Neither page states a licence; their geometry is carried in the house's world pack, every texture is a free CC0 replacement (`houses/*/world/*/CREDITS.md`) and no original texture, model or sound is used. If an author wants a house taken out, say so and it goes.
+| Asset | Author / source | License | Where |
+| --- | --- | --- | --- |
+| Players | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html), skinned from Kenney's Blocky Characters | CC0 1.0 | dot-player-char |
+| The witch | Quaternius basic zombie, recoloured and dressed in code (`tools/make_witch.py`) | CC0 1.0 | `assets/witch/` |
+| Furniture | Kenney, [Furniture Kit](https://kenney.nl/assets/furniture-kit), placed by `tools/lm_furnish.py` | CC0 1.0 | `assets/kenney/CREDITS.md` |
+| Footsteps, creaks, doors, latch | Kenney, Impact Sounds and RPG Audio | CC0 | `audio/CREDITS.md` |
+| Flashlight click | Kenney, Interface Sounds | CC0 | `audio/CREDITS.md` |
+| Ambience, witch's hum, stinger, shriek, heartbeat, scare sound, whispers | Synthesised for this game by `tools/make_sounds.py` | CC0 | `audio/CREDITS.md` |
+| Clown hallucination | [Da-Clown #StylizedBustChallenge](https://sketchfab.com/3d-models/da-clown-stylizedbustchallenge-59bdbb3cc60748b995106b6020b25303) by Nwilly_art; eyes split off, jaw bone added | CC BY 4.0 | `assets/clown/`, `tools/make_clown.py` |
+| Everything else | Drawn in code | none | in code |
+| The Forgotten Wing (`houses/forgotten/`) | Laid out over the floor plan of [Forgotten Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=1682965311) by WhiteKnuckles. Only the plan was used; rebuilt by hand with this game's own art | none stated (no request against porting on 2026-10-20) | [docs/map-bases.md](docs/map-bases.md) |
+| The Asylum (`houses/asylum/`) | Converted from the plan of [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=903842886) by The Old Swashbuckler; rooms read automatically, then grown, cut into twenty levels and furnished by this game; no original textures, props, sounds or text | none stated (no request against porting on 2026-10-20) | [docs/converted-houses.md](docs/converted-houses.md) |
+| The Pit (`houses/ashpit/`) | Converted the same way from [Ashpit](https://steamcommunity.com/sharedfiles/filedetails/?id=2902149974) by Redstone.Co; every texture is a CC0 replacement | none stated | `houses/*/world/*/CREDITS.md` |
+| The Mall Deck (`houses/mallparking/`) | Converted the same way from the ground deck of [gm_mallparking](https://steamcommunity.com/sharedfiles/filedetails/?id=2619660952) by bean; every texture is a CC0 replacement | none stated | `houses/*/world/*/CREDITS.md` |
+
+**Made one of these maps or assets and want it removed? Open an issue, or tell us, and it goes.**
 
 ## License
 MIT. See [LICENSE](LICENSE). The Kenney and Quaternius art and sounds are CC0, which is public domain.
