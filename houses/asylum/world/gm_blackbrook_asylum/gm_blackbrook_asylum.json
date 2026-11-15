@@ -28160,18 +28160,18 @@
   "skipped_skybox_models": 0,
   "sounds": [
    {
-    "author": "TMC (dot-audio authors)",
+    "author": "Gamespice (audio authors)",
     "count": 15,
     "licence": "CC0-1.0",
-    "source": "dot-audio stock ambience (synthesised)",
+    "source": "Gamespice audio stock ambience (synthesised)",
     "stand_in": "amb_eerie",
     "url": "https://github.com/gamespice-platform/audio"
    },
    {
-    "author": "TMC (dot-audio authors)",
+    "author": "Gamespice (audio authors)",
     "count": 3,
     "licence": "CC0-1.0",
-    "source": "dot-audio stock ambience (synthesised)",
+    "source": "Gamespice audio stock ambience (synthesised)",
     "stand_in": "amb_wind",
     "url": "https://github.com/gamespice-platform/audio"
    },
@@ -28202,7 +28202,7 @@
   ],
   "textures": [
    {
-    "author": "TMC (generated)",
+    "author": "Gamespice (generated)",
     "colour": [
      0.875,
      0.875,
@@ -28375,7 +28375,7 @@
     "url": "https://ambientcg.com/view?id=Planks039"
    },
    {
-    "author": "TMC (generated)",
+    "author": "Gamespice (generated)",
     "colour": [
      0.875,
      0.875,
@@ -28415,7 +28415,7 @@
     "url": "https://ambientcg.com/view?id=Concrete047A"
    },
    {
-    "author": "TMC (generated)",
+    "author": "Gamespice (generated)",
     "colour": [
      0.375,
      0.375,
