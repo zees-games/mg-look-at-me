@@ -1,11 +1,8 @@
 extends DotVoteTimedGame
 
-## The players choose the next house through dot-vote ([DotVoteDirector] over a [DotVoteListSource] of this
-## server's houses): dot-vote's [DotVoteTimedGame] with Look At Me's names. No rounds, so dot-vote's clock decides: a house plays
-## [member LmConfig.house_minutes], then a ballot opens with every house, the current one and an extension; `!rtv` works any time.
-## Server side only. The rest is dot-vote's settings (`user://cfg/lookatme_vote.json`, `game.yml` metadata `house_vote:`).
-
-const CHANNEL := "lookatme.vote"
+## The players choose the next house through dot-vote's [DotVoteTimedGame], with Look At Me's names:
+## no rounds, so a house plays [member LmConfig.house_minutes], then a ballot opens; `!rtv` works any time.
+## Server side only; the rest is dot-vote's settings (`user://cfg/lookatme_vote.json`, `game.yml` `house_vote:`).
 
 ## The key in the running game's descriptor metadata an operator's overrides are read from —
 ## [code]metadata: house_vote:[/code] in a delivered game's [code]game.yml[/code].
@@ -19,7 +16,7 @@ var house_minutes: float = 45.0
 
 
 func _init() -> void:
-	channel = CHANNEL
+	channel = "lookatme.vote"
 	metadata_key = METADATA_KEY
 	command_names = COMMAND_NAMES
 	noun = "house"
