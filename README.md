@@ -1,4 +1,4 @@
-This is a game to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). In this 3D game, players make their way through a dark house, 32 levels deep, while witches walk its rooms. Find what opens the next door before one of them looks at you for too long.
+This is a game to demonstrate the capabilities of the [**Gamespice collection**](https://gamespice.net) built on-top of [Godot 4](https://godotengine.org/) and [Gamespice](https://gamespice.net). In this 3D game, players make their way through a dark house, 32 levels deep, while witches walk its rooms. Find what opens the next door before one of them looks at you for too long.
 
 **This project and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
 
@@ -53,7 +53,7 @@ There are five **houses**. A server plays one at a time. After 45 minutes by def
 | **Esc** | Menu: settings (every key above can be rebound on the Controls page), help, and leave |
 
 ## Getting started
-You need [Godot 4.7](https://godotengine.org/download). The game is built from many Dot addons, each in its own repository, so the easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap). It clones every project and links the addons into each one:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from many Gamespice addons, each in its own repository, so the easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap). It clones every project and links the addons into each one:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
