@@ -105,7 +105,15 @@ func _the_witch_and_the_house_2(client: Node, me: LmPlayer, level: LmLevel, sink
 ## a room's own `flicker` wins, and a lights-fail room stays dark.
 func _test_flickering_lamps() -> void:
 	_section("dim lamps flicker")
-	var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://houses/lam_villa_night/lam_villa_night_01.json"))
+	_check(LmLevel.lamp_flicker_amount({"light": 0.9, "flicker": 0.5}) == 0.5 and LmLevel.lamp_flicker_amount({"light": 0.9}) == 0.0, "a room's own flicker wins; a bright one has none")
+	# The villa is lam-maps' (houses/ is linked in, not tracked): a checkout without it skips, as _test_map_houses does.
+	var path := "res://houses/lam_villa_night/lam_villa_night_01.json"
+	if not FileAccess.file_exists(path):
+		for _i in 4:
+			_check(true, "lam_villa_night is not linked here, skipped")
+		_finished_section()
+		return
+	var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
 	var level := LmLevel.new()
 	add_child(level)
 	var _b := level.build(doc, true)
@@ -131,7 +139,6 @@ func _test_flickering_lamps() -> void:
 	level.set_room_light(dim, 0.0)
 	level.flicker_lamps(1.0, true)
 	_check(is_zero_approx((lamp["light"] as OmniLight3D).light_energy), "a room whose lights failed stays dark")
-	_check(LmLevel.lamp_flicker_amount({"light": 0.9, "flicker": 0.5}) == 0.5 and LmLevel.lamp_flicker_amount({"light": 0.9}) == 0.0, "a room's own flicker wins; a bright one has none")
 	level.queue_free()
 	_finished_section()
 
