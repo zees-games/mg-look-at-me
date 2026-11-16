@@ -123,8 +123,8 @@ func _dress() -> void:
 	var skirt := MeshInstance3D.new()
 	skirt.name = "Skirt"
 	var skirt_mesh := CylinderMesh.new()
-	skirt_mesh.top_radius = 0.2
-	skirt_mesh.bottom_radius = 0.56
+	skirt_mesh.top_radius = 0.32
+	skirt_mesh.bottom_radius = 0.74
 	skirt_mesh.height = HEIGHT * 0.52
 	skirt_mesh.radial_segments = 14
 	skirt.mesh = skirt_mesh
