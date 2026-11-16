@@ -16,11 +16,13 @@ const BODY_LAYER := 1 << 18
 const ALL_LAYERS := 0xFFFFF
 const BODY_HEIGHT := 1.8
 const PERSON_CLIPS: PackedStringArray = ["idle", "walk", "run", "crouch", "jump"]
-const WITCH_CLIPS: PackedStringArray = ["idle", "walk", "reach", "lunge"]
+const WITCH_CLIPS: PackedStringArray = ["idle", "gown_walk", "gown_reach", "lunge"]
 const CLOWN_CLIPS: PackedStringArray = ["watch", "talk"]
 ## Ground speed per clip (metres a second), about the game's walk and run; the witch's reach is her own slower loop.
-const SPEED := {"idle": 0.0, "walk": 2.9, "run": 6.5, "crouch": 2.9, "jump": 2.9, "reach": 1.3, "lunge": 0.0, "watch": 0.0, "talk": 0.0}
-const SECONDS := {"idle": 2.0, "walk": 2.4, "run": 2.0, "crouch": 2.0, "jump": 1.6, "reach": 2.0, "lunge": 1.4, "watch": 2.0, "talk": 3.0}
+const SPEED := {"idle": 0.0, "walk": 2.9, "run": 6.5, "crouch": 2.9, "jump": 2.9, "gown_walk": 1.3, "gown_reach": 1.3, "lunge": 0.0, "watch": 0.0, "talk": 0.0}
+const SECONDS := {"idle": 2.0, "walk": 2.4, "run": 2.0, "crouch": 2.0, "jump": 1.6, "gown_walk": 2.4, "gown_reach": 2.0, "lunge": 1.4, "watch": 2.0, "talk": 3.0}
+## The witch's walk and reach are named apart from a person's clips so tools/visual_qa_limits.json can judge her gown on its own (no legs show).
+## The witch's walk and reach are named apart from a person's clips so tools/visual_qa_limits.json can judge her gown on its own (no legs show).
 ## The witch walks at her own slower loop speed, not a player's.
 const WITCH_WALK := 1.3
 ## How high the floating clown bust hangs (metres), its bust being 0.9 m.
@@ -130,11 +132,11 @@ func _subject(_item: String) -> Node3D:
 func _drive(_item: String, clip: String, t: float, _frame: int) -> void:
 	var step := 1.0 / float(fps)
 	var speed := float(SPEED.get(clip, 0.0))
-	if _kind == "witch" and clip == "walk":
+	if _kind == "witch" and clip == "gown_walk":
 		speed = WITCH_WALK
 	var start := speed * float(SECONDS.get(clip, 2.0)) * 0.5
 	if _kind == "witch":
-		_witch.set_seeing(clip == "reach" or clip == "lunge", step)
+		_witch.set_seeing(clip == "gown_reach" or clip == "lunge", step)
 		_witch.place(Vector3(0.0, 0.0, start - speed * t), 0.0, 0.0, step, speed)
 		return
 	if _kind == "clown":
