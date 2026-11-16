@@ -5,7 +5,7 @@ const LmPlayer := preload("../game/lm_player.gd")
 
 ## A player's motor in dot-sim ([member DotFpsMotor.native_tick]) moves exactly as the script motor does: the same
 ## seeded inputs with this game's tunables, on a floor, ramp, step, wall and pillar, give the same bytes every tick,
-## whole and in two halves. With no library the native half is skipped; [code]DOT_SIM_REQUIRE_NATIVE=1[/code] fails.
+## whole and in two halves. With no library the native half is skipped; [code]GS_SIM_REQUIRE_NATIVE=1[/code] fails.
 
 # A web client runs the script while native servers and clients run the library, so they must agree without a
 # correction. Hit registration and lag compensation are not touched.
@@ -35,7 +35,7 @@ func _run() -> void:
 	var loaded := DotFpsPhysicsBody.native_full_available()
 	if not loaded:
 		print("  dot-sim's motor module is not loaded: the native half is skipped")
-		_check(OS.get_environment("DOT_SIM_REQUIRE_NATIVE") != "1", "the library is loaded (DOT_SIM_REQUIRE_NATIVE=1)")
+		_check((OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) != "1", "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, SECTIONS - 2, 3)
 		return
