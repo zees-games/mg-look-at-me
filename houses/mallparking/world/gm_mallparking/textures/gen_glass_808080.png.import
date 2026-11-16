@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b78k6cx1j3xbd"
-path="res://.godot/imported/gen_glass_808080.png-6df9d89b9c7c1331354fc6cb6258c051.ctex"
+path="res://.godot/imported/gen_glass_808080.png-071114118e2bf551edb9d598c2a31140.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/gen_glass_808080.png"
-dest_files=["res://.godot/imported/gen_glass_808080.png-6df9d89b9c7c1331354fc6cb6258c051.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/gen_glass_808080.png"
+dest_files=["res://.godot/imported/gen_glass_808080.png-071114118e2bf551edb9d598c2a31140.ctex"]
 
 [params]
 

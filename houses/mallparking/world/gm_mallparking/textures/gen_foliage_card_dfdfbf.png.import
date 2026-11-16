@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cinb1mwv6x6b4"
-path="res://.godot/imported/gen_foliage_card_dfdfbf.png-3b8292a996dc53003439877de66276b9.ctex"
+path="res://.godot/imported/gen_foliage_card_dfdfbf.png-47ae2427ebb62129c214c35bca3febcf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/gen_foliage_card_dfdfbf.png"
-dest_files=["res://.godot/imported/gen_foliage_card_dfdfbf.png-3b8292a996dc53003439877de66276b9.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/gen_foliage_card_dfdfbf.png"
+dest_files=["res://.godot/imported/gen_foliage_card_dfdfbf.png-47ae2427ebb62129c214c35bca3febcf.ctex"]
 
 [params]
 

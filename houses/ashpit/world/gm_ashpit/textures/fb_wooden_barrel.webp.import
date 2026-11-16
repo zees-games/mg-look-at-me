@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://crf60ntkfvah7"
-path="res://.godot/imported/fb_wooden_barrel.webp-3680dec5e15793f7f808de8a5c58cffd.ctex"
+path="res://.godot/imported/fb_wooden_barrel.webp-a89313208beb7fd7b1dcf4d4c785ac50.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_wooden_barrel.webp"
-dest_files=["res://.godot/imported/fb_wooden_barrel.webp-3680dec5e15793f7f808de8a5c58cffd.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_wooden_barrel.webp"
+dest_files=["res://.godot/imported/fb_wooden_barrel.webp-a89313208beb7fd7b1dcf4d4c785ac50.ctex"]
 
 [params]
 

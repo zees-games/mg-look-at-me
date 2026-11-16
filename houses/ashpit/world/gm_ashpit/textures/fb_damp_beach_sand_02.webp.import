@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d0nokcqrfe4v6"
-path="res://.godot/imported/fb_damp_beach_sand_02.webp-7e076dfb727307c5bd4a28b83ab8c6b8.ctex"
+path="res://.godot/imported/fb_damp_beach_sand_02.webp-8c4c2fbeb4f43d23acd6072bf2c443a4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_damp_beach_sand_02.webp"
-dest_files=["res://.godot/imported/fb_damp_beach_sand_02.webp-7e076dfb727307c5bd4a28b83ab8c6b8.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_damp_beach_sand_02.webp"
+dest_files=["res://.godot/imported/fb_damp_beach_sand_02.webp-8c4c2fbeb4f43d23acd6072bf2c443a4.ctex"]
 
 [params]
 

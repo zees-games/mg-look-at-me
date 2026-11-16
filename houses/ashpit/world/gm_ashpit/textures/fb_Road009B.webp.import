@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://wweh2j1xojm1"
-path="res://.godot/imported/fb_Road009B.webp-5f3320ce35d3bfbdcbfb500defaf76ad.ctex"
+path="res://.godot/imported/fb_Road009B.webp-69e459aebab64ae07cb9b07ef1246ccf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_Road009B.webp"
-dest_files=["res://.godot/imported/fb_Road009B.webp-5f3320ce35d3bfbdcbfb500defaf76ad.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_Road009B.webp"
+dest_files=["res://.godot/imported/fb_Road009B.webp-69e459aebab64ae07cb9b07ef1246ccf.ctex"]
 
 [params]
 

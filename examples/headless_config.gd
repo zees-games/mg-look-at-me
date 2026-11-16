@@ -3,7 +3,7 @@ extends DotGameCheckSuite
 ## LmConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
 
 const LmConfig := preload("../game/lm_config.gd")
-const CHECKS := 30
+const CHECKS := 31
 
 
 func _ready() -> void:
@@ -11,8 +11,18 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
-const ROOT := "user://lm_cfgtest"
+## One directory per suite process (the probe child is handed its parent's): user:// is shared by
+## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
+const ROOT_ARG := "--cfgroot="
+var ROOT := _root()
 const GAME := "mg-look-at-me"
+
+
+func _root() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(ROOT_ARG):
+			return a.substr(ROOT_ARG.length())
+	return "user://lm_cfgtest_%d" % OS.get_process_id()
 
 
 func _run() -> void:
@@ -38,17 +48,17 @@ func _run() -> void:
 	console.set_cvar("lm_witch_hear_range", "12.0")
 	_check(is_equal_approx(config.witch_hear_range, 12.0) and binder.source_of("witch_hear_range") == "cvar", "a cvar writes the field")
 	_check(binder.diff_yaml().contains("witch_hear_range: 12.0"), "the diff names the edit")
-	var schema_path := "user://lm_config_schema.json"
+	var schema_path := ROOT + "_config_schema.json"
 	_check(binder.write_schema(schema_path).ok and FileAccess.file_exists(schema_path), "write_schema writes the schema")
 	DirAccess.remove_absolute(schema_path)
 
-	var bad := FileAccess.open("user://lm_config_bad.json", FileAccess.WRITE)
+	var bad := FileAccess.open(ROOT + "_config_bad.json", FileAccess.WRITE)
 	bad.store_string('{"no_such_field": 1}')
 	bad.close()
-	var strict := LmConfig.make_binder(LmConfig.new(), "user://lm_config_bad.json")
+	var strict := LmConfig.make_binder(LmConfig.new(), ROOT + "_config_bad.json")
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
-	DirAccess.remove_absolute("user://lm_config_bad.json")
+	DirAccess.remove_absolute(ROOT + "_config_bad.json")
 
 	_layers()
 	_templates(binder)
@@ -117,7 +127,7 @@ func _write(rel: String, text: String) -> void:
 func _child() -> String:
 	var out: Array = []
 	OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-		"res://examples/headless_config.tscn", "--", "--probe", "--lm-scare-cooldown=33.0", "--lm-darkness-ambient=0.2"], out, true)
+		"res://examples/headless_config.tscn", "--", "--probe", ROOT_ARG + ROOT, "--lm-scare-cooldown=33.0", "--lm-darkness-ambient=0.2"], out, true)
 	return "".join(PackedStringArray(out))
 
 
@@ -136,8 +146,8 @@ func _layers() -> void:
 	OS.unset_environment("LM_WITCH_HEAR_RANGE")
 	_write("game/%s/config_meter/game.yml" % GAME, "witch_hear_range: 11.0\n")
 	_check(_child().contains("PROBE ok=false"), "strict: a key in the wrong file is refused")
-	for f in ["config_meter", "config_witches", "config_scares"]:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(ROOT.path_join("game/%s/%s/game.yml" % [GAME, f])))
+	var removed := DotPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
+	_check(removed.ok and not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(ROOT)), "the per-process cfg fixture directory is removed", ROOT if removed.ok else str(removed.error))
 
 
 ## The shipped cfg files hold every key, in step with LmConfig, and change nothing as they are.

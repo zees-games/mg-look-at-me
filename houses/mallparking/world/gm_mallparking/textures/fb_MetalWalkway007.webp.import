@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b3a6a74lt70lv"
-path="res://.godot/imported/fb_MetalWalkway007.webp-4ce42d06e1f213301b315150ce0670f5.ctex"
+path="res://.godot/imported/fb_MetalWalkway007.webp-d660890bf2e5bb3f9b9e5fda7c009d59.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/fb_MetalWalkway007.webp"
-dest_files=["res://.godot/imported/fb_MetalWalkway007.webp-4ce42d06e1f213301b315150ce0670f5.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/fb_MetalWalkway007.webp"
+dest_files=["res://.godot/imported/fb_MetalWalkway007.webp-d660890bf2e5bb3f9b9e5fda7c009d59.ctex"]
 
 [params]
 

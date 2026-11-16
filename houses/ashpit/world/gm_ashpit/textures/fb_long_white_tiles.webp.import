@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0rhnoe2pkm8p"
-path="res://.godot/imported/fb_long_white_tiles.webp-b78b05f70f7f58b4cf86bccdd5fe52c7.ctex"
+path="res://.godot/imported/fb_long_white_tiles.webp-c14e25aed449ebb7510edb7183a8406c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_long_white_tiles.webp"
-dest_files=["res://.godot/imported/fb_long_white_tiles.webp-b78b05f70f7f58b4cf86bccdd5fe52c7.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_long_white_tiles.webp"
+dest_files=["res://.godot/imported/fb_long_white_tiles.webp-c14e25aed449ebb7510edb7183a8406c.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://is8sdbx8kcni"
-path="res://.godot/imported/gen_bars_202020.png-a01f6c10923522220dffd21207baea42.ctex"
+path="res://.godot/imported/gen_bars_202020.png-41bbf709b6d30e2c8a4fa33314d71ac3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/gen_bars_202020.png"
-dest_files=["res://.godot/imported/gen_bars_202020.png-a01f6c10923522220dffd21207baea42.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/gen_bars_202020.png"
+dest_files=["res://.godot/imported/gen_bars_202020.png-41bbf709b6d30e2c8a4fa33314d71ac3.ctex"]
 
 [params]
 

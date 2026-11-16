@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://5bt6uyr23lf"
-path="res://.godot/imported/fb_Metal039.webp-a0be25a2ac35740cc9ca73ac2b5b446b.ctex"
+path="res://.godot/imported/fb_Metal039.webp-2d048df57bfba8198bf5bc3f1330978d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_Metal039.webp"
-dest_files=["res://.godot/imported/fb_Metal039.webp-a0be25a2ac35740cc9ca73ac2b5b446b.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_Metal039.webp"
+dest_files=["res://.godot/imported/fb_Metal039.webp-2d048df57bfba8198bf5bc3f1330978d.ctex"]
 
 [params]
 

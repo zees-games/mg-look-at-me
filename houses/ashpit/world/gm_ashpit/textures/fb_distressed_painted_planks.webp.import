@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cihab8mukcbmw"
-path="res://.godot/imported/fb_distressed_painted_planks.webp-6ffbacd913e0d3d5636b452fc5a484f2.ctex"
+path="res://.godot/imported/fb_distressed_painted_planks.webp-e71f10d944076bda6f580381aece2b8b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_distressed_painted_planks.webp"
-dest_files=["res://.godot/imported/fb_distressed_painted_planks.webp-6ffbacd913e0d3d5636b452fc5a484f2.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_distressed_painted_planks.webp"
+dest_files=["res://.godot/imported/fb_distressed_painted_planks.webp-e71f10d944076bda6f580381aece2b8b.ctex"]
 
 [params]
 

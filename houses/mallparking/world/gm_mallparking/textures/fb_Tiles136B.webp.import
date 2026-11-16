@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://gn6o0mdb8au8"
-path="res://.godot/imported/fb_Tiles136B.webp-71a9687de53c6d616e6c2efccd36b298.ctex"
+path="res://.godot/imported/fb_Tiles136B.webp-011c0220e3904a15288ae764dd130c74.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/fb_Tiles136B.webp"
-dest_files=["res://.godot/imported/fb_Tiles136B.webp-71a9687de53c6d616e6c2efccd36b298.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/fb_Tiles136B.webp"
+dest_files=["res://.godot/imported/fb_Tiles136B.webp-011c0220e3904a15288ae764dd130c74.ctex"]
 
 [params]
 

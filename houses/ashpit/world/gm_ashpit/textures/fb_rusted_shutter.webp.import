@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c76rb8bjmh0sy"
-path="res://.godot/imported/fb_rusted_shutter.webp-adf4ceb4ce253238422b1e3ab65411a3.ctex"
+path="res://.godot/imported/fb_rusted_shutter.webp-814e88339095c0f620e13645d510c624.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_rusted_shutter.webp"
-dest_files=["res://.godot/imported/fb_rusted_shutter.webp-adf4ceb4ce253238422b1e3ab65411a3.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_rusted_shutter.webp"
+dest_files=["res://.godot/imported/fb_rusted_shutter.webp-814e88339095c0f620e13645d510c624.ctex"]
 
 [params]
 

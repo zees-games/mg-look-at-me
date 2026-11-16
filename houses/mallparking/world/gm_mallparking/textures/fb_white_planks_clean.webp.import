@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fur6hrbb1yvg"
-path="res://.godot/imported/fb_white_planks_clean.webp-faf3d5efc7e5207b2be5e0fd1f5a3a12.ctex"
+path="res://.godot/imported/fb_white_planks_clean.webp-434b70d870a9ddec6ff401d810639b1e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/fb_white_planks_clean.webp"
-dest_files=["res://.godot/imported/fb_white_planks_clean.webp-faf3d5efc7e5207b2be5e0fd1f5a3a12.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/fb_white_planks_clean.webp"
+dest_files=["res://.godot/imported/fb_white_planks_clean.webp-434b70d870a9ddec6ff401d810639b1e.ctex"]
 
 [params]
 

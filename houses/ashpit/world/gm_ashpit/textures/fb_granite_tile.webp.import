@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bi57gbjejhdih"
-path="res://.godot/imported/fb_granite_tile.webp-32882b437928350c8f223db287d44225.ctex"
+path="res://.godot/imported/fb_granite_tile.webp-4b03fe6290600412b80a964ff5409e43.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_granite_tile.webp"
-dest_files=["res://.godot/imported/fb_granite_tile.webp-32882b437928350c8f223db287d44225.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_granite_tile.webp"
+dest_files=["res://.godot/imported/fb_granite_tile.webp-4b03fe6290600412b80a964ff5409e43.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bq70h4do8542r"
-path="res://.godot/imported/fb_Concrete041A.webp-fc6f39e90d4bb3731451e4a432db14b6.ctex"
+path="res://.godot/imported/fb_Concrete041A.webp-3d56b30684bf312a08c98936b91f3baa.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_Concrete041A.webp"
-dest_files=["res://.godot/imported/fb_Concrete041A.webp-fc6f39e90d4bb3731451e4a432db14b6.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_Concrete041A.webp"
+dest_files=["res://.godot/imported/fb_Concrete041A.webp-3d56b30684bf312a08c98936b91f3baa.ctex"]
 
 [params]
 

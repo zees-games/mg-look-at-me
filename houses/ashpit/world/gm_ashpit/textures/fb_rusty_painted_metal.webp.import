@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dq4dghsku422x"
-path="res://.godot/imported/fb_rusty_painted_metal.webp-08b875514afe4d79e338e06e7c17949c.ctex"
+path="res://.godot/imported/fb_rusty_painted_metal.webp-3b88276bb0083492e49883394f3f5d3d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_rusty_painted_metal.webp"
-dest_files=["res://.godot/imported/fb_rusty_painted_metal.webp-08b875514afe4d79e338e06e7c17949c.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_rusty_painted_metal.webp"
+dest_files=["res://.godot/imported/fb_rusty_painted_metal.webp-3b88276bb0083492e49883394f3f5d3d.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://w2uusut1vrrb"
-path="res://.godot/imported/fb_DiamondPlate009.webp-ae7814ef5481794fb7c39afc179a9427.ctex"
+path="res://.godot/imported/fb_DiamondPlate009.webp-a6dc71ab449bb1411a747eeb15117b7e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_DiamondPlate009.webp"
-dest_files=["res://.godot/imported/fb_DiamondPlate009.webp-ae7814ef5481794fb7c39afc179a9427.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_DiamondPlate009.webp"
+dest_files=["res://.godot/imported/fb_DiamondPlate009.webp-a6dc71ab449bb1411a747eeb15117b7e.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ty5m3lcnfngn"
-path="res://.godot/imported/fb_painted_metal_shutter.webp-413cb2e1354ea7d691f1231c1d788d7a.ctex"
+path="res://.godot/imported/fb_painted_metal_shutter.webp-a6a0f727795174ce275b6e3cfc16a971.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/fb_painted_metal_shutter.webp"
-dest_files=["res://.godot/imported/fb_painted_metal_shutter.webp-413cb2e1354ea7d691f1231c1d788d7a.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/fb_painted_metal_shutter.webp"
+dest_files=["res://.godot/imported/fb_painted_metal_shutter.webp-a6a0f727795174ce275b6e3cfc16a971.ctex"]
 
 [params]
 

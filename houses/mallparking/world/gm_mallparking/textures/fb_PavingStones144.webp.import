@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b72kh4chmkx1d"
-path="res://.godot/imported/fb_PavingStones144.webp-394fcd1ea03e3186036a930bff4a05e5.ctex"
+path="res://.godot/imported/fb_PavingStones144.webp-19330a2859afb069410d86a535ab214c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_mallparking/world/gm_mallparking/textures/fb_PavingStones144.webp"
-dest_files=["res://.godot/imported/fb_PavingStones144.webp-394fcd1ea03e3186036a930bff4a05e5.ctex"]
+source_file="res://houses/mallparking/world/gm_mallparking/textures/fb_PavingStones144.webp"
+dest_files=["res://.godot/imported/fb_PavingStones144.webp-19330a2859afb069410d86a535ab214c.ctex"]
 
 [params]
 

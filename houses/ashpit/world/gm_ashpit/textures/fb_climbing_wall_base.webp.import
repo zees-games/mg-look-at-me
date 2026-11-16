@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bpocqofopnmor"
-path="res://.godot/imported/fb_climbing_wall_base.webp-7495cb4dacb607768773e9f0b737c159.ctex"
+path="res://.godot/imported/fb_climbing_wall_base.webp-e886edbcb49029f109eba950b424e2e4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://houses/gm_ashpit/world/gm_ashpit/textures/fb_climbing_wall_base.webp"
-dest_files=["res://.godot/imported/fb_climbing_wall_base.webp-7495cb4dacb607768773e9f0b737c159.ctex"]
+source_file="res://houses/ashpit/world/gm_ashpit/textures/fb_climbing_wall_base.webp"
+dest_files=["res://.godot/imported/fb_climbing_wall_base.webp-e886edbcb49029f109eba950b424e2e4.ctex"]
 
 [params]
 
