@@ -74,3 +74,4 @@ tools/__pycache__/
 /addons/dot_sql
 # godot-sqlite comes from dot-bot tools/fetch_sqlite.sh
 /addons/godot-sqlite
+/addons/dot_mobile

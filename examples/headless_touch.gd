@@ -2,10 +2,10 @@ extends DotGameCheckSuite
 
 const LmTouch := preload("../game/lm_touch.gd")
 
-## The touch layout: the buttons fit a phone at three sizes without overlapping, and each DotTouchButtons is freed.
+## The touch layout and dot-mobile's overlay: the buttons fit a phone at three sizes without overlapping, and each DotTouchButtons is freed.
 ## Run: `godot --headless --path . res://examples/headless_touch.tscn`
 
-const CHECKS := 13
+const CHECKS := 24
 
 
 func _ready() -> void:
@@ -50,7 +50,62 @@ func _run() -> void:
 	_check(not off.visible, "no touch: the buttons are hidden")
 	off.free()
 	DotPlatform.touch_override = -1
+	_overlay()
 	_report(CHECKS)
+
+
+## dot-mobile's overlay on a HUD-typed host (a Control, as the client's is): it drives the client's own sampler.
+func _overlay() -> void:
+	DotPlatform.touch_override = 1
+	var host := Control.new()
+	host.size = Vector2(844, 390)
+	add_child(host)
+	var sampler := DotFpsTouchSampler.new(DotFpsTunables.new())
+	var menu_button := Button.new()
+	menu_button.position = Vector2(4, 4)
+	menu_button.size = Vector2(80, 40)
+	host.add_child(menu_button)
+	var touch: RefCounted = LmTouch.build(host, sampler, func() -> Button: return menu_button)
+	var pressed: Array = []
+	touch.set(&"on_button", func(id: StringName, down: bool) -> void: pressed.append([id, down]))
+	var controls: DotMobileControls = touch.get(&"controls")
+	_check(controls != null and controls.touch and controls.sampler == sampler, "the overlay drives the client's own sampler", str(touch.call(&"describe")))
+	_check(not controls.effective.autofire, "auto-fire is off by default (not a shooter)")
+	_check(not controls.effective.aim_assist, "aim assist is off by default")
+	var ids: Array = []
+	for b: Dictionary in LmTouch.overlay_layout():
+		ids.append(b["id"])
+	ids.sort()
+	var want: Array = LmTouch.touch_layout().ids()
+	want.sort()
+	var placed := true
+	for id: StringName in ids:
+		placed = placed and controls.buttons.radius_of(id) > 0.0
+	_check(ids == want and placed and ids.size() == 10, "every button the layout declares is built: use, jump, crouch, light, camera, command, board, maps, gag, mute", str(ids))
+	var tap := InputEventScreenTouch.new()
+	tap.pressed = true
+	var fake := InputEventMouseMotion.new()
+	fake.device = InputEvent.DEVICE_ID_EMULATION
+	_check(bool(touch.call(&"takes", tap)) and bool(touch.call(&"takes", fake)), "it takes touches and the mouse emulated from them")
+	var clash := false
+	for id: StringName in ids:
+		clash = clash or controls.buttons.centre_of(id).distance_to(Vector2(44, 24)) < controls.buttons.radius_of(id) + 40.0
+	_check(not clash, "no button sits on the menu's corner")
+	_check(controls.ignore_fn.call(Vector2(10, 10)) and not controls.ignore_fn.call(Vector2(400, 200)), "a touch on the menu button is left to the menu")
+	controls.buttons.button_down.emit(&"flashlight")
+	_check(pressed == [[&"flashlight", true]], "a button press reaches the client's handler", str(pressed))
+	var finger := InputEventScreenTouch.new()
+	finger.index = 3
+	finger.pressed = true
+	finger.position = controls.buttons.centre_of(&"jump")
+	controls.buttons._input(finger)
+	_check((sampler.sample(1.0 / 60.0).buttons & DotFpsCommand.BUTTON_JUMP) != 0, "jump is held on the sampler while it is down")
+	touch.call(&"sync", true)
+	_check(not controls.visible and not bool(touch.call(&"active")), "a menu or the command line pauses it")
+	touch.call(&"sync", false)
+	_check(bool(touch.call(&"active")), "and closing it brings it back")
+	host.free()
+	DotPlatform.touch_override = -1
 
 
 func _min_diameter(layout: Array[Dictionary]) -> float:

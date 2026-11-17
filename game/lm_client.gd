@@ -314,30 +314,28 @@ func _make_sampler(tunables: DotFpsTunables) -> DotFpsSampler:
 	return touch_sampler
 
 
-## A touch sampler leaves a finger on a button to the button, and knows the screen's width.
+## The overlay drives whichever sampler this client has now.
 func _bind_touch_sampler(sampler: DotFpsSampler) -> void:
-	if touch == null or not sampler is DotFpsTouchSampler:
-		return
-	var touch_sampler := sampler as DotFpsTouchSampler
-	touch_sampler.ignore_fn = touch.contains_point
-	touch_sampler.set_screen_width(get_viewport().get_visible_rect().size.x)
+	if touch != null and sampler is DotFpsTouchSampler:
+		touch.use_sampler(sampler)
 
 
-## The phone's buttons, over the HUD. Not built elsewhere.
+## The phone's controls, over the HUD. Not built elsewhere.
 func _build_touch() -> void:
 	if not LmTouch.wanted():
 		return
-	touch = LmTouch.new()
-	touch.build(platform)
-	touch.pressed.connect(_on_touch_button.bind(true))
-	touch.released.connect(_on_touch_button.bind(false))
-	add_child(touch)
-	_bind_touch_sampler(_sampler if not _offline else (player.sampler if player != null else null))
+	touch = LmTouch.build(_hud, _sampler if not _offline else (player.sampler if player != null else null), _menu_button)
+	touch.on_button = _on_touch_button
+
+
+## The menu's own button, whose corner the overlay leaves alone; null until the menu is built.
+func _menu_button() -> Button:
+	var menu: Object = platform.menu if platform != null else null
+	return menu.get(&"menu_button") as Button if menu != null else null
 
 
 ## A button press does what its key does.
 func _on_touch_button(id: StringName, down: bool) -> void:
-	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
 
 	# A release always gets through (a held board must close), whatever covers the screen.
 	if id == DotGameTouchLayout.BOARD:
@@ -346,8 +344,7 @@ func _on_touch_button(id: StringName, down: bool) -> void:
 
 	match id:
 		&"jump", &"crouch":
-			if sampler is DotFpsTouchSampler:
-				(sampler as DotFpsTouchSampler).hold(DotFpsCommand.BUTTON_JUMP if id == &"jump" else DotFpsCommand.BUTTON_CROUCH, down)
+			pass  # held on the sampler by the overlay
 		&"use":
 			if down and not _covered() and not _command.visible:
 				_act("use")

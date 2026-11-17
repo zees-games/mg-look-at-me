@@ -104,6 +104,9 @@ func mouse_drives_view() -> bool:
 func _input(event: InputEvent) -> void:
 	var motion := event is InputEventMouseMotion
 	var finger := event is InputEventScreenTouch or event is InputEventScreenDrag
+	# dot-mobile's overlay forwards every touch itself, and the mouse Godot emulates from one would turn the view twice.
+	if touch != null and touch.takes(event):
+		return
 	# A wheel tick is a press and a release in one frame, so polling misses it; the sampler
 	# latches it (it can be bound to jump), but only if it is handed mouse buttons too.
 	if not (motion or finger or event is InputEventMouseButton) or _covered():
@@ -287,7 +290,7 @@ func _act(action: String, args: Dictionary = {}) -> void:
 
 func _process(delta: float) -> void:
 	if touch != null:
-		touch.buttons.visible = not _covered() and not (platform != null and platform.is_input_blocked())
+		touch.sync(_covered() or (platform != null and platform.is_input_blocked()))
 
 	if net != null and net.is_running():
 		net.interpolate_frame(-1.0)
