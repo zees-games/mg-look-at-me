@@ -8,6 +8,7 @@ const LmPlayer := preload("../game/lm_player.gd")
 ## What a witch hears, sees and does each tick ([method LmGame._watch]) is run by dot-sim's `DotSimWitches` when the
 ## library is there, and it must do what the script does: a bot round on every level, the players thrown in front of
 ## and behind the witches with their lights and noise seeded, run with [member LmGame.witch_verify] on, re-runs the
+
 ## script beside every native watch and finds no difference in the gaze, the rates or the noise; a world with
 ## [member LmGame.native_witches] off keeps the script. With no library the native half is skipped;
 ## [code]GS_SIM_REQUIRE_NATIVE=1[/code] (CI) fails instead.
@@ -84,16 +85,7 @@ func _run() -> void:
 	_finished += 1
 
 	_entered += 1
-	print("native_witches off keeps the script")
-	LmGame.native_witches = false
-	var off := await _world()
-	var off_bots := _join(off)
-	await _settle()
-	for _t in 120:
-		_tick(off, off_bots)
-	LmGame.native_witches = true
-	_check(off._witches == null, "a script world builds no native witches")
-	await _dispose(off)
+	await _script_world()
 	_finished += 1
 
 	_entered += 1
@@ -119,6 +111,20 @@ func _run() -> void:
 	_finished += 1
 
 	_report_sections(_entered, _finished, SECTIONS, CHECKS)
+
+
+## A world with [member LmGame.native_witches] off keeps the script.
+func _script_world() -> void:
+	print("native_witches off keeps the script")
+	LmGame.native_witches = false
+	var off := await _world()
+	var off_bots := _join(off)
+	await _settle()
+	for _t in 120:
+		_tick(off, off_bots)
+	LmGame.native_witches = true
+	_check(off._witches == null, "a script world builds no native witches")
+	await _dispose(off)
 
 
 ## A server's house, as the soak makes it.

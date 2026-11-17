@@ -3,6 +3,7 @@ extends RefCounted
 ## The phone's controls: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own
 ## [DotFpsTouchSampler]. Buttons: use, flashlight, jump and crouch, and one for every key the keyboard has: camera (F5),
 ## command line, scoreboard (Tab, held), map list (M), look-to-gag and look-to-mute (G, K). Help (H) is the menu's own button.
+
 ## Not a shooter: no crosshair, no auto-fire and no aim assist. The client turns a press into what the key would have done.
 
 const SelfScript := preload("lm_touch.gd")

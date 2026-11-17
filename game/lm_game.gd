@@ -1,4 +1,4 @@
-extends "lm_game_senses.gd"
+extends "lm_game_witches.gd"
 
 ## The house: every level at once, side by side, every player on the level they are on, and the witches. Headless; [LmClient] draws.
 ## A server that never ends: no rounds or sides, only each player's own progress. Being seen is a meter: each tick a witch asks whether she
