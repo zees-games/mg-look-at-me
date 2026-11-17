@@ -680,4 +680,7 @@ static func new_chat() -> DotGameChatClient:
 	box.voice_config = LmServices.voice_format()
 	# This bridge's `send_voice` is the server's `(peer_id, bytes)`; the client half is this.
 	box.voice_method = &"send_voice_up"
+	# A phone: three narrow rows in the corner, so a log line is not drawn across the thumbstick and the buttons.
+	if DotPlatform.has_touch():
+		box.window_settings = {"max_lines": 3, "width": 200.0, "margin_left": 12.0, "margin_bottom": 8.0}
 	return box
