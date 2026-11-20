@@ -1,3 +1,5 @@
+![Look At Me banner](https://raw.githubusercontent.com/zees-games/mg-look-at-me/main/docs/banner.png)
+
 This is a game to demonstrate the capabilities of the [**GameSpice collection**](https://gamespice.net) built on-top of [Godot 4](https://godotengine.org/) and [**GameSpice**](https://gamespice.net). In this 3D game, players make their way through a dark house, 32 levels deep, while witches walk its rooms. Find what opens the next door before one of them looks at you for too long.
 
 **This project and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
