@@ -1,0 +1,9 @@
+# duplication (cross-game)
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/dedicated.gd	45
+examples/headless_native_motor.gd	136
+game/lm_avatars.gd	50
+game/lm_progress.gd	37
+game/lm_services.gd	39
+game/net/lm_net_link.gd	120
+tools/render_cover.gd	31
