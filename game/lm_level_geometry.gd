@@ -48,7 +48,7 @@ const SLAB := 0.25
 
 
 var doc: Dictionary = {}
-## Room id -> a lift car: {cycle: DotFpsLiftCycle, body, gate (barrier on the head landing), gate_y, rect (local, xz), bottom, rise, size_y}. Only stairwells that say `lift`.
+## Room id -> a lift car: {cycle: GSFpsLiftCycle, body, gate (barrier on the head landing), gate_y, rect (local, xz), bottom, rise, size_y}. Only stairwells that say `lift`.
 var lifts: Dictionary = {}
 
 
@@ -376,7 +376,7 @@ func is_lift(room_id: String) -> bool:
 ## The car's top height, local to the level, at [param seconds] on the shared clock.
 func lift_top(room_id: String, seconds: float) -> float:
 	var lift: Dictionary = lifts[room_id]
-	return float(lift["bottom"]) + (lift["cycle"] as DotFpsLiftCycle).fraction(seconds) * float(lift["rise"])
+	return float(lift["bottom"]) + (lift["cycle"] as GSFpsLiftCycle).fraction(seconds) * float(lift["rise"])
 
 
 ## Poses every car for [param seconds]; the same call on every end, so the cars agree to the bit.
@@ -391,7 +391,7 @@ func lift_pose(seconds: float) -> void:
 
 ## Whether the head landing is open at [param seconds]: only while the car stands at the top. Otherwise a barrier shuts it.
 func lift_gate_open(room_id: String, seconds: float) -> bool:
-	return (lifts[room_id]["cycle"] as DotFpsLiftCycle).gate_open(seconds, true)
+	return (lifts[room_id]["cycle"] as GSFpsLiftCycle).gate_open(seconds, true)
 
 
 ## How far a rider at [param local] (feet, local to the level) goes up or down with a car between two instants:
@@ -402,7 +402,7 @@ func lift_carry(local: Vector3, from_seconds: float, to_seconds: float) -> float
 		var rect: Rect2 = lift["rect"]
 
 		if rect.has_point(Vector2(local.x, local.z)):
-			return (lift["cycle"] as DotFpsLiftCycle).carry(from_seconds, to_seconds, float(lift["bottom"]), float(lift["rise"]), local.y)
+			return (lift["cycle"] as GSFpsLiftCycle).carry(from_seconds, to_seconds, float(lift["bottom"]), float(lift["rise"]), local.y)
 
 	return 0.0
 

@@ -1,13 +1,13 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## LmConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
+## LmConfig through GSGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
 
 const LmConfig := preload("../game/lm_config.gd")
 const CHECKS := 31
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
@@ -42,9 +42,9 @@ func _run() -> void:
 			"bot_skip_seconds", "darkness_ambient", "flashlight_range", "scare_cooldown", "house_minutes"]:
 		_check(keys.has(k), "%s is exposed" % k)
 
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	console.set_cvar("lm_witch_hear_range", "12.0")
 	_check(is_equal_approx(config.witch_hear_range, 12.0) and binder.source_of("witch_hear_range") == "cvar", "a cvar writes the field")
 	_check(binder.diff_yaml().contains("witch_hear_range: 12.0"), "the diff names the edit")
@@ -63,17 +63,17 @@ func _run() -> void:
 	_layers()
 	_templates(binder)
 
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.panel_mode = 1
 	wb.config = {"enabled": false}
-	for set: DotProfileSet in binder.profile_sets():
+	for set: GSProfileSet in binder.profile_sets():
 		wb.add_set(set, set.rel_path)
 	add_child(wb)
 	_check(wb.start().ok, "the workbench starts")
 	binder.attach(wb.api.runtime)
 	var listed := PackedStringArray()
 	for kind: String in wb.api.kinds():
-		var got: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
+		var got: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
 		if got.ok:
 			listed.append_array(PackedStringArray((got.value as Dictionary).get("values", {}).keys()))
 	var missing := PackedStringArray()
@@ -81,7 +81,7 @@ func _run() -> void:
 		if not listed.has(k):
 			missing.append(k)
 	_check(missing.is_empty() and binder.profile_sets().size() == 5, "the workbench lists all %d keys over %d files" % [keys.size(), binder.profile_sets().size()], ",".join(missing))
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_witches", "id": binder.profile_id, "key": "witch_hear_range", "value": 9.5})
+	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_witches", "id": binder.profile_id, "key": "witch_hear_range", "value": 9.5})
 	_check(res.ok and is_equal_approx(config.witch_hear_range, 9.5), "a workbench edit reaches the live config")
 	var files: Dictionary = wb.exporter.call("collect")
 	var text: String = files.get("cfg/game/mg-look-at-me/config_witches/game.yml", "")
@@ -107,9 +107,9 @@ func _probe() -> void:
 	binder.strict = true
 	binder.roots = PackedStringArray([ProjectSettings.globalize_path(ROOT)])
 	var loaded := binder.load_layers()
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	print("PROBE ok=%s exp=%s exp_src=%s hear=%s hear_src=%s cvar=%s scare=%s scare_src=%s dark=%s dark_src=%s" % [
 		loaded.ok, config.exposure_rate, binder.source_of("exposure_rate"), config.witch_hear_range, binder.source_of("witch_hear_range"),
 		console.find_cvar("lm_witch_hear_range").get_string(), config.scare_cooldown, binder.source_of("scare_cooldown"),
@@ -146,12 +146,12 @@ func _layers() -> void:
 	OS.unset_environment("LM_WITCH_HEAR_RANGE")
 	_write("game/%s/config_meter/game.yml" % GAME, "witch_hear_range: 11.0\n")
 	_check(_child().contains("PROBE ok=false"), "strict: a key in the wrong file is refused")
-	var removed := DotPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
+	var removed := GSPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
 	_check(removed.ok and not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(ROOT)), "the per-process cfg fixture directory is removed", ROOT if removed.ok else str(removed.error))
 
 
 ## The shipped cfg files hold every key, in step with LmConfig, and change nothing as they are.
-func _templates(binder: DotGameConfigBinder) -> void:
+func _templates(binder: GSGameConfigBinder) -> void:
 	var files := binder.template_files()
 	_check(files.size() == 5, "five shipped cfg files", str(files.size()))
 	var stale := PackedStringArray()

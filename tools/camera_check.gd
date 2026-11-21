@@ -1,7 +1,7 @@
 extends Node
 
 ## The first play test's cameras and bodies, in the real offline house: the third-person camera flown round every room and both sides of every door
-## (dot-core's DotCameraCheck, armed), a walked player vs a held one under `mp_solidplayers` 1 and 0, and `mp_forceview` through the view key.
+## (dot-core's GSCameraCheck, armed), a walked player vs a held one under `mp_solidplayers` 1 and 0, and `mp_forceview` through the view key.
 ##   tools/camera_check.sh [--render]   # headless, exit 1 on failure; --render also writes frames to screenshots/cameras/
 
 const LmClient := preload("res://game/lm_client.gd")
@@ -52,26 +52,26 @@ func _fly(game: LmGame) -> void:
 				pivots.append(level.position + (door["centre"] as Vector3) + (door["normal"] as Vector3) * side + Vector3.UP * LmPlayer.EYE_HEIGHT)
 	var clear: Array[Vector3] = []
 	for pivot in pivots:
-		if not DotCameraProbe.is_inside(space, pivot, 0.3, LmGame.LAYER_WORLD):
+		if not GSCameraProbe.is_inside(space, pivot, 0.3, LmGame.LAYER_WORLD):
 			clear.append(pivot)
 	var total := {}
 	for pivot in clear:
-		total = DotCameraCheck.add(total, DotCameraCheck.fly(_client.get_viewport().world_3d, DotCameraCheck.orbit_path(pivot), Vector3(0.0, 0.6, 3.2), LmGame.LAYER_WORLD))
-	_check(DotCameraCheck.passed(total), "third person round %d places in the house: %s" % [clear.size(), DotCameraCheck.summary(total)])
+		total = GSCameraCheck.add(total, GSCameraCheck.fly(_client.get_viewport().world_3d, GSCameraCheck.orbit_path(pivot), Vector3(0.0, 0.6, 3.2), LmGame.LAYER_WORLD))
+	_check(GSCameraCheck.passed(total), "third person round %d places in the house: %s" % [clear.size(), GSCameraCheck.summary(total)])
 
 
 func _views_rule(game: LmGame) -> void:
 	_client.third_person = false
-	game.view_rules.force_view = DotPlayerViewRules.ANY
+	game.view_rules.force_view = GSPlayerViewRules.ANY
 	_client.third_person = game.view_rules.toggled(_client.third_person)
 	_check(_client.third_person, "the view key goes to third person")
-	game.view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
+	game.view_rules.force_view = GSPlayerViewRules.FIRST_ONLY
 	_client._place_camera()
 	_check(not _client.third_person, "mp_forceview 1 puts the camera back on the eye")
-	game.view_rules.force_view = DotPlayerViewRules.THIRD_ONLY
+	game.view_rules.force_view = GSPlayerViewRules.THIRD_ONLY
 	_client._place_camera()
 	_check(_client.third_person, "mp_forceview 2 holds third person")
-	game.view_rules.force_view = DotPlayerViewRules.ANY
+	game.view_rules.force_view = GSPlayerViewRules.ANY
 	_client.third_person = false
 
 
@@ -112,7 +112,7 @@ func _views(game: LmGame, other: LmPlayer) -> void:
 	_client.third_person = false
 	await _seconds(0.3)
 	game.body_rules.solid = false
-	var fade: DotCameraFade = _client._fade
+	var fade: GSCameraFade = _client._fade
 	var figures: Callable = fade.bodies_fn
 	fade.bodies_fn = Callable()
 	await _held_at_lens(me, other, "lookatme_walk_in_before")

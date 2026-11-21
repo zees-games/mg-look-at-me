@@ -325,7 +325,7 @@ func _fire(player: LmPlayer, event_id: String) -> void:
 	player.fired[event_id] = true
 	var level := level_of(player)
 	var text := str(level.events[event_id].get("text", "")) if level != null else ""
-	DotLog.debug(CHANNEL, "an event", {"player": String(player.player_key), "level": player.level, "event": event_id})
+	GSLog.debug(CHANNEL, "an event", {"player": String(player.player_key), "level": player.level, "event": event_id})
 	event_fired.emit(player.player_key, event_id)
 
 	if text != "":

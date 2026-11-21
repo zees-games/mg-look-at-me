@@ -1,4 +1,4 @@
-extends DotNetBehaviour
+extends GSNetBehaviour
 
 ## One player on the wire: movement (dot-player-controller's own sync, predicted by the owner), plus what everybody needs
 ## to draw them and what only they need to play. The server simulates for real; the owner predicts with the same controller.
@@ -29,13 +29,13 @@ var net_meter: float = 0.0
 var net_caught: bool = false
 var net_warp: int = 0
 
-var last_move: DotFpsCommand = DotFpsCommand.new()
+var last_move: GSFpsCommand = GSFpsCommand.new()
 var _seen_warp: int = -1
 
 
 func _register_net_vars() -> void:
-	for spec in DotFpsNetSync.state_specs():
-		var declaration := replicate(spec["property"], DotNetVar.Type[spec["type"]])
+	for spec in GSFpsNetSync.state_specs():
+		var declaration := replicate(spec["property"], GSNetVar.Type[spec["type"]])
 
 		if int(spec["bits"]) > 0:
 			declaration.bits(int(spec["bits"]))
@@ -45,20 +45,20 @@ func _register_net_vars() -> void:
 			declaration.range_of(0.0, 1.0)
 
 	# Owner-only jump timers, appended after the movement specs (declaration order is wire order).
-	# Guarded: a shell without API 10 has no DotFpsNetSync.rewind_specs().
-	if DotAddonApi.build_level("dot_player_controller") >= 10:
-		for spec in DotFpsNetSync.rewind_specs():
-			var _timers := replicate(spec["property"], DotNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
+	# Guarded: a shell without API 10 has no GSFpsNetSync.rewind_specs().
+	if GSAddonApi.build_level("dot_player_controller") >= 10:
+		for spec in GSFpsNetSync.rewind_specs():
+			var _timers := replicate(spec["property"], GSNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
 
-	replicate(&"net_level", DotNetVar.Type.UINT).bits(7)
-	replicate(&"net_flashlight", DotNetVar.Type.BOOL)
-	replicate(&"net_won", DotNetVar.Type.BOOL)
-	var _meter := replicate(&"net_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(8).to_owner_only()
-	var _caught := replicate(&"net_caught", DotNetVar.Type.BOOL).to_owner_only()
-	replicate(&"net_warp", DotNetVar.Type.UINT).bits(4)
+	replicate(&"net_level", GSNetVar.Type.UINT).bits(7)
+	replicate(&"net_flashlight", GSNetVar.Type.BOOL)
+	replicate(&"net_won", GSNetVar.Type.BOOL)
+	var _meter := replicate(&"net_meter", GSNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(8).to_owner_only()
+	var _caught := replicate(&"net_caught", GSNetVar.Type.BOOL).to_owner_only()
+	replicate(&"net_warp", GSNetVar.Type.UINT).bits(4)
 
 
-func _net_apply_input(input: DotNetInput, _tick: int) -> void:
+func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 	var command := input as LmNetCommand
 
 	if command != null:
@@ -85,7 +85,7 @@ func pull() -> void:
 	if player == null:
 		return
 
-	DotFpsNetSync.pull(player.controller.state, self)
+	GSFpsNetSync.pull(player.controller.state, self)
 	net_level = clampi(player.level, 0, 127)
 	net_flashlight = player.flashlight
 	net_won = player.won
@@ -105,11 +105,11 @@ func _net_state_applied(_tick: int) -> void:
 		if _seen_warp >= 0 and net_warp != _seen_warp and bridge != null:
 			var manager: Variant = bridge.get(&"net")
 
-			if manager is DotNetManager and (manager as DotNetManager).interpolator != null:
-				(manager as DotNetManager).interpolator.forget(identity.net_id)
+			if manager is GSNetManager and (manager as GSNetManager).interpolator != null:
+				(manager as GSNetManager).interpolator.forget(identity.net_id)
 
 	_seen_warp = net_warp
-	DotFpsNetSync.push(self, player.controller.state)
+	GSFpsNetSync.push(self, player.controller.state)
 	_adopt()
 
 	# Not the node on a predicted entity: the predictor reads the node as what is shown.
@@ -121,7 +121,7 @@ func _net_interpolated(_tick: int) -> void:
 	if player == null:
 		return
 
-	DotFpsNetSync.push(self, player.controller.state)
+	GSFpsNetSync.push(self, player.controller.state)
 	player.global_position = player.controller.state.position
 
 

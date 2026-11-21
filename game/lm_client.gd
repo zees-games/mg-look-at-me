@@ -7,7 +7,7 @@ extends "lm_client_frame.gd"
 
 func _ready() -> void:
 	# First, so the cover is up before anything of the house is drawn.
-	platform = DotGameClient.new()
+	platform = GSGameClient.new()
 	platform.name = "Platform"
 	platform.spawned_fn = func() -> bool: return player != null and camera != null and camera.current
 	platform.scoreboard_action = LmBindings.SCOREBOARD
@@ -51,13 +51,13 @@ func _ready() -> void:
 
 	if not _offline:
 		var netted := _build_netcode()
-		DotLog.result(CHANNEL, "the netcode", netted)
+		GSLog.result(CHANNEL, "the netcode", netted)
 		if netted.ok:
 			_start_remote_workbench()
-		DotLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
+		GSLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
 		return
 
-	DotLog.result(CHANNEL, "chat, offline", chat.attach(null))
+	GSLog.result(CHANNEL, "chat, offline", chat.attach(null))
 	# The house is built and the player stands in it; the gate now settles the body and lifts.
 	_release_map()
 
@@ -84,15 +84,15 @@ func _build_view() -> void:
 	# The flashlight (dot-flashlight): a hard bright middle with a soft edge, so it reads as a
 	# torch in a dark house and not a flat disc. The house owns on/off (LmPlayer.flashlight), so
 	# this node only draws it; a witch sees you by it, which is the game's trade.
-	fl_config = DotFlashlightConfig.new()
+	fl_config = GSFlashlightConfig.new()
 	fl_config.energy = FLASH_ENERGY
 	fl_config.shadows_on_web = true
 	fl_config.range_m = game.config.flashlight_range
 	fl_config.angle = game.config.flashlight_angle
 	# Audio first: the light resolves its sound manager when it enters the tree.
 	_build_audio()
-	var flash_audio: DotNodeRef = DotNodeRef.of_path(audio.manager.get_path()) if audio != null and audio.manager != null else null
-	fl = DotFlashlight.new()
+	var flash_audio: GSNodeRef = GSNodeRef.of_path(audio.manager.get_path()) if audio != null and audio.manager != null else null
+	fl = GSFlashlight.new()
 	fl.audio = flash_audio
 	fl.name = "Flashlight"
 	fl.config = fl_config
@@ -100,7 +100,7 @@ func _build_view() -> void:
 	fl.authoritative = false
 	camera.add_child(fl)
 	flashlight = fl.beam
-	crowd = DotFlashlightCrowd.new()
+	crowd = GSFlashlightCrowd.new()
 	crowd.name = "OtherBeams"
 	crowd.config = fl_config
 	crowd.audio = flash_audio
@@ -118,7 +118,7 @@ func _build_view() -> void:
 	camera.add_child(spill)
 
 
-## The load gate is dot-game's ([member DotGameClient.gate]); this holds the house on it. Released
+## The load gate is dot-game's ([member GSGameClient.gate]); this holds the house on it. Released
 ## by [method _release_map] when the house stands.
 func _hold_gate() -> void:
 	var gate := platform.gate if platform != null else null
@@ -145,17 +145,17 @@ func _hold_rebuild() -> void:
 ## dot-team's block rules followed from the server, and the F9 tuning panel where this process hosts the house.
 func _add_noblock_and_workbench() -> void:
 	if link != null and not _offline:
-		DotLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
+		GSLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
 		return
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.listen_host_fn = func() -> bool: return true
 	wb.config = {"enabled": false}
-	for set: DotProfileSet in game.config_binder.profile_sets():
+	for set: GSProfileSet in game.config_binder.profile_sets():
 		wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
 	add_child(wb)
 	var started := wb.start()
-	DotLog.result(CHANNEL, "the workbench", started)
+	GSLog.result(CHANNEL, "the workbench", started)
 	if started.ok:
 		game.config_binder.attach(wb.api.runtime)
 	platform.add_workbench(wb)
@@ -165,16 +165,16 @@ func _add_noblock_and_workbench() -> void:
 func _start_remote_workbench() -> void:
 	if workbench_remote == null:
 		return
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.remote_client = workbench_remote
 	wb.remote_fn = func() -> bool: return true
 	wb.config = {"enabled": false}
-	for set: DotProfileSet in game.config_binder.profile_sets():
+	for set: GSProfileSet in game.config_binder.profile_sets():
 		wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
 	add_child(wb)
 	var started := wb.start(game.ensure_runtime())
-	DotLog.result(CHANNEL, "the remote workbench", started)
+	GSLog.result(CHANNEL, "the remote workbench", started)
 	if not started.ok:
 		wb.queue_free()
 		return
@@ -203,14 +203,14 @@ func _build_settings() -> void:
 	# decides, by the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead
 	# (dot-vote's map menu, wired in [LmModule]).
 	platform.maps_rows_fn = func() -> Array: return game.house_rows() if game != null else []
-	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_house(id)
+	platform.maps_change_fn = func(id: StringName) -> GSResult: return game.change_house(id)
 	platform.maps_title = "Change house"
 	platform.maps_noun = "houses"
-	DotLog.result(CHANNEL, "the platform", platform.setup())
+	GSLog.result(CHANNEL, "the platform", platform.setup())
 	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
-	DotLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
+	GSLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_add_noblock_and_workbench()
-	look_mute = platform.look_mute as DotVoiceLookMute
+	look_mute = platform.look_mute as GSVoiceLookMute
 	# Walking and looking are off while the cover is up, a menu is open or a line is typed. Chat
 	# typing never held them before, so a sentence walked the player into the dark.
 	platform.input_blocked_changed.connect(_suspend_input)
@@ -221,7 +221,7 @@ func _build_settings() -> void:
 			_refresh_key_line())
 
 	settings = platform.settings as LmSettings
-	console = platform.console as DotConsoleController
+	console = platform.console as GSConsoleController
 	if settings == null:
 		_refresh_key_line()
 		return
@@ -240,14 +240,14 @@ func _build_settings() -> void:
 	if player != null and player.controller != null:
 		settings.bind_look(player.controller.tunables)
 
-	board = platform.board as DotMenuScoreboard
+	board = platform.board as GSMenuScoreboard
 	_dress_board()
 	_refresh_key_line()
 
 
-## Every sampler this client has, held while [method DotGameClient.is_input_blocked].
+## Every sampler this client has, held while [method GSGameClient.is_input_blocked].
 func _suspend_input(blocked: bool) -> void:
-	for sampler: DotFpsSampler in [_sampler, player.sampler if player != null else null, _held_sampler]:
+	for sampler: GSFpsSampler in [_sampler, player.sampler if player != null else null, _held_sampler]:
 		if sampler != null:
 			sampler.suspended = blocked
 
@@ -260,12 +260,12 @@ func _dress_board() -> void:
 	board.title_text = "Look at Me"
 	board.columns = [
 		{"key": &"name", "title": "Player", "width": 3.0},
-		{"key": &"level", "title": "Level", "kind": DotMenuScoreboard.KIND_NUMBER},
-		{"key": &"best", "title": "Furthest", "kind": DotMenuScoreboard.KIND_NUMBER},
+		{"key": &"level", "title": "Level", "kind": GSMenuScoreboard.KIND_NUMBER},
+		{"key": &"best", "title": "Furthest", "kind": GSMenuScoreboard.KIND_NUMBER},
 		{"key": &"won", "title": "", "width": 1.0, "align": HORIZONTAL_ALIGNMENT_RIGHT,
 			"format": func(v: Variant, _row: Dictionary) -> String: return "out" if bool(v) else ""},
-		{"key": &"seconds", "title": "Time", "kind": DotMenuScoreboard.KIND_DURATION},
-		{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
+		{"key": &"seconds", "title": "Time", "kind": GSMenuScoreboard.KIND_DURATION},
+		{"key": &"ping", "title": "Ping", "kind": GSMenuScoreboard.KIND_PING},
 	]
 	board.sort_by = &"best"
 
@@ -291,11 +291,11 @@ func _adopt_player(p: LmPlayer) -> void:
 
 	if _offline:
 		player.sampler = _make_sampler(player.controller.tunables)
-		DotFpsSampler.register_default_actions(player.sampler)
+		GSFpsSampler.register_default_actions(player.sampler)
 		_bind_touch_sampler(player.sampler)
 	else:
 		_sampler = _make_sampler(player.controller.tunables)
-		DotFpsSampler.register_default_actions(_sampler)
+		GSFpsSampler.register_default_actions(_sampler)
 		_bind_touch_sampler(_sampler)
 
 	if settings != null:
@@ -306,17 +306,17 @@ func _adopt_player(p: LmPlayer) -> void:
 
 
 ## A stick and a look drag on a phone, the keyboard and mouse elsewhere.
-func _make_sampler(tunables: DotFpsTunables) -> DotFpsSampler:
-	if not DotPlatform.has_touch():
-		return DotFpsSampler.new(tunables)
-	var touch_sampler := DotFpsTouchSampler.new(tunables)
+func _make_sampler(tunables: GSFpsTunables) -> GSFpsSampler:
+	if not GSPlatform.has_touch():
+		return GSFpsSampler.new(tunables)
+	var touch_sampler := GSFpsTouchSampler.new(tunables)
 	touch_sampler.set_screen_width(1152.0)
 	return touch_sampler
 
 
 ## The overlay drives whichever sampler this client has now.
-func _bind_touch_sampler(sampler: DotFpsSampler) -> void:
-	if touch != null and sampler is DotFpsTouchSampler:
+func _bind_touch_sampler(sampler: GSFpsSampler) -> void:
+	if touch != null and sampler is GSFpsTouchSampler:
 		touch.use_sampler(sampler)
 
 
@@ -338,7 +338,7 @@ func _menu_button() -> Button:
 func _on_touch_button(id: StringName, down: bool) -> void:
 
 	# A release always gets through (a held board must close), whatever covers the screen.
-	if id == DotGameTouchLayout.BOARD:
+	if id == GSGameTouchLayout.BOARD:
 		platform.touch_board(down)
 		return
 
@@ -351,29 +351,29 @@ func _on_touch_button(id: StringName, down: bool) -> void:
 		&"flashlight":
 			if down and not _covered() and not _command.visible:
 				_act("flashlight")
-		DotGameTouchLayout.CAMERA:
+		GSGameTouchLayout.CAMERA:
 			if down and not _covered() and not _command.visible:
 				_toggle_view()
-		DotGameTouchLayout.COMMAND:
+		GSGameTouchLayout.COMMAND:
 			if down and not _covered() and not _command.visible:
 				_open_command()
-		DotGameTouchLayout.MAPS:
+		GSGameTouchLayout.MAPS:
 			if down and not _covered() and not _command.visible:
 				var _opened := platform.touch_maps()
-		DotGameTouchLayout.GAG, DotGameTouchLayout.MUTE:
+		GSGameTouchLayout.GAG, GSGameTouchLayout.MUTE:
 			if down and not _covered() and not _command.visible:
-				var _tapped := platform.touch_look(id == DotGameTouchLayout.MUTE)
+				var _tapped := platform.touch_look(id == GSGameTouchLayout.MUTE)
 
 
 ## The netcode, built inside `_ready` (inside the shell's scene load), as every game here does.
-func _build_netcode() -> DotResult:
-	net = DotNetManager.new()
+func _build_netcode() -> GSResult:
+	net = GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.local_peer_id = multiplayer.get_unique_id() if multiplayer != null else 2
 	net.auto_tick = false
 	net.config_file = ""
-	var config := DotNetConfig.new()
+	var config := GSNetConfig.new()
 	config.tick_rate = Engine.physics_ticks_per_second
 	config.snapshot_rate = LmGame.NET_SNAPSHOT_RATE
 	config.world_extent = LmGame.NET_WORLD_EXTENT
@@ -402,9 +402,9 @@ func _build_netcode() -> DotResult:
 	var _solid := game.body_rules.follow_cvars(link)
 	var _ambient := game.ambient_rules.follow_cvars(link)
 	# Before the seal and in the server's order (after the bridge), or the actions stay local.
-	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
+	GSLog.result(CHANNEL, "avatar action message", GSGameAvatarActionMessage.register(net))
 	# The server's order again (after the avatar frame): the remote workbench's frame.
-	workbench_remote = DotGameWorkbenchRemoteClient.attach(net)
+	workbench_remote = GSGameWorkbenchRemoteClient.attach(net)
 	net.messages.seal()
 	game.player_joined.connect(func(key: StringName) -> void:
 		if key == bridge.local_key:
@@ -439,16 +439,16 @@ func _refresh_key_line() -> void:
 	if _key_line == null:
 		return
 	var k := func(action: StringName, fallback: String) -> String:
-		var text := DotInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
-		return fallback if text == DotInputBinding.UNBOUND else text
-	if DotPlatform.has_touch():
+		var text := GSInputBinding.describe_action(action) if InputMap.has_action(action) else fallback
+		return fallback if text == GSInputBinding.UNBOUND else text
+	if GSPlatform.has_touch():
 		_key_line.text = ""
 		_key_line.visible = false
 		return
 	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command   %s house   %s help" % [
 		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "F5"),
 		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"dot_menu_maps", "M"),
-		k.call(DotMenuBindings.HELP_ACTION, "H")]
+		k.call(GSMenuBindings.HELP_ACTION, "H")]
 
 
 func _build_hud() -> void:
@@ -527,7 +527,7 @@ func _build_hud_text() -> void:
 func _build_hud_controls() -> void:
 	# Under the crosshair: what the use key does right now. Its colours are the menu's theme
 	# (set on the HUD's root, see [method _build_settings]) with [method piece_theme]'s accent.
-	prompt = DotKeyPrompt.new()
+	prompt = GSKeyPrompt.new()
 	prompt.name = "Prompt"
 	prompt.theme = piece_theme()
 	prompt.font_size = 19
@@ -574,14 +574,14 @@ func _build_hud_controls() -> void:
 
 ## The key the use action is on now, as its name ("E"). Binds the default first if nothing has.
 static func use_key() -> String:
-	return DotInputBinding.ensure_action(USE_ACTION, USE_DEFAULT)
+	return GSInputBinding.ensure_action(USE_ACTION, USE_DEFAULT)
 
 
 ## This house's accent (the lamp's amber) over the player's menu theme; the theme owns the plates,
 ## words and outline. Static so a render tool can use it.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
-	var type := DotHudPiece.THEME_TYPE
+	var type := GSHudPiece.THEME_TYPE
 	t.set_color(&"plate_edge", type, Color(LAMP_COLOUR, 0.28))
 	t.set_color(&"highlight", type, LAMP_COLOUR)
 	return t
@@ -637,7 +637,7 @@ func _on_command(text: String) -> void:
 
 
 ## The peer under the crosshair, 0 for nobody: the player whose head is nearest the view axis
-## ([method DotVoiceLookMute.pick_by_angle]) on this level, within a few metres and with no
+## ([method GSVoiceLookMute.pick_by_angle]) on this level, within a few metres and with no
 ## wall between. The voice manager names speakers by the server's peer id, which a JOIN carries.
 func voice_target() -> int:
 	if bridge == null or player == null or camera == null:
@@ -658,7 +658,7 @@ func voice_target() -> int:
 		if space.intersect_ray(query).is_empty():
 			heads[peer] = head
 
-	return DotVoiceLookMute.pick_by_angle(camera.global_transform, heads, 20.0, 8.0)
+	return GSVoiceLookMute.pick_by_angle(camera.global_transform, heads, 20.0, 8.0)
 
 
 func _chat_mute(peer: int, muted: bool) -> void:
@@ -670,8 +670,8 @@ func _chat_mute(peer: int, muted: bool) -> void:
 
 ## dot-game's chat box and microphone with this game's channels and voice format; it also draws
 ## dot-server's own lines, which arrive on the shell's client link. Static so a suite can build it.
-static func new_chat() -> DotGameChatClient:
-	var box := DotGameChatClient.new()
+static func new_chat() -> GSGameChatClient:
+	var box := GSGameChatClient.new()
 	box.name = "Chat"
 	box.channels = [
 		{"id": LmServices.CH_ALL, "label": "All", "colour": Color(0.93, 0.94, 0.96)},
@@ -681,6 +681,6 @@ static func new_chat() -> DotGameChatClient:
 	# This bridge's `send_voice` is the server's `(peer_id, bytes)`; the client half is this.
 	box.voice_method = &"send_voice_up"
 	# A phone: three narrow rows in the corner, so a log line is not drawn across the thumbstick and the buttons.
-	if DotPlatform.has_touch():
+	if GSPlatform.has_touch():
 		box.window_settings = {"max_lines": 3, "width": 200.0, "margin_left": 12.0, "margin_bottom": 8.0}
 	return box

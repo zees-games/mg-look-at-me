@@ -54,19 +54,19 @@ var config: LmConfig = null
 ## dot-player-controller's `mp_forceview` (may a player switch to third person; the config's
 ## `allow_third_person` false is `1`, first person only) and `mp_solidplayers` (players block
 ## each other). Bound by the module (REPLICATED) and followed by a client through its link.
-var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
-var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+var view_rules: GSPlayerViewRules = GSPlayerViewRules.new()
+var body_rules: GSPlayerBodyRules = GSPlayerBodyRules.new()
 ## The ambience cvars (`lm_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
-var ambient_rules: DotAmbienceRules = LmAmbience.make_rules()
+var ambient_rules: GSAmbienceRules = LmAmbience.make_rules()
 
 ## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made in [method _ready] unless a caller set one.
-var config_binder: DotGameConfigBinder = null
+var config_binder: GSGameConfigBinder = null
 
 ## The workbench's profile rows, made on first ask: the bridge's profile link must exist before the netcode seals, the workbench after.
-var profile_runtime: DotProfileRuntime = null
+var profile_runtime: GSProfileRuntime = null
 
 
-## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `DotGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
+## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `GSGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
 var block_rules: Object = null:
 	set(value):
 		if block_rules != null and block_rules.has_signal(&"changed") and block_rules.is_connected(&"changed", body_rules.refresh):
@@ -114,13 +114,13 @@ var tick: int = 0
 
 
 ## Directories laid out like [member LmConfig.houses_directory], from the map packs the
-## server names (DotGameContent.map_dirs). Set through [method add_house_roots].
+## server names (GSGameContent.map_dirs). Set through [method add_house_roots].
 var extra_house_roots := PackedStringArray()
 
 
 ## The Workshop: a subscribed pack's `map` entries of an accepted `map_kind` are houses here,
 ## for the index's current session only. Opt-in (see [method follow_content]).
-var content_index: DotContentIndex = null
+var content_index: GSContentIndex = null
 
 
 var content_kinds := PackedStringArray()
@@ -136,15 +136,15 @@ var _content_ids: Dictionary = {}
 
 
 ## The server's maps.yml, or null when there is none (every house rotates, as it always did).
-## dot-map's rotation file speaks DotMapDef; this game holds house records, so [member _defs]
+## dot-map's rotation file speaks GSMapDef; this game holds house records, so [member _defs]
 ## mirrors the ids and the file marks `in_rotation` on the mirror. See [method rotating_houses].
-var rotation_file: DotMapRotationFile = null
+var rotation_file: GSMapRotationFile = null
 
 
-var _defs: DotMapCatalogue = DotMapCatalogue.new()
+var _defs: GSMapCatalogue = GSMapCatalogue.new()
 
 
-var _rotation: DotMapRotation = DotMapRotation.of(_defs)
+var _rotation: GSMapRotation = GSMapRotation.of(_defs)
 
 
 ## Asked every tick of a world that ticks itself: true while a cover is up (the client's load
@@ -238,7 +238,7 @@ static func accepted_map_kinds() -> PackedStringArray:
 
 ## Follows [param index]. A pack's entry `scene` is its `house.json`; its `id` must equal the entry's.
 ## Synced on every read, since the index filters by its current session. The game's own ids win.
-func follow_content(index: DotContentIndex, accepted_kinds: PackedStringArray) -> void:
+func follow_content(index: GSContentIndex, accepted_kinds: PackedStringArray) -> void:
 	content_index = index
 	content_kinds = accepted_kinds
 	sync_content()
@@ -271,7 +271,7 @@ func sync_content() -> void:
 			_content_ids[id] = true
 
 
-func _content_house(entry: DotContentEntry) -> Dictionary:
+func _content_house(entry: GSContentEntry) -> Dictionary:
 	if _content_houses.has(entry.key):
 		return _content_houses[entry.key]
 
@@ -299,7 +299,7 @@ func _content_house(entry: DotContentEntry) -> Dictionary:
 	if why == "":
 		found = {"ok": true, "name": entry.name, "directory": path.get_base_dir()}
 	else:
-		DotLog.warn(CHANNEL, "a Workshop house was refused", {"entry": entry.key, "why": why})
+		GSLog.warn(CHANNEL, "a Workshop house was refused", {"entry": entry.key, "why": why})
 
 	_content_houses[entry.key] = found
 	return found
@@ -338,39 +338,39 @@ func apply_rotation() -> void:
 
 	for id: StringName in houses:
 		if _defs.get_map(id) == null:
-			var def := DotMapDef.new()
+			var def := GSMapDef.new()
 			def.id = id
 			def.scene_path = "lm:%s" % id
 			def.display_name = str(houses[id]["name"])
 			var _added := _defs.add(def)
 
-	for def: DotMapDef in _defs.maps.duplicate():
+	for def: GSMapDef in _defs.maps.duplicate():
 		if not houses.has(def.id):
 			var _gone := _defs.remove(def.id)
 
 	if has_rotation_file():
-		rotation_file.fallback_in = func(_def: DotMapDef) -> bool: return true
+		rotation_file.fallback_in = func(_def: GSMapDef) -> bool: return true
 		var _applied := rotation_file.apply(_rotation)
 		return
 
 	_rotation.order = []
 
-	for def: DotMapDef in _defs.maps:
+	for def: GSMapDef in _defs.maps:
 		def.in_rotation = true
 
 
 ## Reads maps.yml (the `--config` directory first) and applies it. Called at boot and by
 ## `sv_map_rotation_file`. A file that is present and unreadable is an ERROR and changes nothing:
 ## rotating every house is a better failure than rotating none.
-func load_rotation() -> DotResult:
+func load_rotation() -> GSResult:
 	var stem := config.map_rotation_file
-	var dir := DotMapRotationFile.config_dir_arg()
-	var found := DotMapRotationFile.find(stem, dir)
+	var dir := GSMapRotationFile.config_dir_arg()
+	var found := GSMapRotationFile.find(stem, dir)
 
 	if found == "" and stem != "" and (dir != "" or stem != LmConfig.new().map_rotation_file):
 		# The default name being absent is an install with no maps.yml; a name or a directory
 		# somebody chose that finds nothing is a typo they would otherwise never hear about.
-		DotLog.warn(CHANNEL, "the map rotation file was not found; every house rotates", {
+		GSLog.warn(CHANNEL, "the map rotation file was not found; every house rotates", {
 			"file": stem, "config_dir": dir,
 		})
 
@@ -379,10 +379,10 @@ func load_rotation() -> DotResult:
 	if found != "":
 		paths.append(found)
 
-	var read := DotMapRotationFile.load_files(paths, "mg-look-at-me")
+	var read := GSMapRotationFile.load_files(paths, "mg-look-at-me")
 
 	if not read.ok:
-		DotLog.error(CHANNEL, "the map rotation file could not be read; every house rotates", {
+		GSLog.error(CHANNEL, "the map rotation file could not be read; every house rotates", {
 			"why": read.error.message,
 		})
 		rotation_file = null
@@ -393,7 +393,7 @@ func load_rotation() -> DotResult:
 	apply_rotation()
 
 	if has_rotation_file():
-		DotLog.info(CHANNEL, "the map rotation file", {
+		GSLog.info(CHANNEL, "the map rotation file", {
 			"paths": ", ".join(rotation_file.sources), "active": rotation_file.active_name(),
 		})
 
@@ -401,9 +401,9 @@ func load_rotation() -> DotResult:
 
 
 ## `lm_rotation <name>`: the live switch to another named rotation in the file.
-func switch_rotation(rotation_name: String) -> DotResult:
+func switch_rotation(rotation_name: String) -> GSResult:
 	if not has_rotation_file():
-		return DotResult.fail(DotError.CODE_STATE, "There is no maps.yml to switch rotations in.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no maps.yml to switch rotations in.")
 
 	apply_rotation()
 	return rotation_file.switch(_rotation, rotation_name)
@@ -440,7 +440,7 @@ func rotating_ids() -> Array[StringName]:
 	apply_rotation()
 	var out: Array[StringName] = []
 
-	for def: DotMapDef in _rotation.pool(0):
+	for def: GSMapDef in _rotation.pool(0):
 		if houses.has(def.id):
 			out.append(def.id)
 
@@ -494,7 +494,7 @@ func command_names(role: String) -> PackedStringArray:
 	if not names.has(role):
 		return PackedStringArray([role])
 
-	return DotCommandNames.all_of("", names, {}, role)
+	return GSCommandNames.all_of("", names, {}, role)
 
 
 ## Every house, as the map menu (M) lists them: `{id, name, detail, current}`, how many levels
@@ -527,7 +527,7 @@ func load_directory(directory: String) -> int:
 	var dir := DirAccess.open(directory)
 
 	if dir == null:
-		DotLog.warn(CHANNEL, "no level directory", {"path": directory})
+		GSLog.warn(CHANNEL, "no level directory", {"path": directory})
 		return 0
 
 	for file in dir.get_files():

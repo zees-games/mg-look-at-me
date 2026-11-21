@@ -10,7 +10,7 @@ const CHANNEL := "lookatme.link"
 ## The node name both ends must use. It is the routing, so it is a constant.
 const NODE_NAME := &"LookAtMe"
 
-## Everything here rides [constant DotTransport.Channel.STATE], which dot-server reserves
+## Everything here rides [constant GSTransport.Channel.STATE], which dot-server reserves
 ## for exactly this and uses for nothing itself. Sharing chat's channel would make a burst
 ## of snapshots delay a chat line, and a chat line delay a snapshot.
 const CHANNEL_STATE := 1
@@ -44,7 +44,7 @@ var voice_sent: int = 0
 var voice_received: int = 0
 
 
-## Makes the link; the caller places it (see [DotGameLink]).
+## Makes the link; the caller places it (see [GSGameLink]).
 static func attached_to(parent: Node, p_bridge: Node, server: bool) -> Node:
 	# new() and not a self-preload: a script holding itself is never freed at exit.
 	var link = new()
@@ -64,7 +64,7 @@ func _live() -> bool:
 
 	if live != _was_live:
 		_was_live = live
-		DotLog.debug(CHANNEL, "the link went %s" % ("live" if live else "quiet"), {
+		GSLog.debug(CHANNEL, "the link went %s" % ("live" if live else "quiet"), {
 			"end": "server" if is_server else "client",
 			"loopback": loopback.is_valid(),
 		})
@@ -74,7 +74,7 @@ func _live() -> bool:
 
 
 ## One routed chat line, to one peer.
-## A chat line is an event on this game's own wire, not dot-server's chat manager: [DotChatRouter]
+## A chat line is an event on this game's own wire, not dot-server's chat manager: [GSChatRouter]
 ## owns the rules (channels, gag, rate limit), and a second path would skip the filter and leak admin chat.
 func send_chat(peer_id: int, wire: Dictionary) -> void:
 	if bridge != null:
@@ -194,7 +194,7 @@ func _net_request(payload: PackedByteArray) -> void:
 
 
 ## A voice frame, either way. `any_peer`, so on the server the sender is a claim:
-## [method DotVoiceRouter.relay] stamps the transport's id over the packet's speaker field,
+## [method GSVoiceRouter.relay] stamps the transport's id over the packet's speaker field,
 ## without which any client could put words in another player's mouth.
 @rpc("any_peer", "unreliable", "call_remote", CHANNEL_VOICE)
 func _net_voice(payload: PackedByteArray) -> void:

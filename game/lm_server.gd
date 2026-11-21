@@ -16,4 +16,4 @@ func _ready() -> void:
 	game.draws = false
 	game.self_tick = false
 	add_child(game)
-	DotLog.info(CHANNEL, "the house is up", game.describe())
+	GSLog.info(CHANNEL, "the house is up", game.describe())

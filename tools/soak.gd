@@ -6,7 +6,7 @@ const LmLevel := preload("../game/lm_level.gd")
 const LmPlayer := preload("../game/lm_player.gd")
 
 ## Bot soak: N stand-ins (LmBot) play one house (the "map") for M simulated minutes through
-## dot-bot's DotBotSoak: `./game.sh soak [house] [minutes]`. Writes .godot/test-logs/soak-<house>.json,
+## dot-bot's GSBotSoak: `./game.sh soak [house] [minutes]`. Writes .godot/test-logs/soak-<house>.json,
 ## prints the SOAK line, exits 1 on failure. A stand-in is stuck only while it has a goal.
 
 const DEFAULT_MAP := &"house"
@@ -19,7 +19,7 @@ var _bots: Array[LmBot] = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -33,7 +33,7 @@ func _arg(name: String, fallback: String) -> String:
 
 func _run() -> void:
 	var map_id := _arg("map", String(DEFAULT_MAP))
-	var cfg := DotBotSoakConfig.new()
+	var cfg := GSBotSoakConfig.new()
 	cfg.minutes = DEFAULT_MINUTES
 	cfg.bots = DEFAULT_BOTS
 	cfg.apply_cli()
@@ -64,7 +64,7 @@ func _run() -> void:
 
 	var taken: Array = []
 	for i in range(cfg.bots):
-		var bot_name := DotBotNames.pick(taken, i, PackedStringArray(["Ada", "Bram", "Cleo", "Dov"]))
+		var bot_name := GSBotNames.pick(taken, i, PackedStringArray(["Ada", "Bram", "Cleo", "Dov"]))
 		taken.append(bot_name)
 		var key := StringName("u%d" % (900100 + i))
 		var _p := _game.join(key, bot_name)
@@ -73,11 +73,11 @@ func _run() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 
-	var watch := DotSpawnWatch.new()
+	var watch := GSSpawnWatch.new()
 	watch.rules.enabled = true
 	watch.rules.kill_y = -5000.0
 
-	var soak := DotBotSoak.new(cfg)
+	var soak := GSBotSoak.new(cfg)
 	soak.watch = watch
 	soak.movers_fn = _movers
 	soak.object_count_fn = func() -> int: return int(Performance.get_monitor(Performance.OBJECT_COUNT))
@@ -91,7 +91,7 @@ func _run() -> void:
 	await _finish(map_id, soak)
 
 
-func _finish(map_id: String, soak: DotBotSoak) -> void:
+func _finish(map_id: String, soak: GSBotSoak) -> void:
 	var report := soak.finish()
 	report["map"] = map_id
 	var done := 0
@@ -114,8 +114,8 @@ func _finish(map_id: String, soak: DotBotSoak) -> void:
 	if did == 0:
 		report["ok"] = false
 		(report["reasons"] as Array).append("play: nothing was taken, used or opened")
-	print(DotBotSoak.summary(report))
-	print(DotBotSoak.report_line(report))
+	print(GSBotSoak.summary(report))
+	print(GSBotSoak.report_line(report))
 	var path := ProjectSettings.globalize_path("res://.godot/test-logs/soak-%s.json" % map_id)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	if soak.write_report(report, path) != OK:

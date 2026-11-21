@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Look At Me's per-house settings: the rules a house's file may change, through dot-game's [DotGameMapConfig].
+## Look At Me's per-house settings: the rules a house's file may change, through dot-game's [GSGameMapConfig].
 ##
 ## A house (the House, the Asylum, the Forgotten Wing) is this game's map, so `cfg/game/mg-look-at-me/dot_map/map/<house id>.yml` applies when it opens and the previous house's values come back. The game has no movement cvars, so the client mirrors nothing.
 

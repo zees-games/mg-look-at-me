@@ -77,10 +77,10 @@ func drive(delta: float) -> void:
 
 	if _goal.is_empty() and not _choose(body, level, local):
 		idle_seconds += delta
-		body.controller.apply_command(DotFpsCommand.new())
+		body.controller.apply_command(GSFpsCommand.new())
 		return
 
-	var command := DotFpsCommand.new()
+	var command := GSFpsCommand.new()
 
 	if _route.is_empty():
 		_act(body, level, local, command)
@@ -90,7 +90,7 @@ func drive(delta: float) -> void:
 	body.controller.apply_command(command)
 
 
-func _act(body: LmPlayer, level: LmLevel, local: Vector3, command: DotFpsCommand) -> void:
+func _act(body: LmPlayer, level: LmLevel, local: Vector3, command: GSFpsCommand) -> void:
 	var at: Vector3 = _goal["at"]
 	var eye := body.eye_position() - level.position
 	var to := at - eye
@@ -125,7 +125,7 @@ func _skip() -> void:
 	_route.clear()
 
 
-func _walk(body: LmPlayer, local: Vector3, command: DotFpsCommand, delta: float) -> void:
+func _walk(body: LmPlayer, local: Vector3, command: GSFpsCommand, delta: float) -> void:
 	var flat := Vector2(local.x, local.z)
 	var next := _route[0]
 

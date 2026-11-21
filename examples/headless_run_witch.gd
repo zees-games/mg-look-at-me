@@ -41,7 +41,7 @@ func _test_the_witch_and_the_house() -> void:
 	var game: LmGame = client.get("game")
 	var me: LmPlayer = client.get("player")
 	var level := game.level_of(me)
-	var sink := client.get("audio").get("manager").get("sink") as DotAudioSinkNull
+	var sink := client.get("audio").get("manager").get("sink") as GSAudioSinkNull
 	var views: Dictionary = client.get("_witch_views")
 	var witch: Node3D = views.values()[0] if not views.is_empty() else null
 	_check(witch != null and bool(witch.describe().get("art", false)) and witch.find_child("Sight", true, false) != null,
@@ -69,7 +69,7 @@ func _test_the_witch_and_the_house() -> void:
 	await _the_witch_and_the_house_2(client, me, level, sink)
 
 
-func _the_witch_and_the_house_2(client: Node, me: LmPlayer, level: LmLevel, sink: DotAudioSinkNull) -> void:
+func _the_witch_and_the_house_2(client: Node, me: LmPlayer, level: LmLevel, sink: GSAudioSinkNull) -> void:
 	# Caught: she is in your face with a shriek.
 	me.caught_left = 2.0
 	await get_tree().process_frame
@@ -101,7 +101,7 @@ func _the_witch_and_the_house_2(client: Node, me: LmPlayer, level: LmLevel, sink
 	_finished_section()
 
 
-## Dim bulbs gutter ([DotLampFlicker]): the night villa's failing lamps flicker, a bright room's do not,
+## Dim bulbs gutter ([GSLampFlicker]): the night villa's failing lamps flicker, a bright room's do not,
 ## a room's own `flicker` wins, and a lights-fail room stays dark.
 func _test_flickering_lamps() -> void:
 	_section("dim lamps flicker")
@@ -157,7 +157,7 @@ func _test_the_events_seen_and_heard() -> void:
 	game.config.witch_sight_scale = 0.0
 	var me: LmPlayer = client.get("player")
 	var level := game.level_of(me)
-	var sink := client.get("audio").get("manager").get("sink") as DotAudioSinkNull
+	var sink := client.get("audio").get("manager").get("sink") as GSAudioSinkNull
 	var of_kind := {}
 	for id: String in level.events:
 		var kind := str(level.events[id].get("do", ""))

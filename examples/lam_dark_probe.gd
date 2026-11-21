@@ -1,7 +1,7 @@
 extends "headless_run_base.gd"
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	game = LmGame.new()
 	game.draws = false
 	game.self_tick = false
@@ -20,7 +20,7 @@ func _ready() -> void:
 		var drawn := LmLevel.new()
 		add_child(drawn)
 		var _b := drawn.build(lv.doc, true)
-		var res := DotCollisionAudit.audit(drawn, true)
+		var res := GSCollisionAudit.audit(drawn, true)
 		var n: int = res.value.count() if res.ok else -1
 		print("  audit findings=%d" % n)
 		if res.ok:

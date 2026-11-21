@@ -71,10 +71,10 @@ const CREAK_GAP_MAX := 16.0
 const CREAK_NEAR := 5.0
 const CREAK_FAR := 13.0
 
-var manager: DotAudioManager = null
+var manager: GSAudioManager = null
 
 ## Quiet moods under the house (dot-audio's stock set); the old bed plays only when none loaded.
-var ambient: DotAmbienceDirector = null
+var ambient: GSAmbienceDirector = null
 
 ## 0 to 1: how close she is to seeing you. Set by the client every frame.
 var meter: float = 0.0
@@ -97,8 +97,8 @@ static func ids() -> Array[StringName]:
 	return [AMBIENCE, HEARTBEAT, WITCH_DRONE, WITCH_STEP, STEP, CREAK, DOOR, CLICK, TORCH_ON, TORCH_OFF, STINGER, SCREAM, SLAM, LIGHTS_OUT, SCARE_HIT, WHISPER, WHISPER_BEHIND]
 
 
-static func sound_catalogue() -> DotAudioCatalogue:
-	var c := DotAudioCatalogue.new()
+static func sound_catalogue() -> GSAudioCatalogue:
+	var c := GSAudioCatalogue.new()
 
 	var bed := _def(AMBIENCE, 1, 20)
 	bed.looping = true
@@ -108,7 +108,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	c.add(_def(HEARTBEAT, 2, 90))
 
 	var drone := _def(WITCH_DRONE, MAX_DRONES, 30)
-	drone.kind = DotAudioDef.Kind.POSITIONAL_3D
+	drone.kind = GSAudioDef.Kind.POSITIONAL_3D
 	drone.looping = true
 	# Heard from 18 m, full at 2.5: a witch in the next room is a sound before she is a shape.
 	drone.unit_size = 2.5
@@ -117,7 +117,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	c.add(drone)
 
 	var her_step := _def(WITCH_STEP, MAX_DRONES * 2, 40, _numbered("step", 5))
-	her_step.kind = DotAudioDef.Kind.POSITIONAL_3D
+	her_step.kind = GSAudioDef.Kind.POSITIONAL_3D
 	# Heavier and slower than yours: the same boards, pitched down.
 	her_step.pitch_min = 0.62
 	her_step.pitch_max = 0.72
@@ -133,7 +133,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	c.add(step)
 
 	var creak := _def(CREAK, 2, 25, _numbered("creak", 4))
-	creak.kind = DotAudioDef.Kind.POSITIONAL_3D
+	creak.kind = GSAudioDef.Kind.POSITIONAL_3D
 	creak.pitch_min = 0.75
 	creak.pitch_max = 1.0
 	creak.unit_size = 4.0
@@ -142,7 +142,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	c.add(creak)
 
 	var door := _def(DOOR, 2, 55, _numbered("door", 2))
-	door.kind = DotAudioDef.Kind.POSITIONAL_3D
+	door.kind = GSAudioDef.Kind.POSITIONAL_3D
 	door.pitch_min = 0.8
 	door.pitch_max = 0.95
 	door.unit_size = 4.0
@@ -154,7 +154,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	return c
 
 
-static func _scare_sounds(c: DotAudioCatalogue) -> void:
+static func _scare_sounds(c: GSAudioCatalogue) -> void:
 	var click := _def(CLICK, 2, 60)
 	click.cooldown_ms = 60
 	click.gain_db = -9.0
@@ -177,14 +177,14 @@ static func _scare_sounds(c: DotAudioCatalogue) -> void:
 	c.add(scream)
 
 	var slam := _def(SLAM, 1, 80)
-	slam.kind = DotAudioDef.Kind.POSITIONAL_3D
+	slam.kind = GSAudioDef.Kind.POSITIONAL_3D
 	slam.unit_size = 6.0
 	slam.max_distance = 40.0
 	slam.gain_db = -5.0
 	c.add(slam)
 
 	var lights := _def(LIGHTS_OUT, 1, 70)
-	lights.kind = DotAudioDef.Kind.POSITIONAL_3D
+	lights.kind = GSAudioDef.Kind.POSITIONAL_3D
 	lights.unit_size = 5.0
 	lights.max_distance = 30.0
 	lights.gain_db = -10.0
@@ -196,7 +196,7 @@ static func _scare_sounds(c: DotAudioCatalogue) -> void:
 	c.add(hit)
 
 	var whisper := _def(WHISPER, 3, 55, _numbered("whisper", 3))
-	whisper.kind = DotAudioDef.Kind.POSITIONAL_3D
+	whisper.kind = GSAudioDef.Kind.POSITIONAL_3D
 	whisper.pitch_min = 0.92
 	whisper.pitch_max = 1.05
 	whisper.unit_size = 1.5
@@ -205,13 +205,13 @@ static func _scare_sounds(c: DotAudioCatalogue) -> void:
 	c.add(whisper)
 
 	var behind := _def(WHISPER_BEHIND, 1, 75)
-	behind.kind = DotAudioDef.Kind.POSITIONAL_3D
+	behind.kind = GSAudioDef.Kind.POSITIONAL_3D
 	behind.unit_size = 1.2
 	behind.max_distance = 10.0
 	behind.gain_db = -2.0
 	c.add(behind)
 	# The torch's switch clicks, dot-audio's stock; dot-flashlight plays them by id.
-	for d in DotAudioStock.flashlight_defs():
+	for d in GSAudioStock.flashlight_defs():
 		c.add(d)
 
 
@@ -222,8 +222,8 @@ static func _numbered(stem: String, count: int) -> PackedStringArray:
 	return out
 
 
-static func _def(id: StringName, concurrent: int, priority: int, variants := PackedStringArray()) -> DotAudioDef:
-	var def := DotAudioDef.new()
+static func _def(id: StringName, concurrent: int, priority: int, variants := PackedStringArray()) -> GSAudioDef:
+	var def := GSAudioDef.new()
 	def.id = id
 	def.variants = variants
 	def.path = "%s/%s.ogg" % [SOUND_DIR, String(id)] if variants.is_empty() else variants[0]
@@ -234,11 +234,11 @@ static func _def(id: StringName, concurrent: int, priority: int, variants := Pac
 	return def
 
 
-func setup() -> DotResult:
-	manager = DotAudioManager.new()
+func setup() -> GSResult:
+	manager = GSAudioManager.new()
 	manager.name = "Audio"
 	manager.catalogue = sound_catalogue()
-	manager.mixer = DotAudioMixer.new()
+	manager.mixer = GSAudioMixer.new()
 	# Not published: a client and a server in one process, which the suites are, would
 	# otherwise fight over one registry name, and nothing looks this up by name.
 	manager.register_as_service = false
@@ -258,9 +258,9 @@ func setup() -> DotResult:
 
 	if not missing.is_empty():
 		# Silence for those, not an error: a pack still downloading plays what it has.
-		DotLog.warn(CHANNEL, "sound files missing; those sounds are silent", {"missing": missing.size(), "first": missing[0]})
+		GSLog.warn(CHANNEL, "sound files missing; those sounds are silent", {"missing": missing.size(), "first": missing[0]})
 
-	ambient = DotAmbienceDirector.new()
+	ambient = GSAmbienceDirector.new()
 	ambient.name = "Ambient"
 	ambient.manager = manager
 	ambient.default_mood = LmAmbience.DEFAULT_MOOD
@@ -272,7 +272,7 @@ func setup() -> DotResult:
 
 	_rng.seed = 20261012
 	_limit_master()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## A hard limiter at -1 dB on the master bus, once: a catch is a shriek, a stinger and a racing
@@ -491,7 +491,7 @@ func droning() -> int:
 func describe() -> Dictionary:
 	return {
 		"ids": ids().size(),
-		"device": manager != null and manager.sink is DotAudioSinkGodot,
+		"device": manager != null and manager.sink is GSAudioSinkGodot,
 		"drones": droning(),
 		"ambience": _ambience != 0,
 		"meter": meter,

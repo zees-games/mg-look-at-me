@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const LmMapConfig := preload("../game/lm_map_config.gd")
 
@@ -9,7 +9,7 @@ const CHECKS := 8
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -19,12 +19,12 @@ func _run() -> void:
 		print("SKIPPED: dot-map is not linked at addons/dot_map")
 		get_tree().quit(0)
 		return
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	console.cvar("lm_demon_max", "2", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("lm_scares_enabled", "1", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("lm_bots", "1", "", DotConVar.FLAG_ARCHIVE)
-	var cfg := DotGameMapConfig.for_console(LmMapConfig.GAME_ID, console, LmMapConfig.KEYS)
+	console.cvar("lm_demon_max", "2", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("lm_scares_enabled", "1", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("lm_bots", "1", "", GSConVar.FLAG_ARCHIVE)
+	var cfg := GSGameMapConfig.for_console(LmMapConfig.GAME_ID, console, LmMapConfig.KEYS)
 
 	var dir := "res://cfg/server/game/%s/dot_map/map" % LmMapConfig.GAME_ID
 	var real := ProjectSettings.globalize_path(dir)

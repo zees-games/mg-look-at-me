@@ -2,9 +2,9 @@ extends Node3D
 
 const LmPaths := preload("lm_paths.gd")
 
-## What somebody ELSE looks like: one of the family's people (`DotHumanoidFigure`) scaled to the player's hull, the torso in their side's colour, turned where they look. Client only.
+## What somebody ELSE looks like: one of the family's people (`GSHumanoidFigure`) scaled to the player's hull, the torso in their side's colour, turned where they look. Client only.
 ## Top level and placed every frame by `LmClient.present_frame` (the node itself steps at tick rate, the camera is blended): nothing here computes a position.
-## The atlas letter picks the look (`DotHumanoidLook.from_letter`) so old documents dress alike; see `LmPlayer.present_body`.
+## The atlas letter picks the look (`GSHumanoidLook.from_letter`) so old documents dress alike; see `LmPlayer.present_body`.
 
 const CHANNEL := "dr.figure"
 
@@ -33,7 +33,7 @@ var from_art: bool = false
 var clip: StringName = &""
 
 ## The person, under this node.
-var person: DotHumanoidFigure = null
+var person: GSHumanoidFigure = null
 
 var _posed_at_usec: int = -1
 
@@ -50,19 +50,19 @@ func build(height: float, atlas_path: String, colour: Color) -> void:
 	team_colour = colour
 	clip = &""
 	_posed_at_usec = -1
-	var look := DotHumanoidLook.from_letter(atlas_path)
+	var look := GSHumanoidLook.from_letter(atlas_path)
 	if look == null:
-		look = DotHumanoidLook.stock(hash(atlas_path))
+		look = GSHumanoidLook.stock(hash(atlas_path))
 	if colour != Color.WHITE:
 		look = look.with_side(colour, TEAM_TINT)
 	if person == null:
-		person = DotHumanoidFigure.new()
+		person = GSHumanoidFigure.new()
 		person.name = "Person"
 		add_child(person)
 	person.build(look, height)
 	from_art = person.from_art
 	if not from_art:
-		DotLog.warn(CHANNEL, "the person's art did not load; a capsule stands in", {"atlas": atlas.get_file()})
+		GSLog.warn(CHANNEL, "the person's art did not load; a capsule stands in", {"atlas": atlas.get_file()})
 
 
 ## The drawn model, for a death that breaks it apart or falls. Null before [method build].
@@ -71,7 +71,7 @@ func body_node() -> Node3D:
 
 
 ## How the player moves besides its ground speed: `on_floor`, `vertical`, `crouched` and the
-## rest [DotHumanoidFigure.set_motion] reads.
+## rest [GSHumanoidFigure.set_motion] reads.
 func set_motion(motion: Dictionary) -> void:
 	if person != null:
 		person.set_motion(motion)
@@ -85,7 +85,7 @@ func pose(at: Vector3, yaw_radians: float, speed: float) -> void:
 	if person == null:
 		return
 	var delta: float
-	if DotAddonApi.build_level("dot_player_char") >= 11:
+	if GSAddonApi.build_level("dot_player_char") >= 11:
 		# Game time, as the body moves: a wall-clock step skated the feet (slow motion, fixed-rate frames).
 		delta = person.frame_delta()
 	else:

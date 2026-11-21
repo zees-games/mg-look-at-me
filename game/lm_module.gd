@@ -1,4 +1,4 @@
-extends DotGameModule
+extends GSGameModule
 
 ## This game, as a module a dedicated server loads, over dot-game: the netcode's numbers, the operator's commands,
 ## where who won is kept, and the key progress is kept under. A chat line beginning with / that the house
@@ -44,8 +44,8 @@ func _game_missing_hint() -> String:
 	return "load scenes/lm_server.tscn as the game scene: it builds the house this module drives"
 
 
-func _net_config() -> DotNetConfig:
-	var config := DotNetConfig.new()
+func _net_config() -> GSNetConfig:
+	var config := GSNetConfig.new()
 	config.tick_rate = (game as LmGame).tick_rate
 	config.snapshot_rate = LmGame.NET_SNAPSHOT_RATE
 	config.world_extent = LmGame.NET_WORLD_EXTENT
@@ -90,7 +90,7 @@ func _make_services() -> Node:
 ## TMC account walks the house as the avatar it picked on the site. Authentication is the
 ## host's, as for every game; with it off everybody is a guest with a stock face.
 func _make_identity() -> Node:
-	var identity_layer := DotPlatformIdentity.new()
+	var identity_layer := GSPlatformIdentity.new()
 	identity_layer.avatar_schema = LmAvatars.schema()
 	identity_layer.stock_avatar_fn = LmAvatars.stock_avatar
 	identity_layer.avatar_translate_fn = LmAvatars.from_site
@@ -111,11 +111,11 @@ func _game_board_fields(session: Object) -> Dictionary:
 	return {"level": who.level, "best": who.best, "won": who.won}
 
 
-func _game_load() -> DotResult:
+func _game_load() -> GSResult:
 	var world := game as LmGame
 
 	if world == null:
-		return DotResult.fail(DotError.CODE_STATE, "The registered game is not the house.")
+		return GSResult.fail(GSError.CODE_STATE, "The registered game is not the house.")
 
 	_bind_rule_cvars(world)
 
@@ -142,7 +142,7 @@ func _game_load() -> DotResult:
 
 	# Houses from the map packs the server names (its cfg/content.yml), before the vote
 	# lists what can be played.
-	var delivered: PackedStringArray = await DotGameContent.map_dirs(server, "houses")
+	var delivered: PackedStringArray = await GSGameContent.map_dirs(server, "houses")
 
 	if not delivered.is_empty():
 		world.add_house_roots(delivered)
@@ -155,7 +155,7 @@ func _game_load() -> DotResult:
 	var made := progress.setup(world, "user://lookatme_achievements", false)
 
 	if not made.ok:
-		DotLog.result(CHANNEL, "progress is off", made)
+		GSLog.result(CHANNEL, "progress is off", made)
 		progress.queue_free()
 		progress = null
 	else:
@@ -172,7 +172,7 @@ func _game_load() -> DotResult:
 		world.house_changed.connect(func(id: StringName) -> void:
 			var _again := report_map(String(id)))
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func _bind_rule_cvars(world: LmGame) -> void:
@@ -180,29 +180,29 @@ func _bind_rule_cvars(world: LmGame) -> void:
 	# only; the config's allow_third_person false starts it at 1) and mp_solidplayers.
 	# REPLICATED: each client places its own camera and predicts its own player under them.
 	var _views := world.view_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
 	var _bodies := world.body_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
 	# lm_ambient*: REPLICATED, because each client plays its own ambience under the server's intent; the directory cvar stays local.
 	var _ambient := world.ambient_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED,
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	)
 
 
 func _add_commands(world: LmGame) -> void:
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
-	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", DotAdminFlags.CHANGEMAP)
+	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", GSAdminFlags.CHANGEMAP)
 	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")
 	# Renameable from maps.yml's `commands:` block, like dot-vote's. An admin's lm_house loads
 	# any house, in the rotation or not.
 	for name in world.command_names("lm_house"):
-		add_command(name, _cmd_house, "Play another house now: lm_house <id>, or the list with none", DotAdminFlags.CHANGEMAP)
+		add_command(name, _cmd_house, "Play another house now: lm_house <id>, or the list with none", GSAdminFlags.CHANGEMAP)
 	add_command("lm_rotation", _cmd_rotation,
-		"lm_rotation [name]: switch to a rotation in maps.yml, or list them", DotAdminFlags.CHANGEMAP)
-	add_command("lm_maps_reload", _cmd_maps_reload, "Re-read maps.yml", DotAdminFlags.CHANGEMAP)
+		"lm_rotation [name]: switch to a rotation in maps.yml, or list them", GSAdminFlags.CHANGEMAP)
+	add_command("lm_maps_reload", _cmd_maps_reload, "Re-read maps.yml", GSAdminFlags.CHANGEMAP)
 	_file_cvar = add_cvar("sv_map_rotation_file", world.config.map_rotation_file,
 		"maps.yml: the houses that rotate, in named rotations. Unlisted houses stay installed.")
 	_file_cvar.changed.connect(func(_old: String, new_value: String) -> void:
@@ -213,26 +213,26 @@ func _add_commands(world: LmGame) -> void:
 
 
 ## dot-workbench over the config; the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
-var workbench: DotGameWorkbench = null
+var workbench: GSGameWorkbench = null
 
-var _file_cvar: DotConVar = null
+var _file_cvar: GSConVar = null
 
 
 ## Every config field as an `lm_<field>` cvar (`sv_map_rotation_file` keeps its handler and follows edits), the cfg/ diff commands, the workbench and the block rules.
-func _bind_config(world: LmGame) -> DotResult:
+func _bind_config(world: LmGame) -> GSResult:
 	var binder := world.config_binder
 	if binder == null:
-		return DotResult.success(null)
-	workbench = DotGameWorkbench.new()
+		return GSResult.success(null)
+	workbench = GSGameWorkbench.new()
 	workbench.name = "Workbench"
 	workbench.dedicated = DisplayServer.get_name() == "headless"
 	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
 	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
 		return server != null and server.admins != null and actor is String \
 			and bool(server.admins.uid_has_permission(actor, flag))
-	for set: DotProfileSet in binder.profile_sets():
+	for set: GSProfileSet in binder.profile_sets():
 		workbench.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
-	var ambient_set := DotGameWorkbench.cvar_set(console, LmAmbience.cvar_types(), AMBIENT_KIND)
+	var ambient_set := GSGameWorkbench.cvar_set(console, LmAmbience.cvar_types(), AMBIENT_KIND)
 	if ambient_set != null:
 		workbench.add_set(ambient_set, "Ambience (lm_ambient*)")
 	add_child(workbench)
@@ -240,19 +240,19 @@ func _bind_config(world: LmGame) -> DotResult:
 	# Off until the owner sets sv_workbench_remote 1; then flagged admins edit from a client.
 	if started.ok and net != null:
 		var _served := workbench.serve_remote(net)
-	var runtime: DotProfileRuntime = workbench.api.runtime if started.ok and workbench.api != null else null
+	var runtime: GSProfileRuntime = workbench.api.runtime if started.ok and workbench.api != null else null
 	if not started.ok:
 		log_warn("the workbench did not start", {"why": started.error.message})
 
-	binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY,
+	binder.bind_cvars(add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY,
 		func(name: String) -> bool: return console.has_name(name))
 	binder.bind_commands(add_command)
 	if ambient_set != null:
-		DotGameWorkbench.bind_cvar_set(ambient_set, runtime, console)
+		GSGameWorkbench.bind_cvar_set(ambient_set, runtime, console)
 	binder.field_changed.connect(_on_config_field)
 	if runtime != null:
 		binder.attach(runtime)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Everybody is one side: the house is played together.
@@ -266,7 +266,7 @@ func _noblock_runtime() -> Object:
 
 
 ## The block commands are keyed by the house's player keys (`uid:<uid>`), not the session id.
-func _build_noblock() -> DotResult:
+func _build_noblock() -> GSResult:
 	var built := super()
 	if built.ok and noblock != null and noblock.commands != null:
 		noblock.commands.set(&"key_fn", func(ctx: Object) -> Variant:
@@ -328,7 +328,7 @@ func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> vo
 	if services == null:
 		return
 
-	var said: DotResult = services.call("say", peer_id, channel_id, text)
+	var said: GSResult = services.call("say", peer_id, channel_id, text)
 
 	if not said.ok:
 		bridge.call("notice", peer_id, said.error.message)
@@ -343,7 +343,7 @@ func _build_vote(world: LmGame) -> void:
 	vote.house_minutes = world.config.house_minutes
 	vote.maps_fn = func() -> Array:
 		return world.rotating_houses()
-	vote.apply_fn = func(id: StringName) -> DotResult:
+	vote.apply_fn = func(id: StringName) -> GSResult:
 		return world.change_house(id)
 	vote.voters_fn = func() -> Array:
 		var out: Array = []
@@ -357,7 +357,7 @@ func _build_vote(world: LmGame) -> void:
 
 		return out
 	# Through this game's chat router, not dot-server's system chat: a routed line keeps the channel and colour
-	# every other line has, and reaches a client whose shell is older than dot-game's DotGameChatClient.
+	# every other line has, and reaches a client whose shell is older than dot-game's GSGameChatClient.
 	# smash and the other minigames announce the same way.
 	vote.announce_fn = func(line: String) -> void:
 		var chat: Object = services.get("chat") if services != null else null
@@ -368,7 +368,7 @@ func _build_vote(world: LmGame) -> void:
 			server.broadcast_message(line)
 	vote.is_admin_fn = func(voter: StringName) -> bool:
 		var session := server.session_by_userid(String(voter).to_int()) if server != null else null
-		return session != null and session.has_permission(DotAdminFlags.CHANGEMAP)
+		return session != null and session.has_permission(GSAdminFlags.CHANGEMAP)
 	# Who a voter is: the ballot draws their avatar, and dot-vote's chat lines ("Alice
 	# nominated The Asylum.") name them with it. Unset, both fell back to the userid.
 	vote.people_fn = func(voter: StringName) -> Dictionary:
@@ -386,17 +386,17 @@ func _build_vote(world: LmGame) -> void:
 		for session in server.playing_sessions():
 			var data := state.duplicate()
 			data["you"] = str(session.userid)
-			server.send_notice(session, DotNotice.make(&"", "", float(state.get("seconds", -1.0)), &"map_ballot", data))
+			server.send_notice(session, GSNotice.make(&"", "", float(state.get("seconds", -1.0)), &"map_ballot", data))
 	add_child(vote)
 	var ready := vote.setup()
 
 	if not ready.ok:
-		DotLog.result(CHANNEL, "the house vote; the server stays on its house", ready)
+		GSLog.result(CHANNEL, "the house vote; the server stays on its house", ready)
 		vote.queue_free()
 		vote = null
 		return
 
-	DotLog.result(CHANNEL, "the house vote's commands", vote.install_commands(self))
+	GSLog.result(CHANNEL, "the house vote's commands", vote.install_commands(self))
 	# The map menu (M), dot-vote's: a player holding the owner's `sv_map_menu_flag` opens a house
 	# now, and sees the same rows a solo player does. Read by name, because a server on a
 	# dot-vote older than the menu has no `map_menu` and runs without it.
@@ -410,7 +410,7 @@ func _build_vote(world: LmGame) -> void:
 			vote.note_map(id))
 
 	if server != null:
-		server.client_disconnected.connect(func(session: DotClientSession, _reason: String) -> void:
+		server.client_disconnected.connect(func(session: GSClientSession, _reason: String) -> void:
 			if vote != null:
 				vote.forget_voter(StringName(str(session.userid))))
 
@@ -420,7 +420,7 @@ func _game_tick(_tick: int, delta: float) -> void:
 		vote.advance(delta)
 
 
-func _cmd_house(ctx: DotCmdContext) -> void:
+func _cmd_house(ctx: GSCmdContext) -> void:
 	var world := game as LmGame
 	var id := ctx.arg(0)
 
@@ -442,7 +442,7 @@ func _cmd_house(ctx: DotCmdContext) -> void:
 	ctx.reply("Now playing %s." % world.house_name())
 
 
-func _cmd_rotation(ctx: DotCmdContext) -> void:
+func _cmd_rotation(ctx: GSCmdContext) -> void:
 	var world := game as LmGame
 
 	if world == null or not world.has_rotation_file():
@@ -467,7 +467,7 @@ func _cmd_rotation(ctx: DotCmdContext) -> void:
 	ctx.reply("Rotation: %s" % ctx.arg(0))
 
 
-func _cmd_maps_reload(ctx: DotCmdContext) -> void:
+func _cmd_maps_reload(ctx: GSCmdContext) -> void:
 	var world := game as LmGame
 	var read := world.load_rotation()
 
@@ -477,11 +477,11 @@ func _cmd_maps_reload(ctx: DotCmdContext) -> void:
 	ctx.reply("maps.yml read." if read.ok else read.error.message)
 
 
-func _cmd_status(ctx: DotCmdContext) -> void:
+func _cmd_status(ctx: GSCmdContext) -> void:
 	ctx.reply_lines((game as LmGame).describe_lines())
 
 
-func _cmd_send(ctx: DotCmdContext) -> void:
+func _cmd_send(ctx: GSCmdContext) -> void:
 	var world := game as LmGame
 	var who := ctx.arg(0)
 	var n := ctx.arg_int(1, 1)
@@ -498,7 +498,7 @@ func _cmd_send(ctx: DotCmdContext) -> void:
 	ctx.reply("Nobody called '%s' is here." % who)
 
 
-func _cmd_winners(ctx: DotCmdContext) -> void:
+func _cmd_winners(ctx: GSCmdContext) -> void:
 	var world := game as LmGame
 	var lines := PackedStringArray(["winners (%d) of %s" % [world.winners.size(), world.house_name()]])
 
@@ -532,7 +532,7 @@ func _wire_identity() -> void:
 ## Through the platform module's `player_for`, never the hub by a key made here: the hub keys a player by the
 ## scoped profile key only admission knows, so any other lookup finds nobody. Duck-typed, because a server
 ## without dot-platform is a configuration.
-func _avatar_for(session_id: int) -> DotAvatar:
+func _avatar_for(session_id: int) -> GSAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
 	var platform: Object = server.modules.get_module("platform") \
 		if server != null and server.modules != null else null
@@ -540,13 +540,13 @@ func _avatar_for(session_id: int) -> DotAvatar:
 	if session != null and platform != null and platform.has_method("player_for"):
 		var player: Variant = platform.call("player_for", session)
 
-		if player is Object and (player as Object).get("avatar") is DotAvatar:
-			return (player as Object).get("avatar") as DotAvatar
+		if player is Object and (player as Object).get("avatar") is GSAvatar:
+			return (player as Object).get("avatar") as GSAvatar
 
 	return null
 
 
-func _on_profile(event: DotEvent) -> void:
+func _on_profile(event: GSEvent) -> void:
 	var session_id := event.get_int("userid")
 	var session := server.session_by_userid(session_id) if server != null else null
 	var link := bridge as LmNetBridge

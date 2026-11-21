@@ -1,6 +1,6 @@
-extends DotVoteTimedGame
+extends GSVoteTimedGame
 
-## The players choose the next house through dot-vote's [DotVoteTimedGame], with Look At Me's names:
+## The players choose the next house through dot-vote's [GSVoteTimedGame], with Look At Me's names:
 ## no rounds, so a house plays [member LmConfig.house_minutes], then a ballot opens; `!rtv` works any time.
 ## Server side only; the rest is dot-vote's settings (`user://cfg/lookatme_vote.json`, `game.yml` `house_vote:`).
 
@@ -31,26 +31,26 @@ func _init() -> void:
 
 ## A time limit and a ballot with every house, the current one and an extension; at once, since there is no round to wait for and
 ## everybody is sent to the new lobby anyway.
-func _rules() -> DotVoteRules:
-	var rules := DotVoteRules.new()
+func _rules() -> GSVoteRules:
+	var rules := GSVoteRules.new()
 
 	if house_minutes > 0.0:
-		rules.trigger = DotVoteRules.Trigger.TIME_LIMIT
+		rules.trigger = GSVoteRules.Trigger.TIME_LIMIT
 		rules.duration_sec = house_minutes * 60.0
 	else:
-		rules.trigger = DotVoteRules.Trigger.RTV_ONLY
+		rules.trigger = GSVoteRules.Trigger.RTV_ONLY
 		rules.duration_sec = 0.0
 
 	# At once: there is no round to wait for, and everybody is sent to the new lobby anyway.
-	rules.apply = DotVoteRules.Apply.IMMEDIATE
-	rules.rtv_apply = DotVoteRules.Apply.IMMEDIATE
+	rules.apply = GSVoteRules.Apply.IMMEDIATE
+	rules.rtv_apply = GSVoteRules.Apply.IMMEDIATE
 	rules.include_current = true
 	rules.include_extend = true
 	rules.cooldown = 0
 	rules.max_options = 6
 	rules.vote_duration_sec = 30.0
-	rules.method = DotVoteRules.Method.PLURALITY
-	rules.tie_break = DotVoteRules.TieBreak.RANDOM
+	rules.method = GSVoteRules.Method.PLURALITY
+	rules.tie_break = GSVoteRules.TieBreak.RANDOM
 	return rules
 
 

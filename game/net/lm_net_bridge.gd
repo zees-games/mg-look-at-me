@@ -12,26 +12,26 @@ func _exit_tree() -> void:
 		profile_link = null
 
 
-func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
+func attach(p_game: Object, p_net: GSNetManager) -> GSResult:
 	var world := p_game as LmGame
 
 	if world == null or p_net == null:
-		return DotResult.fail(DotError.CODE_INVALID, "A bridge needs a house and a manager.")
+		return GSResult.fail(GSError.CODE_INVALID, "A bridge needs a house and a manager.")
 
 	if world.authoritative != p_net.is_server:
-		return DotResult.fail(DotError.CODE_STATE, "The house and the manager disagree about who is authoritative.")
+		return GSResult.fail(GSError.CODE_STATE, "The house and the manager disagree about who is authoritative.")
 
 	game = world
 	net = p_net
 	net.send_fn = _send
-	profile_link = DotNetProfileLink.attach(net, world.ensure_runtime())
+	profile_link = GSNetProfileLink.attach(net, world.ensure_runtime())
 
-	var event := net.messages.register(LmEvent.NAME, LmEvent, DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_CLIENT)
+	var event := net.messages.register(LmEvent.NAME, LmEvent, GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_CLIENT)
 
 	if not event.ok:
 		return event
 
-	var request := net.messages.register(LmRequest.NAME, LmRequest, DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_SERVER)
+	var request := net.messages.register(LmRequest.NAME, LmRequest, GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_SERVER)
 
 	if not request.ok:
 		return request
@@ -56,7 +56,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 				_send_house(int(peer_id))
 				_send_progress(key_of_peer(int(peer_id))))
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func open_link(parent: Node) -> void:
@@ -67,8 +67,8 @@ func open_link(parent: Node) -> void:
 
 	# Not parent.add_child: the link sits under the server (RPCs route by path) but must die with this
 	# bridge, or a module reload leaves a second one and Godot renames the live one `@Node@n`.
-	# DotGameLink frees it without remove_child, which errors on a busy parent.
-	DotGameLink.attach(link, parent, self, LmNetLink.NODE_NAME)
+	# GSGameLink frees it without remove_child, which errors on a busy parent.
+	GSGameLink.attach(link, parent, self, LmNetLink.NODE_NAME)
 
 
 static func session_key(session_id: int) -> StringName:
@@ -77,9 +77,9 @@ static func session_key(session_id: int) -> StringName:
 
 
 
-func add_player(peer_id: int, session_id: int, display_name: String) -> DotResult:
+func add_player(peer_id: int, session_id: int, display_name: String) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server adds players.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server adds players.")
 
 	var key: StringName = key_fn.call(peer_id, session_id) if key_fn.is_valid() else session_key(session_id)
 
@@ -92,14 +92,14 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 	var held_by: int = int(_peer_of_key.get(key, 0))
 
 	if held_by != 0 and held_by != peer_id:
-		DotLog.info(CHANNEL, "a newer connection of the same account takes the player", {"key": String(key), "old_peer": held_by, "new_peer": peer_id})
+		GSLog.info(CHANNEL, "a newer connection of the same account takes the player", {"key": String(key), "old_peer": held_by, "new_peer": peer_id})
 		remove_peer(held_by)
 		superseded.emit(held_by, key)
 
 	_key_of_peer[peer_id] = key
 	_peer_of_key[key] = peer_id
 	_key_of_session[session_id] = key
-	var avatar: DotAvatar = avatar_fn.call(session_id) if avatar_fn.is_valid() else null
+	var avatar: GSAvatar = avatar_fn.call(session_id) if avatar_fn.is_valid() else null
 	var player := game.join(key, display_name, avatar if avatar != null else LmAvatars.stock_avatar(key))
 	_build_entity(player, peer_id)
 
@@ -107,7 +107,7 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 		_ready_unseated.erase(peer_id)
 		_admit(peer_id)
 
-	return DotResult.success(key)
+	return GSResult.success(key)
 
 
 func remove_peer(peer_id: int) -> void:
@@ -141,7 +141,7 @@ func remove_peer(peer_id: int) -> void:
 ## A name or a face that arrived after the player was seated (dot-platform admits AFTER the
 ## seat, so the first JOIN is a guest's whenever the profile store is slower than the join),
 ## or a wardrobe change later: the player takes it and everybody is sent the JOIN again.
-func refresh_player(session_id: int, display_name: String, avatar: DotAvatar) -> bool:
+func refresh_player(session_id: int, display_name: String, avatar: GSAvatar) -> bool:
 	if net == null or not net.is_server or game == null:
 		return false
 
@@ -308,7 +308,7 @@ func _join_body(key: StringName) -> Dictionary:
 ## The avatar DOCUMENT rather than the skin it picks, so a client reads a site avatar itself
 ## (deathrun's reason: a slot added later needs no new wire). Capped, because a document a
 ## hostile profile made enormous would otherwise ride every JOIN; over the cap is the stock person.
-static func _avatar_wire(avatar: DotAvatar) -> Dictionary:
+static func _avatar_wire(avatar: GSAvatar) -> Dictionary:
 	if avatar == null:
 		return {}
 
@@ -362,32 +362,32 @@ func ensure_game_ticked(tick: int) -> void:
 
 
 
-func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_input(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server takes input.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server takes input.")
 
 	if not _key_of_peer.has(peer_id):
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "That peer has no player.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "That peer has no player.")
 
 	if payload.size() <= ACK_BYTES:
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet is too short.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet is too short.")
 
 	var _acked := net.receive_ack_payload(peer_id, payload.slice(0, ACK_BYTES))
 
 	# A batch: this tick's command and the ones before it (see [constant INPUT_COPIES]). Copies
 	# of ticks already simulated are skipped rather than pushed, or each would count as a late
 	# input; the packet's own tick is always pushed, so a late one still counts.
-	var batch := DotNetInput.read_batch(
-		DotNetReader.new(payload.slice(ACK_BYTES)),
-		func() -> DotNetInput: return LmNetCommand.new()
+	var batch := GSNetInput.read_batch(
+		GSNetReader.new(payload.slice(ACK_BYTES)),
+		func() -> GSNetInput: return LmNetCommand.new()
 	)
 
 	if batch.is_empty():
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet carries no command.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet carries no command.")
 
 	var buffer := net.input_buffer_for(peer_id)
 	var newest := batch[batch.size() - 1]
-	var pushed := DotResult.success(false)
+	var pushed := GSResult.success(false)
 
 	for input in batch:
 		if input != newest and input.tick <= buffer.last_consumed_tick():
@@ -398,15 +398,15 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
 	return pushed
 
 
-func receive_request(peer_id: int, payload: PackedByteArray) -> DotResult:
-	return net.receive(payload, peer_id) if net != null else DotResult.fail(DotError.CODE_STATE, "No manager.")
+func receive_request(peer_id: int, payload: PackedByteArray) -> GSResult:
+	return net.receive(payload, peer_id) if net != null else GSResult.fail(GSError.CODE_STATE, "No manager.")
 
 
-func receive_event(payload: PackedByteArray) -> DotResult:
-	return net.receive(payload, 1) if net != null else DotResult.fail(DotError.CODE_STATE, "No manager.")
+func receive_event(payload: PackedByteArray) -> GSResult:
+	return net.receive(payload, 1) if net != null else GSResult.fail(GSError.CODE_STATE, "No manager.")
 
 
-func _on_request(message: DotNetMessage) -> void:
+func _on_request(message: GSNetMessage) -> void:
 	var ask := message as LmRequest
 
 	if ask == null or net == null or not net.is_server:
@@ -486,14 +486,14 @@ func send_chat(peer_id: int, wire: Dictionary) -> void:
 	_tell(peer_id, LmEvents.Kind.CHAT, wire)
 
 
-func receive_voice(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_voice(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if net != null and net.is_server:
 		if voice_relay_fn.is_valid():
 			voice_relay_fn.call(peer_id, payload)
 	else:
 		voice_arrived.emit(payload)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func send_voice_up(payload: PackedByteArray) -> void:

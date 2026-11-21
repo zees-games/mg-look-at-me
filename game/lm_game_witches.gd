@@ -3,7 +3,7 @@ extends "lm_game_senses.gd"
 ## What a witch sees and hears: [method _watch] and the senses and modes it runs.
 
 ## [method _watch]'s witches (every witch's [method _listen_witch], then her [method exposure]) are
-## run by dot-sim's `DotSimWitches` when the library has it, to the script's bit
+## run by dot-sim's `GSSimWitches` when the library has it, to the script's bit
 ## (`headless_native_witches`); off, or with no library (the web), the script runs them.
 static var native_witches := true
 ## Runs the script beside every native watch and counts the watches compared and any that differ;
@@ -11,11 +11,11 @@ static var native_witches := true
 static var witch_verify := false
 static var witch_checked := 0
 static var witch_differ := 0
-## Floats per witch in `DotSimWitches.watch`'s states and answer.
+## Floats per witch in `GSSimWitches.watch`'s states and answer.
 const WITCH_STATE_F := 17
 const WITCH_OUT_F := 19
 
-## The `DotSimWitches` the witches run in; null until the first native watch.
+## The `GSSimWitches` the witches run in; null until the first native watch.
 var _witches: RefCounted = null
 ## Level instance id -> the level, for every level registered with [member _witches].
 var _witch_levels: Dictionary = {}
@@ -84,10 +84,10 @@ func _watch_script(player: LmPlayer, level: LmLevel, seconds: float, delta: floa
 ## too, from the same start, and its answer is kept.
 func _watch_native(player: LmPlayer, level: LmLevel, seconds: float, delta: float) -> Variant:
 	if _witches == null:
-		if not DotSim.has(&"witches"):
+		if not GSSim.has(&"witches"):
 			return null
 
-		_witches = ClassDB.instantiate(&"DotSimWitches")
+		_witches = ClassDB.instantiate(&"GSSimWitches")
 
 	var key := level.get_instance_id()
 
@@ -117,7 +117,7 @@ func _watch_native(player: LmPlayer, level: LmLevel, seconds: float, delta: floa
 	return script
 
 
-## One `DotSimWitches.watch`: packs [param player]'s gaze, unpacks the answer into it and returns
+## One `GSSimWitches.watch`: packs [param player]'s gaze, unpacks the answer into it and returns
 ## the rates; null (nothing changed) when the call is refused.
 func _watch_call(player: LmPlayer, level: LmLevel, key: int, seconds: float, delta: float, emit: bool) -> Variant:
 	var count := level.witches.size()
@@ -201,7 +201,7 @@ func _watch_call(player: LmPlayer, level: LmLevel, key: int, seconds: float, del
 	return rates
 
 
-## [member config] in `DotSimWitches.watch`'s order.
+## [member config] in `GSSimWitches.watch`'s order.
 func _witch_config() -> PackedFloat64Array:
 	return PackedFloat64Array([
 		config.witch_speed_scale, 1.0 if config.witch_head_sweep else 0.0, config.witch_door_seconds,

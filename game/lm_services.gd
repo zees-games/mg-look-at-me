@@ -1,4 +1,4 @@
-extends DotGameServices
+extends GSGameServices
 
 ## Chat, voice and moderation over dot-game's base: what this game decides about them.
 ## Everybody talks to everybody whatever level they are on (the lobby socialises); voice is push-to-talk with a short
@@ -29,7 +29,7 @@ func _services_name() -> String:
 
 
 func _chat_rules() -> Object:
-	var rules := DotChatRules.new()
+	var rules := GSChatRules.new()
 	rules.max_length = MAX_LINE
 	rules.refuse_over_length = false
 	rules.allow_newlines = false
@@ -46,22 +46,22 @@ func _chat_rules() -> Object:
 
 
 func _chat_channels() -> Array:
-	var out: Array[DotChatChannel] = []
-	var everyone := DotChatChannel.make(CH_ALL, "All", DotChatChannel.Scope.EVERYONE)
+	var out: Array[GSChatChannel] = []
+	var everyone := GSChatChannel.make(CH_ALL, "All", GSChatChannel.Scope.EVERYONE)
 	everyone.colour = Color(0.93, 0.94, 0.96)
 	# Longer than a round game's: there are no rounds, and somebody arriving mid-conversation
 	# on a server people drive on for an hour wants the last few lines.
 	everyone.backlog = 20
 	everyone.history_limit = 300
 	out.append(everyone)
-	var admin := DotChatChannel.make(CH_ADMIN, "Admin", DotChatChannel.Scope.EVERYONE)
+	var admin := GSChatChannel.make(CH_ADMIN, "Admin", GSChatChannel.Scope.EVERYONE)
 	admin.prefix = "[ADMIN]"
 	admin.colour = Color(0.98, 0.72, 0.35)
 	admin.admin_only = true
 	admin.ignores_gag = true
 	admin.backlog = 0
 	out.append(admin)
-	var whisper := DotChatChannel.make(CH_WHISPER, "Whisper", DotChatChannel.Scope.DIRECT)
+	var whisper := GSChatChannel.make(CH_WHISPER, "Whisper", GSChatChannel.Scope.DIRECT)
 	whisper.prefix = "[w]"
 	whisper.colour = Color(0.78, 0.71, 0.93)
 	whisper.backlog = 0
@@ -75,13 +75,13 @@ func _voice_config() -> Object:
 
 ## Everybody is heard by whoever is near, never across the house.
 func _voice_default_channel() -> int:
-	return DotVoiceRouter.Channel.PROXIMITY
+	return GSVoiceRouter.Channel.PROXIMITY
 
 
 ## The router is built by the base; this game's proximity rules go on it before the module
 ## binds the sv_voice_* cvars, which read these values as their defaults.
-func setup(p_server: DotServer, p_game: Object, p_link: Object) -> DotResult:
-	var made: DotResult = super.setup(p_server, p_game, p_link)
+func setup(p_server: GSServer, p_game: Object, p_link: Object) -> GSResult:
+	var made: GSResult = super.setup(p_server, p_game, p_link)
 
 	if made.ok and voice != null:
 		configure_voice(voice)
@@ -90,15 +90,15 @@ func setup(p_server: DotServer, p_game: Object, p_link: Object) -> DotResult:
 
 
 ## Proximity on, a wall in the way on. The occluder asks the house's physics once per listener
-## already inside the radius ([method DotVoiceProximity.ray_occluder]), on the world layer only:
+## already inside the radius ([method GSVoiceProximity.ray_occluder]), on the world layer only:
 ## a body is never a wall to a voice.
 func configure_voice(router: Object) -> void:
 	router.set("proximity_range", PROXIMITY_RANGE)
 	router.set("proximity_min_distance", PROXIMITY_MIN)
-	router.set("proximity_falloff", DotVoiceProximity.Falloff.INVERSE)
+	router.set("proximity_falloff", GSVoiceProximity.Falloff.INVERSE)
 	router.set("proximity_occlusion", true)
 	router.set("occlusion_gain", OCCLUSION_GAIN)
-	router.set("occlusion_fn", DotVoiceProximity.ray_occluder(_space, LmGame.LAYER_WORLD))
+	router.set("occlusion_fn", GSVoiceProximity.ray_occluder(_space, LmGame.LAYER_WORLD))
 
 
 func _space() -> Variant:
@@ -107,8 +107,8 @@ func _space() -> Variant:
 
 
 ## The voice format both ends must agree on exactly: the client's voice manager reads this too.
-static func voice_format() -> DotVoiceConfig:
-	var config := DotVoiceConfig.new()
+static func voice_format() -> GSVoiceConfig:
+	var config := GSVoiceConfig.new()
 	config.sample_rate = 16000
 	config.frame_ms = 20.0
 	config.codec_id = &"adpcm"

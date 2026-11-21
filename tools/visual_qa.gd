@@ -1,4 +1,4 @@
-extends DotGameVisualQaCapture
+extends GSGameVisualQaCapture
 
 ## Look At Me's visual QA capture (the loop is dot-game's docs/visual-qa.md). Three kinds of item, each recorded frame by frame
 ## at --fps in three views (f first person, t behind-right, o in front):
@@ -6,7 +6,7 @@ extends DotGameVisualQaCapture
 
 ##   witch            the witch (LmWitch) idling, walking, reaching for you with the fan flared, and lunging.
 ##   clown            the clown hallucination (LmClown) watching you with its mouth shut and talking.
-## This game has no weapons, so no weapon items. The outside views and frame saving are dot-game's DotGameVisualQaViews.
+## This game has no weapons, so no weapon items. The outside views and frame saving are dot-game's GSGameVisualQaViews.
 
 const LmFigure := preload("../game/lm_figure.gd")
 const LmWitch := preload("../game/lm_witch.gd")
@@ -67,7 +67,7 @@ func _build() -> void:
 	root.add_child(_holder)
 
 
-func _stage(item: String, clip: String) -> DotResult:
+func _stage(item: String, clip: String) -> GSResult:
 	_clear()
 	views.behind_offset = Vector3(1.6, 1.6, 3.2)
 	views.behind_look_height = 1.0
@@ -93,7 +93,7 @@ func _stage(item: String, clip: String) -> DotResult:
 		_clown = LmClown.new()
 		_holder.add_child(_clown)
 		if not _clown.build():
-			return DotResult.fail(DotError.CODE_INVALID, "the clown model did not load")
+			return GSResult.fail(GSError.CODE_INVALID, "the clown model did not load")
 		_clown.position = Vector3(0.0, CLOWN_HEIGHT - 0.75, 0.0)
 	else:
 		_kind = "person"
@@ -102,7 +102,7 @@ func _stage(item: String, clip: String) -> DotResult:
 		_holder.add_child(_figure)
 		_figure.global_position = Vector3.ZERO
 		_figure.build(BODY_HEIGHT, _atlas_of(item.trim_prefix("person_")), Color(0.3, 0.45, 0.9))
-	return DotResult.success(clip)
+	return GSResult.success(clip)
 
 
 func _atlas_of(letter: String) -> String:
@@ -164,7 +164,7 @@ func _grounded(_item: String, clip: String, t: float) -> bool:
 
 func _before_draw(_item: String, _clip: String, _frame: int) -> void:
 	if _figure != null:
-		var _tagged := DotGameVisualQaViews.tag_layers(_figure, BODY_LAYER)
+		var _tagged := GSGameVisualQaViews.tag_layers(_figure, BODY_LAYER)
 
 
 ## A rival's eye in front, looking at the subject (the clown and witch are looked at the same way).

@@ -1,11 +1,11 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const LmBot := preload("../game/lm_bot.gd")
 const LmGame := preload("../game/lm_game.gd")
 const LmLevel := preload("../game/lm_level.gd")
 const LmPlayer := preload("../game/lm_player.gd")
 
-## What a witch hears, sees and does each tick ([method LmGame._watch]) is run by dot-sim's `DotSimWitches` when the
+## What a witch hears, sees and does each tick ([method LmGame._watch]) is run by dot-sim's `GSSimWitches` when the
 ## library is there, and it must do what the script does: a bot round on every level, the players thrown in front of
 ## and behind the witches with their lights and noise seeded, run with [member LmGame.witch_verify] on, re-runs the
 
@@ -34,7 +34,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -43,7 +43,7 @@ func _run() -> void:
 	print("")
 	_entered += 1
 	print("the library has the witches")
-	if not DotSim.has(&"witches"):
+	if not GSSim.has(&"witches"):
 		print("  dot-sim's witches module is not loaded: the native half is skipped")
 		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) == "1"
 		_check(not required, "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")

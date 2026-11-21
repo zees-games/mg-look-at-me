@@ -23,7 +23,7 @@ static func clear_cache() -> void:
 	_furniture_bounds.clear()
 
 
-func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
+func build(p_doc: Dictionary, p_draws: bool = true) -> GSResult:
 	doc = p_doc
 	draws = p_draws
 	var cell := float(doc.get("cell", 8.0))
@@ -36,7 +36,7 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 		}
 
 		if kind == "stair" and not str(room.get("up", "")) in ["n", "s", "e", "w"]:
-			return DotResult.fail(DotError.CODE_INVALID, "stairwell %s does not say which way is up" % room["id"])
+			return GSResult.fail(GSError.CODE_INVALID, "stairwell %s does not say which way is up" % room["id"])
 
 	if in_world():
 		var built := _build_world()
@@ -48,7 +48,7 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 		var placed := _place_door(door)
 
 		if placed.is_empty():
-			return DotResult.fail(DotError.CODE_INVALID, "door %s is not on a wall its rooms share" % door["id"])
+			return GSResult.fail(GSError.CODE_INVALID, "door %s is not on a wall its rooms share" % door["id"])
 
 		doors[str(door["id"])] = placed
 
@@ -83,8 +83,8 @@ func build(p_doc: Dictionary, p_draws: bool = true) -> DotResult:
 	for event: Dictionary in doc.get("events", []):
 		events[str(event.get("id", ""))] = event
 
-	DotLog.debug(CHANNEL, "the house was built", {"id": str(doc.get("id", "?")), "rooms": rooms.size()})
-	return DotResult.success(self)
+	GSLog.debug(CHANNEL, "the house was built", {"id": str(doc.get("id", "?")), "rooms": rooms.size()})
+	return GSResult.success(self)
 
 
 
@@ -212,15 +212,15 @@ func _place_door_world(door: Dictionary) -> Dictionary:
 
 ## The converted map's building, solid: every hull of its world model, scaled as the document says.
 ## Drawn too where this level draws; the drawing is fetched and comes in when it comes.
-func _build_world() -> DotResult:
+func _build_world() -> GSResult:
 	var world: Dictionary = doc["world"]
 	var prefix := LmPaths.rebase("res://" + str(world["path"]))
-	var loaded := DotMapBspMesh.load_prefix(prefix)
+	var loaded := GSMapBspMesh.load_prefix(prefix)
 
 	if not loaded.ok:
-		return DotResult.fail(DotError.CODE_INVALID, "the world %s did not load: %s" % [prefix, loaded.error.message])
+		return GSResult.fail(GSError.CODE_INVALID, "the world %s did not load: %s" % [prefix, loaded.error.message])
 
-	var mesh: DotMapBspMesh = loaded.value
+	var mesh: GSMapBspMesh = loaded.value
 	var k := float(world.get("scale", 1.0))
 	var o: Array = world.get("origin", [0, 0, 0])
 	var origin := Vector3(float(o[0]), float(o[1]), float(o[2]))
@@ -241,10 +241,10 @@ func _build_world() -> DotResult:
 	if draws:
 		_draw_world(prefix, Transform3D(Basis.from_scale(Vector3.ONE * k), origin))
 
-	return DotResult.success(body)
+	return GSResult.success(body)
 
 
-static func _world_trimesh(mesh: DotMapBspMesh, k: float, origin: Vector3) -> ConcavePolygonShape3D:
+static func _world_trimesh(mesh: GSMapBspMesh, k: float, origin: Vector3) -> ConcavePolygonShape3D:
 	var faces := PackedVector3Array()
 
 	for model: int in mesh.models():
@@ -330,13 +330,13 @@ static func _hull_faces(points: PackedVector3Array, out: PackedVector3Array) -> 
 
 
 func _draw_world(prefix: String, at: Transform3D) -> void:
-	var read: DotResult = await DotMapDrawnWorld.read(prefix, DotRegistry.get_service(&"dot_cloud_client"))
+	var read: GSResult = await GSMapDrawnWorld.read(prefix, GSRegistry.get_service(&"dot_cloud_client"))
 
 	if not read.ok or not is_inside_tree():
-		DotLog.warn(CHANNEL, "the world was not drawn", {"prefix": prefix, "why": read.error.message if not read.ok else "the level is gone"})
+		GSLog.warn(CHANNEL, "the world was not drawn", {"prefix": prefix, "why": read.error.message if not read.ok else "the level is gone"})
 		return
 
-	var _drawn := DotMapDrawnWorld.attach(self, read.value as DotMapBspMesh, {"transform": at, "surfaces_root": DotMapSurfaces.DEFAULT_ROOT, "probes": 0, "cull": false})
+	var _drawn := GSMapDrawnWorld.attach(self, read.value as GSMapBspMesh, {"transform": at, "surfaces_root": GSMapSurfaces.DEFAULT_ROOT, "probes": 0, "cull": false})
 
 
 ## Boards nailed over a converted map's doorway the level does not use: [x, z, side, width, y].
@@ -693,7 +693,7 @@ func set_room_light(room_id: String, fraction: float) -> void:
 
 
 ## How much a room's lamps flicker, 0..1: the room's own `flicker` if it has one, else a dim bulb
-## (`light` at or under [constant DIM_LIGHT]) gutters. A client's; see [DotLampFlicker].
+## (`light` at or under [constant DIM_LIGHT]) gutters. A client's; see [GSLampFlicker].
 static func lamp_flicker_amount(room_doc: Dictionary) -> float:
 	if room_doc.has("flicker"):
 		return clampf(float(room_doc["flicker"]), 0.0, 1.0)
@@ -710,7 +710,7 @@ func flicker_lamps(time: float, allow_flashes: bool) -> void:
 			var lit := float(lamp["fraction"])
 			if lit > 0.0:
 				(lamp["light"] as OmniLight3D).light_energy = float(lamp["energy"]) * lit * \
-					DotLampFlicker.scale(int(lamp["seed"]), time, amount, allow_flashes)
+					GSLampFlicker.scale(int(lamp["seed"]), time, amount, allow_flashes)
 
 
 func describe() -> Dictionary:

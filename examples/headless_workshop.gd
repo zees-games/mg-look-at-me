@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const LmGame := preload("res://game/lm_game.gd")
 const LmVote := preload("res://game/lm_vote.gd")
@@ -15,7 +15,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -38,9 +38,9 @@ func _write_house(dir: String, doc_id: String, with_level: bool) -> void:
 		file.close()
 
 
-func _add_fixture_pack() -> DotContentIndex:
-	var index := DotContentIndex.shared()
-	index.set_session(DotContentIndex.SESSION_SOLO)
+func _add_fixture_pack() -> GSContentIndex:
+	var index := GSContentIndex.shared()
+	index.set_session(GSContentIndex.SESSION_SOLO)
 	var kind := "lookatme"
 	var added := index.add_pack({
 		"content_id": "tester/ws-houses", "version": "1.0.0", "prefix": ROOT,
@@ -105,7 +105,7 @@ func _test() -> void:
 	var back := game.change_house(&"house")
 	_check(back.ok and game.levels.size() == 32, "solo: the game's own house still plays after it")
 
-	index.set_session(DotContentIndex.SESSION_ONLINE)
+	index.set_session(GSContentIndex.SESSION_ONLINE)
 	var online := {}
 
 	for row: Dictionary in game.house_rows():
@@ -113,11 +113,11 @@ func _test() -> void:
 
 	_check(not online.has("ws_cellar"), "online: the menu does not list the solo house")
 	vote.source.before_ballot()
-	_check(not vote.source.choices().any(func(c: DotVoteChoice) -> bool: return c.id == &"ws_cellar"), "online: the ballot does not offer it")
+	_check(not vote.source.choices().any(func(c: GSVoteChoice) -> bool: return c.id == &"ws_cellar"), "online: the ballot does not offer it")
 	_check(not game.change_house(&"ws_cellar").ok, "online: the solo house cannot be chosen")
 	_check(online.has("house"), "online: the game's own house is still offered")
 
-	index.set_session(DotContentIndex.SESSION_SOLO)
+	index.set_session(GSContentIndex.SESSION_SOLO)
 	_check(game.house_rows().any(func(r: Dictionary) -> bool: return r["id"] == "ws_cellar"), "back in solo: the pack house returns")
 
 	remove_child(vote)

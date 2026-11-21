@@ -73,7 +73,7 @@ func build(sight: float, cone: float) -> void:
 
 	if _model == null:
 		# A dark column rather than nothing: an invisible witch is a lottery.
-		DotLog.warn(CHANNEL, "no witch model; drawing a column", {"path": BODY})
+		GSLog.warn(CHANNEL, "no witch model; drawing a column", {"path": BODY})
 		_model = Node3D.new()
 		var column := MeshInstance3D.new()
 		var capsule := CapsuleMesh.new()

@@ -49,12 +49,12 @@ const MAX_TEXT := 60000
 
 
 static func write_json(data: Variant) -> PackedByteArray:
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	writer.write_string(JSON.stringify(data), MAX_TEXT)
 	return writer.to_bytes()
 
 
-static func read_json(reader: DotNetReader) -> Dictionary:
+static func read_json(reader: GSNetReader) -> Dictionary:
 	var text := reader.read_string(MAX_TEXT)
 
 	if not reader.ok():
@@ -68,7 +68,7 @@ static func read_json(reader: DotNetReader) -> Dictionary:
 ## is about 15 KB of JSON and 3 KB deflated: the house's 490 KB goes as 90 KB.
 static func write_level(doc: Dictionary) -> PackedByteArray:
 	var raw := JSON.stringify(doc).to_utf8_buffer()
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	writer.write_varint(raw.size())
 	writer.write_bytes(raw.compress(FileAccess.COMPRESSION_DEFLATE))
 	return writer.to_bytes()
@@ -76,7 +76,7 @@ static func write_level(doc: Dictionary) -> PackedByteArray:
 
 ## The document out of a LEVEL body, or {} for anything that is not one. The stated length is
 ## capped at [constant MAX_TEXT] before anything is inflated, so a body cannot ask for more.
-static func read_level(reader: DotNetReader) -> Dictionary:
+static func read_level(reader: GSNetReader) -> Dictionary:
 	var size := reader.read_varint()
 	var packed := reader.read_bytes(MAX_TEXT)
 

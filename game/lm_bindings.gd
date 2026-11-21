@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [DotMenuBindings] table: action, storing setting, label, default, card.
+## Every key this game reads, as one dot-menu [GSMenuBindings] table: action, storing setting, label, default, card.
 ## One table because the client, the settings document, the Controls page and the help screen (H) all read it.
 ## Enter opens the command line as a fixed second key no row holds; H is help in every game (dot-menu adds the row), so nothing here may default to it.
 
@@ -10,13 +10,13 @@ const FLASHLIGHT := &"lm_flashlight"
 const VIEW := &"lm_view"
 const COMMAND := &"lm_command"
 const SCOREBOARD := &"lm_scoreboard"
-## dot-voice's own action names, so DotVoiceLookMute reads the rows this table binds.
+## dot-voice's own action names, so GSVoiceLookMute reads the rows this table binds.
 const VOICE_GAG := &"voice_gag"
 const VOICE_MUTE := &"voice_mute"
 
 
-static func make() -> DotMenuBindings:
-	var keys := DotMenuBindings.new()
+static func make() -> GSMenuBindings:
+	var keys := GSMenuBindings.new()
 	keys.add_movement("Movement", "Ctrl", "Crouch (a witch sees you more slowly)")
 	# The game has no weapon or item switching, so the wheel is free to jump.
 	keys.add_wheel_jump("Movement")

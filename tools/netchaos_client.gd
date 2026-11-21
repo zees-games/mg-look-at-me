@@ -1,6 +1,6 @@
-extends DotGameNetchaosClient
+extends GSGameNetchaosClient
 
-## Look At Me's side of `tools/netchaos.sh` (dot-game's DotGameNetchaosClient). No fire action: the game has nothing to shoot.
+## Look At Me's side of `tools/netchaos.sh` (dot-game's GSGameNetchaosClient). No fire action: the game has nothing to shoot.
 
 
 func _configure() -> void:

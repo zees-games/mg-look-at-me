@@ -1,4 +1,4 @@
-extends DotGameNetIo
+extends GSGameNetIo
 
 ## The bridge's state and the client half: asking the server, applying what it sends.
 
@@ -51,7 +51,7 @@ const SUPERSEDED_REASON := "You joined from another tab or window"
 
 var game: LmGame = null
 ## Carries the game's profile runtime over this manager (rows down, for a remote admin's panel).
-var profile_link: DotNetProfileLink = null
+var profile_link: GSNetProfileLink = null
 
 var local_key: StringName = &""
 var voice_relay_fn: Callable = Callable()
@@ -60,7 +60,7 @@ var voice_relay_fn: Callable = Callable()
 ## kept under. The module returns the account uid; unset, the session.
 var key_fn: Callable = Callable()
 
-## (session_id) -> DotAvatar: what a session looks like, set by the module to dot-platform's
+## (session_id) -> GSAvatar: what a session looks like, set by the module to dot-platform's
 ## answer. Unset, or answering null, is the stock person for the key.
 var avatar_fn: Callable = Callable()
 
@@ -94,25 +94,25 @@ var _hello_serial: int = 0
 var _ack_queued := false
 
 
-## Behaviour before identity: [DotNetIdentity] collects its behaviours in `_ready`.
-func _build_entity(player: LmPlayer, peer_id: int, net_id: int = 0) -> DotNetIdentity:
+## Behaviour before identity: [GSNetIdentity] collects its behaviours in `_ready`.
+func _build_entity(player: LmPlayer, peer_id: int, net_id: int = 0) -> GSNetIdentity:
 	var behaviour := LmPlayerNet.new()
 	behaviour.name = "Net"
 	behaviour.player = player
 	behaviour.bridge = self
 	player.add_child(behaviour)
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = peer_id
 	# SHARED: the server corrects, the owner predicts. Walking a dark corridor a round trip
 	# behind your own keys is the thing nobody forgives a first-person game.
-	identity.authority = DotNetIdentity.Authority.SHARED
+	identity.authority = GSNetIdentity.Authority.SHARED
 	identity.always_relevant = true
 	player.add_child(identity)
 	var registered := net.registry.register(identity, net_id, net.clock.tick, net.config)
 
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not replicate a player", {"error": str(registered.error)})
+		GSLog.warn(CHANNEL, "could not replicate a player", {"error": str(registered.error)})
 
 	_behaviours[player.player_key] = behaviour
 	behaviour.pull()
@@ -147,14 +147,14 @@ func _ask(kind: int, data: Dictionary) -> void:
 
 
 ## One tick on a connected client: the command into the history, predicted, and sent.
-func client_tick(tick: int, command: DotFpsCommand) -> void:
+func client_tick(tick: int, command: GSFpsCommand) -> void:
 	if net == null or net.is_server or game == null:
 		return
 
 	var packet := LmNetCommand.new()
 	packet.tick = tick
 	packet.delta = net.clock.tick_duration()
-	packet.move = command if command != null else DotFpsCommand.new()
+	packet.move = command if command != null else GSFpsCommand.new()
 	net.local_inputs().push(packet)
 	var mine: LmPlayerNet = _behaviours.get(local_key, null)
 
@@ -163,8 +163,8 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 
 	if link != null:
 		var payload := net.encode_ack()
-		var writer := DotNetWriter.new()
-		DotNetInput.write_batch(writer, _input_copies(packet))
+		var writer := GSNetWriter.new()
+		GSNetInput.write_batch(writer, _input_copies(packet))
 		payload.append_array(writer.to_bytes())
 		link.send_input(payload)
 
@@ -179,14 +179,14 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 
 ## [param packet] and the commands before it from the local replay history, oldest first, for
 ## one input packet. See [constant INPUT_COPIES].
-func _input_copies(packet: DotNetInput) -> Array:
+func _input_copies(packet: GSNetInput) -> Array:
 	var batch: Array = Array(net.local_inputs().recent(INPUT_COPIES, packet.tick - 1))
 	batch = batch.slice(maxi(0, batch.size() - (INPUT_COPIES - 1)))
 	batch.append(packet)
 	return batch
 
 
-func _on_event(message: DotNetMessage) -> void:
+func _on_event(message: GSNetMessage) -> void:
 	var event := message as LmEvent
 
 	if event == null or game == null or net == null or net.is_server:
@@ -212,14 +212,14 @@ func _on_event(message: DotNetMessage) -> void:
 			# A server older than mp_forceview says only this; a newer one's cvar arrives
 			# through the link and outranks it.
 			if settings.has("allow_third_person") and not bool(settings["allow_third_person"]) \
-					and game.view_rules.force_view == DotPlayerViewRules.ANY:
-				game.view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
+					and game.view_rules.force_view == GSPlayerViewRules.ANY:
+				game.view_rules.force_view = GSPlayerViewRules.FIRST_ONLY
 
 			if _levels_expected == 0:
 				hello_received.emit(local_key)
 		LmEvents.Kind.LEVEL:
 			if data.is_empty():
-				DotLog.error(CHANNEL, "a level arrived that could not be read", {"bytes": event.body.size()})
+				GSLog.error(CHANNEL, "a level arrived that could not be read", {"bytes": event.body.size()})
 				return
 
 			_levels_got.append(data)
@@ -292,9 +292,9 @@ func _apply_join(data: Dictionary) -> void:
 
 ## A document that does not parse is the stock person, not a refused join: an avatar is
 ## cosmetic, and somebody who cannot be drawn as themselves can still be drawn.
-static func _avatar_from_wire(key: StringName, wire: Variant) -> DotAvatar:
+static func _avatar_from_wire(key: StringName, wire: Variant) -> GSAvatar:
 	if wire is Dictionary and not (wire as Dictionary).is_empty():
-		var built := DotAvatar.from_dict(wire)
+		var built := GSAvatar.from_dict(wire)
 
 		if built.ok:
 			return built.value

@@ -10,7 +10,7 @@ func _test_the_client_settings() -> void:
 	var client: Node = (load("res://game/lm_client.gd") as GDScript).new()
 	add_child(client)
 	# The house is neither drawn nor steered while it is still being built.
-	var platform: DotGameClient = client.get("platform")
+	var platform: GSGameClient = client.get("platform")
 	var covered := platform != null and platform.gate != null and not platform.is_shown() \
 		and platform.is_input_blocked()
 	await _shown(client)
@@ -27,7 +27,7 @@ func _test_the_client_settings() -> void:
 		"the client's settings are read by its look and its camera",
 		str(settings.describe()) if settings != null else "no settings"
 	)
-	var lamp: DotFlashlight = client.get("fl")
+	var lamp: GSFlashlight = client.get("fl")
 	var lit_player: LmPlayer = client.get("player")
 	_check(lamp != null and lamp.beam != null and lamp.beam.spot_range == lit_player.get_parent().get("config").flashlight_range
 		and lamp.on == lit_player.flashlight, "the flashlight is dot-flashlight's beam, in the house's range and state")
@@ -46,14 +46,14 @@ func _test_the_client_settings() -> void:
 	# Your own view is first person, so no figure is drawn yet: give it one as the third-person view does.
 	if self_player != null and self_player.figure == null:
 		self_player.figure = (load("res://game/lm_figure.gd") as GDScript).new()
-		self_player.figure.person = DotHumanoidFigure.new()
+		self_player.figure.person = GSHumanoidFigure.new()
 		self_player.figure.add_child(self_player.figure.person)
 		client.add_child(self_player.figure)
 	var action_fig: Object = client.call("_avatar_figure", 0)
 	_check(self_player != null and self_player.figure != null and action_fig == self_player.figure.person and action_fig.has_method(&"skeleton"),
 		"an avatar action and a wearable go on the player's own person, which can hang a wearable")
-	# The figure steps its clip by game time (DotHumanoidFigure.frame_delta), which stamps the frame it ran in.
-	if self_player != null and self_player.figure != null and DotAddonApi.build_level("dot_player_char") >= 11:
+	# The figure steps its clip by game time (GSHumanoidFigure.frame_delta), which stamps the frame it ran in.
+	if self_player != null and self_player.figure != null and GSAddonApi.build_level("dot_player_char") >= 11:
 		self_player.figure.pose(self_player.global_position, 0.0, 3.0)
 		_check(int(self_player.figure.person.get("_posed_frame")) == Engine.get_process_frames(),
 			"a posed figure animates by game time, not the wall clock")
@@ -62,12 +62,12 @@ func _test_the_client_settings() -> void:
 
 func _the_client_settings_2(client: Node, settings: Variant) -> void:
 	# The Tab board, held: the menu's, drawn from the local world offline. The platform makes
-	# the menu hold it on this game's own row (DotGameClient.scoreboard_action).
+	# the menu hold it on this game's own row (GSGameClient.scoreboard_action).
 	var tab := InputEventKey.new()
 	tab.physical_keycode = KEY_TAB
 	tab.pressed = true
 	settings.menu.handle_event(tab)
-	var board: DotMenuScoreboard = client.get("board")
+	var board: GSMenuScoreboard = client.get("board")
 	_check(board != null and board.is_open() and board.rows().any(func(r: Dictionary) -> bool:
 			return bool(r.get("you", false)) and int(r.get("level", 0)) >= 1),
 		"Tab holds the board up, with this player and the level they are on",
@@ -78,9 +78,9 @@ func _the_client_settings_2(client: Node, settings: Variant) -> void:
 
 	# The family's rule since the first play test: H opens help, nothing else in the table is
 	# on H, the Escape menu has Help and Leave, and the flashlight is read through its row.
-	var keys: DotMenuBindings = settings.bindings
-	var menu: DotMenu = settings.menu
-	_check(keys.key_for(DotMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1,
+	var keys: GSMenuBindings = settings.bindings
+	var menu: GSMenu = settings.menu
+	_check(keys.key_for(GSMenuBindings.HELP_ACTION) == "H" and keys.defaults_on("H").size() == 1,
 		"help is on H, and nothing else in the table is")
 	var h := InputEventKey.new()
 	h.physical_keycode = KEY_H
@@ -98,10 +98,10 @@ func _the_client_settings_2(client: Node, settings: Variant) -> void:
 	settings.close()
 	var f := InputEventKey.new()
 	f.physical_keycode = KEY_F
-	_check(f.is_action(&"lm_flashlight") and not f.is_action(DotMenuBindings.HELP_ACTION),
+	_check(f.is_action(&"lm_flashlight") and not f.is_action(GSMenuBindings.HELP_ACTION),
 		"the flashlight is its table row's action, on F")
 
-	# Something in reach: dot-ui's DotKeyPrompt says what, with the use action's binding drawn
+	# Something in reach: dot-ui's GSKeyPrompt says what, with the use action's binding drawn
 	# as the key, and that key does it.
 	var LmClientScript: GDScript = load("res://game/lm_client.gd")
 	var me: LmPlayer = client.get("player")
@@ -109,11 +109,11 @@ func _the_client_settings_2(client: Node, settings: Variant) -> void:
 	var item_id: String = here.items.keys()[0]
 	_stand_before(me, here, (here.items[item_id]["at"] as Vector3) + Vector3(0, 0.9, 0))
 	await _drawn()
-	var prompt: DotKeyPrompt = client.get("prompt")
-	var use_key := DotInputBinding.describe_action(LmClientScript.get("USE_ACTION"))
+	var prompt: GSKeyPrompt = client.get("prompt")
+	var use_key := GSInputBinding.describe_action(LmClientScript.get("USE_ACTION"))
 	_check(
 		prompt != null and prompt.visible and prompt.words.begins_with("Take the ") and use_key != "" and prompt.key == use_key,
-		"an item in reach is a DotKeyPrompt with the use action's binding as its key",
+		"an item in reach is a GSKeyPrompt with the use action's binding as its key",
 		str(prompt.describe()) if prompt != null else "no prompt"
 	)
 	var use := InputEventKey.new()
@@ -128,7 +128,7 @@ func _the_client_settings_2(client: Node, settings: Variant) -> void:
 	client.call("_refresh_key_line")
 	await _drawn()
 	var key_line: Label = client.get("_key_line")
-	_check(DotInputBinding.describe_action(LmClientScript.get("USE_ACTION")) == "R" and key_line.text.begins_with("R use")
+	_check(GSInputBinding.describe_action(LmClientScript.get("USE_ACTION")) == "R" and key_line.text.begins_with("R use")
 		and (not prompt.visible or prompt.key == "R"),
 		"use rebound to R: the action, the prompt and the key line all say R", "%s | %s" % [key_line.text, prompt.describe()])
 	_rebound = settings.settings.set_value(&"bind_use", "E")
@@ -136,12 +136,12 @@ func _the_client_settings_2(client: Node, settings: Variant) -> void:
 	await _the_client_settings_3(client, settings, keys, menu, LmClientScript, me, prompt, use_key)
 
 
-func _the_client_settings_3(client: Node, settings: Variant, keys: DotMenuBindings, menu: DotMenu, LmClientScript: GDScript, me: LmPlayer, prompt: DotKeyPrompt, use_key: String) -> void:
+func _the_client_settings_3(client: Node, settings: Variant, keys: GSMenuBindings, menu: GSMenu, LmClientScript: GDScript, me: LmPlayer, prompt: GSKeyPrompt, use_key: String) -> void:
 	# At 1280 x 720: the prompt under the crosshair, the chat box's full log bottom left and a
 	# ballot where the client shell draws one (a column down the right from 110 px) never meet.
-	var box: DotGameChatClient = LmClientScript.call("new_chat")
+	var box: GSGameChatClient = LmClientScript.call("new_chat")
 	add_child(box)
-	var w: DotChatWindow = box.window
+	var w: GSChatWindow = box.window
 	var log_top := w.margin_bottom + w.entry_height + float(w.max_lines) * (w.line_height + w.line_gap)
 	var chat_rect := Rect2(w.margin_left, 720.0 - log_top, w.width, log_top - w.margin_bottom)
 	box.queue_free()
@@ -168,7 +168,7 @@ func _the_client_settings_3(client: Node, settings: Variant, keys: DotMenuBindin
 
 	# M, the family's rule since the first play test: the house list, and solo a choice
 	# changes it now. The server's half (the owner's flag, the vote) is in `dedicated`.
-	_check(keys.key_for(DotMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
+	_check(keys.key_for(GSMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
 		"the map menu is on M, and nothing else in the table is",
 		str(keys.defaults_on("M").map(func(r: Dictionary) -> String: return str(r["label"]))))
 	# Closed right before the key: an offline client with no captured pointer (headless) may
@@ -183,7 +183,7 @@ func _the_client_settings_3(client: Node, settings: Variant, keys: DotMenuBindin
 		"M opens the house list, more than one to choose", str(menu.picker.items.size()))
 	var wanted_map: StringName = &""
 	var map_key := KEY_NONE
-	for row in range(1, DotMenuPicker.PAGE_SIZE + 1):
+	for row in range(1, GSMenuPicker.PAGE_SIZE + 1):
 		var it: Variant = menu.picker.at_row(row)
 		if it is Dictionary and not bool((it as Dictionary)["current"]):
 			wanted_map = StringName(str((it as Dictionary)["id"]))
@@ -215,9 +215,9 @@ func _the_client_settings_3(client: Node, settings: Variant, keys: DotMenuBindin
 func _the_client_settings_4(client: Node) -> void:
 	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so the
 	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
-	var asks := DotAddonApi.derive()
+	var asks := GSAddonApi.derive()
 	_check(
-		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + DotAddonApi.FLOOR_FILE),
+		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
 		"the pack asks a shell for dot-ui level 4, the glance pieces",
 		str(asks.get("dot_ui"))
 	)
@@ -228,14 +228,14 @@ func _the_client_settings_4(client: Node) -> void:
 
 	# A document saved when the view was on C: it follows to F5, and a key the player chose
 	# stays where they put it.
-	var old_doc := DotSettingsStoreMemory.new()
+	var old_doc := GSSettingsStoreMemory.new()
 	var _saved_old := old_doc.save_document(LmSettings.APP_NAMESPACE, &"local", {"version": 1, "values": {
 		"bind_view": "C", "bind_flashlight": "J",
 	}})
 	var returning := LmSettings.new()
 	add_child(returning)
 	var _set_up := returning.setup(old_doc, false)
-	var rk: DotMenuBindings = returning.bindings
+	var rk: GSMenuBindings = returning.bindings
 	_check(rk.key_for(&"lm_view") == "F5", "an old settings file with the view on C: it moves to F5", rk.key_for(&"lm_view"))
 	_check(rk.key_for(&"lm_flashlight") == "J", "and a key the player chose is kept", rk.key_for(&"lm_flashlight"))
 	returning.queue_free()
@@ -249,7 +249,7 @@ func _the_client_settings_4(client: Node) -> void:
 func _test_sound_and_effects() -> void:
 	_section("the house's sounds and the catch, through dot-audio and dot-fx")
 	var LmAudio: GDScript = load("res://game/lm_audio.gd")
-	var catalogue: DotAudioCatalogue = LmAudio.call("sound_catalogue")
+	var catalogue: GSAudioCatalogue = LmAudio.call("sound_catalogue")
 	var ids: Array = LmAudio.call("ids")
 	_check(
 		catalogue.validate().ok and ids.all(func(id: StringName) -> bool: return catalogue.find(id) != null)
@@ -267,7 +267,7 @@ func _test_sound_and_effects() -> void:
 
 	var audio: Node = client.get("audio")
 	var player: LmPlayer = client.get("player")
-	var sink := audio.get("manager").get("sink") as DotAudioSinkNull if audio != null else null
+	var sink := audio.get("manager").get("sink") as GSAudioSinkNull if audio != null else null
 	var settings: Variant = client.get("settings")
 	_check(
 		sink != null and settings != null and bool(settings.describe().get("audio_bound", false)),
@@ -303,7 +303,7 @@ func _test_sound_and_effects() -> void:
 	_check(sink != null and sink.played().size() > 0 and unknown.is_empty(),
 		"every id the client played is in the catalogue", str(unknown))
 
-	var effects: DotFxManager = client.get("effects")
+	var effects: GSFxManager = client.get("effects")
 	player.meter = 0.0
 	player.caught_left = 1.0
 	await get_tree().process_frame
@@ -316,7 +316,7 @@ func _test_sound_and_effects() -> void:
 	await _sound_and_effects_2(client, audio, player, sink, settings, effects)
 
 
-func _sound_and_effects_2(client: Node, audio: Node, player: LmPlayer, sink: DotAudioSinkNull, settings: Variant, effects: DotFxManager) -> void:
+func _sound_and_effects_2(client: Node, audio: Node, player: LmPlayer, sink: GSAudioSinkNull, settings: Variant, effects: GSFxManager) -> void:
 	await get_tree().process_frame
 	effects.flash_colour.a = 0.0
 	settings.settings.set_value(&"allow_flashes", false)
@@ -486,7 +486,7 @@ func _test_the_mouse_turns_the_view() -> void:
 
 func _the_mouse_turns_the_view_2(client: Node, settings: Variant) -> void:
 	# The command line holds the pointer: nothing recaptures it until the line is sent.
-	var platform: DotGameClient = client.get("platform")
+	var platform: GSGameClient = client.get("platform")
 	var key := InputEventKey.new()
 	key.pressed = true
 	key.keycode = KEY_ENTER
@@ -516,7 +516,7 @@ func _the_mouse_turns_the_view_2(client: Node, settings: Variant) -> void:
 	# Connected, the sampler that is sent is the client's own, not the player's: the same
 	# event must reach that one. Not put in the tree, which would build a house of its own.
 	var connected: Node = (load("res://game/lm_client.gd") as GDScript).new()
-	var sampler := DotFpsSampler.new(DotFpsTunables.new())
+	var sampler := GSFpsSampler.new(GSFpsTunables.new())
 	connected.set("_offline", false)
 	connected.set("_sampler", sampler)
 	connected.set("mouse_capture_override", true)

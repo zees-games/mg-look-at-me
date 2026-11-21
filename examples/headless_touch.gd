@@ -1,15 +1,15 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const LmTouch := preload("../game/lm_touch.gd")
 
-## The touch layout and dot-mobile's overlay: the buttons fit a phone at three sizes without overlapping, and each DotTouchButtons is freed.
+## The touch layout and dot-mobile's overlay: the buttons fit a phone at three sizes without overlapping, and each GSTouchButtons is freed.
 ## Run: `godot --headless --path . res://examples/headless_touch.tscn`
 
 const CHECKS := 24
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -23,7 +23,7 @@ func _run() -> void:
 			ids.append(b["id"])
 		_check(ids.size() >= 4, "%s: the layout has its buttons" % label)
 		for size: Vector2 in [Vector2(844, 390), Vector2(667, 375), Vector2(932, 430)]:
-			var buttons := DotTouchButtons.new()
+			var buttons := GSTouchButtons.new()
 			buttons.margin = LmTouch.EDGE_MARGIN
 			buttons.size = size
 			buttons.set_buttons(layout)
@@ -43,24 +43,24 @@ func _run() -> void:
 	got.sort()
 	want.sort()
 	_check(got == want, "the layout is the canonical use, jump, crouch, the flashlight, and a button for the camera, command line, scoreboard, map list, gag and mute keys", str(got))
-	DotPlatform.touch_override = 0
+	GSPlatform.touch_override = 0
 	_check(not LmTouch.wanted(), "no touch: the client builds no buttons")
-	var off := DotTouchButtons.new()
+	var off := GSTouchButtons.new()
 	add_child(off)
 	_check(not off.visible, "no touch: the buttons are hidden")
 	off.free()
-	DotPlatform.touch_override = -1
+	GSPlatform.touch_override = -1
 	_overlay()
 	_report(CHECKS)
 
 
 ## dot-mobile's overlay on a HUD-typed host (a Control, as the client's is): it drives the client's own sampler.
 func _overlay() -> void:
-	DotPlatform.touch_override = 1
+	GSPlatform.touch_override = 1
 	var host := Control.new()
 	host.size = Vector2(844, 390)
 	add_child(host)
-	var sampler := DotFpsTouchSampler.new(DotFpsTunables.new())
+	var sampler := GSFpsTouchSampler.new(GSFpsTunables.new())
 	var menu_button := Button.new()
 	menu_button.position = Vector2(4, 4)
 	menu_button.size = Vector2(80, 40)
@@ -68,7 +68,7 @@ func _overlay() -> void:
 	var touch: RefCounted = LmTouch.build(host, sampler, func() -> Button: return menu_button)
 	var pressed: Array = []
 	touch.set(&"on_button", func(id: StringName, down: bool) -> void: pressed.append([id, down]))
-	var controls: DotMobileControls = touch.get(&"controls")
+	var controls: GSMobileControls = touch.get(&"controls")
 	_check(controls != null and controls.touch and controls.sampler == sampler, "the overlay drives the client's own sampler", str(touch.call(&"describe")))
 	_check(not controls.effective.autofire, "auto-fire is off by default (not a shooter)")
 	_check(not controls.effective.aim_assist, "aim assist is off by default")
@@ -99,13 +99,13 @@ func _overlay() -> void:
 	finger.pressed = true
 	finger.position = controls.buttons.centre_of(&"jump")
 	controls.buttons._input(finger)
-	_check((sampler.sample(1.0 / 60.0).buttons & DotFpsCommand.BUTTON_JUMP) != 0, "jump is held on the sampler while it is down")
+	_check((sampler.sample(1.0 / 60.0).buttons & GSFpsCommand.BUTTON_JUMP) != 0, "jump is held on the sampler while it is down")
 	touch.call(&"sync", true)
 	_check(not controls.visible and not bool(touch.call(&"active")), "a menu or the command line pauses it")
 	touch.call(&"sync", false)
 	_check(bool(touch.call(&"active")), "and closing it brings it back")
 	host.free()
-	DotPlatform.touch_override = -1
+	GSPlatform.touch_override = -1
 
 
 func _min_diameter(layout: Array[Dictionary]) -> float:

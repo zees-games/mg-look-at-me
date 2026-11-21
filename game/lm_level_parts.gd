@@ -175,7 +175,7 @@ func _build_stair(root: Node, room_id: String) -> void:
 
 
 ## A lift in place of the ramp: the head landing as before, and between the stops a car, a solid column whose top
-## is the floor you ride (it rises from the foot's floor to the head landing and back on a [DotFpsLiftCycle], a
+## is the floor you ride (it rises from the foot's floor to the head landing and back on a [GSFpsLiftCycle], a
 ## pure function of the shared clock, so nothing about it is sent). A column, so nobody walks or is crushed under it.
 func _build_lift(root: Node, room_id: String, foot: Vector3, dir: Vector3, yaw: float, run: float, width: float, rise: float, cell: float, length: float, stone: Material) -> void:
 	var landing := _box(root, Vector3(cell, rise, width), Vector3.ZERO, stone, true)
@@ -199,7 +199,7 @@ func _build_lift(root: Node, room_id: String, foot: Vector3, dir: Vector3, yaw: 
 	var half := Vector2(run, width) * 0.5 if absf(dir.x) > 0.5 else Vector2(width, run) * 0.5
 	var lift_doc: Dictionary = rooms[room_id]["doc"]
 	lifts[room_id] = {
-		"cycle": DotFpsLiftCycle.new(float(lift_doc.get("rest", 4.0)), float(lift_doc.get("travel", 3.0)), float(lift_doc.get("phase", 0.0))),
+		"cycle": GSFpsLiftCycle.new(float(lift_doc.get("rest", 4.0)), float(lift_doc.get("travel", 3.0)), float(lift_doc.get("phase", 0.0))),
 		"body": car, "gate": gate, "gate_y": gate.position.y, "bottom": foot.y, "rise": rise, "size_y": size_y,
 		"rect": Rect2(Vector2(centre.x, centre.z) - half, half * 2.0),
 	}
@@ -284,7 +284,7 @@ func _build_item(item: Dictionary, at: Vector3) -> Node3D:
 	root.name = "Item_%s" % item["id"]
 	# Picked up at arm's length by interacting, never collided with: a solid stand would block
 	# the room's walk lanes (the builder proves them clear) and the witches' paths.
-	root.set_meta(DotCollisionAudit.META, true)
+	root.set_meta(GSCollisionAudit.META, true)
 	add_child(root)
 	root.position = at
 
@@ -306,7 +306,7 @@ func _build_station(station: Dictionary, at: Vector3) -> Node3D:
 	root.name = "Station_%s" % station["id"]
 	# Used by interacting from beside it; the builder keeps its surroundings clear and it is
 	# passable by design, as the witches' lanes may cross it.
-	root.set_meta(DotCollisionAudit.META, true)
+	root.set_meta(GSCollisionAudit.META, true)
 	add_child(root)
 	root.position = at
 

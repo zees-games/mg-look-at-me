@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## A server and a client in one process over the link's loopback, each in its own physics world, the client predicting.
 ##   godot --headless --path . res://examples/headless_net.tscn
@@ -24,8 +24,8 @@ var _finished := 0
 
 var _server_game: LmGame = null
 var _client_game: LmGame = null
-var _server_net: DotNetManager = null
-var _client_net: DotNetManager = null
+var _server_net: GSNetManager = null
+var _client_net: GSNetManager = null
 var _server_bridge: LmNetBridge = null
 var _client_bridge: LmNetBridge = null
 var _to_client: Array = []
@@ -64,11 +64,11 @@ func _ready() -> void:
 	_client_bridge = null
 	_to_client.clear()
 	_to_server.clear()
-	DotHumanoidFigure.clear_cache()
-	DotHudPiece.clear_cache()
-	DotMenuKit.clear_cache()
+	GSHumanoidFigure.clear_cache()
+	GSHudPiece.clear_cache()
+	GSMenuKit.clear_cache()
 	LmLevel.clear_cache()
-	DotRegistry.clear()
+	GSRegistry.clear()
 	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
@@ -84,14 +84,14 @@ func _make_game(authoritative: bool, parent: Node) -> LmGame:
 	return world
 
 
-func _make_manager(is_server: bool, parent: Node) -> DotNetManager:
-	var manager := DotNetManager.new()
+func _make_manager(is_server: bool, parent: Node) -> GSNetManager:
+	var manager := GSNetManager.new()
 	manager.name = "Net"
 	manager.is_server = is_server
 	manager.local_peer_id = 1 if is_server else CLIENT_PEER
 	manager.auto_tick = false
 	manager.config_file = ""
-	var config := DotNetConfig.new()
+	var config := GSNetConfig.new()
 	config.tick_rate = 60
 	config.snapshot_rate = LmGame.NET_SNAPSHOT_RATE
 	config.world_extent = LmGame.NET_WORLD_EXTENT
@@ -124,7 +124,7 @@ func _build() -> bool:
 	# This harness stamps every command itself, so the client must not ask for dot-net's input-lead report:
 	# steered by reports about commands it never stamped, the clock runs away. By the constant map, so it
 	# parses against a dot-net from before the report.
-	var lead_bit := int((DotNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
+	var lead_bit := int((GSNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
 	_client_net.messages.features &= ~lead_bit
 
 	_server_bridge = LmNetBridge.new()
@@ -193,14 +193,14 @@ func _test_joining() -> void:
 	_check(built_at_progress[0] == 32 and _server_bridge.house_progress(CLIENT_PEER).is_empty(),
 		"and hears its progress only after the last level", "built %d" % built_at_progress[0])
 	var mine: LmPlayer = _client_game.players.get(_key, null)
-	var identity: DotNetIdentity = mine.get_node_or_null("Identity") if mine != null else null
+	var identity: GSNetIdentity = mine.get_node_or_null("Identity") if mine != null else null
 	_check(identity != null and identity.is_predicted(), "and predicts its own player")
 	_check(absf(_client_game.levels[16].position.x - _server_game.levels[16].position.x) < 0.001, "its house is laid out where the server's is")
 	var server_mine: LmPlayer = _server_game.players.get(_key, null)
 	_check(mine != null and server_mine != null and LmAvatars.skin_index(mine.avatar) == LmAvatars.skin_index(server_mine.avatar),
 		"it draws its player in the face the server seated them with")
 	# The platform's answer arriving after the seat: another skin, and the same JOIN again.
-	var other := DotAvatar.make(LmAvatars.SCHEMA_ID)
+	var other := GSAvatar.make(LmAvatars.SCHEMA_ID)
 	var next_skin: StringName = LmAvatars.SKINS[(maxi(LmAvatars.skin_index(server_mine.avatar), 0) + 1) % LmAvatars.SKINS.size()]
 	other.set_part(LmAvatars.SLOT_SKIN, next_skin)
 	var refreshed := _server_bridge.refresh_player(SESSION, "Ada Lovelace", other)
@@ -218,7 +218,7 @@ func _test_walking() -> void:
 	_section("walking, predicted")
 	var server_player: LmPlayer = _server_game.players[_key]
 	var start := server_player.global_position
-	var go := DotFpsCommand.new()
+	var go := GSFpsCommand.new()
 	go.yaw = 90.0
 	go.move = Vector2(0, 1)
 	await _steps(90, go)
@@ -239,7 +239,7 @@ func _test_a_lost_input() -> void:
 	var buffer := _server_net.input_buffer_for(CLIENT_PEER)
 	var late_before := buffer.late_count
 	var duplicates_before := buffer.duplicate_count
-	var turn := DotFpsCommand.new()
+	var turn := GSFpsCommand.new()
 	turn.yaw = 33.0
 	turn.move = Vector2(1, 0)
 
@@ -263,7 +263,7 @@ func _test_a_lost_input() -> void:
 
 	await _step()
 	var held := buffer.peek(lost_tick)
-	var move: DotFpsCommand = held.get("move") if held != null else null
+	var move: GSFpsCommand = held.get("move") if held != null else null
 	_check(dropped == 1 and missing and move != null and absf(move.yaw - 33.0) < 0.5 and move.move.x > 0.5,
 		"a dropped input packet is recovered from the next packet's copies",
 		"dropped %d, held %s" % [dropped, "yes" if held != null else "no"])
@@ -295,7 +295,7 @@ func _test_a_door_for_one() -> void:
 	server_player.place_at(at, yaw)
 	_exchange()
 	await _steps(20)
-	var go := DotFpsCommand.new()
+	var go := GSFpsCommand.new()
 	go.yaw = yaw
 	go.move = Vector2(0, 1)
 	await _steps(80, go)
@@ -362,7 +362,7 @@ func _test_the_click() -> void:
 	client.call("_build_audio")
 	client.call("_listen_for_sounds")
 	var audio: Node = client.get("audio")
-	var sink := audio.get("manager").get("sink") as DotAudioSinkNull if audio != null else null
+	var sink := audio.get("manager").get("sink") as GSAudioSinkNull if audio != null else null
 	var server_player: LmPlayer = _server_game.players[_key]
 	var level: LmLevel = _server_game.levels[server_player.level]
 	var item_id := ""
@@ -447,7 +447,7 @@ func _test_one_account_twice() -> void:
 	# What the kick sets off: the older session leaves, and the roster tells the bridge.
 	_server_bridge.remove_peer(TAB_ONE)
 	var player: LmPlayer = _server_game.players.get(key, null)
-	var identity: DotNetIdentity = player.get_node_or_null("Identity") if player != null else null
+	var identity: GSNetIdentity = player.get_node_or_null("Identity") if player != null else null
 	_check(identity != null and identity.owner_peer_id == TAB_TWO and _server_net.registry.all().size() == 1,
 		"the older connection's leave does not take the newcomer's player", str(identity.owner_peer_id if identity != null else -1))
 	_server_bridge.remove_peer(TAB_TWO)
@@ -477,17 +477,17 @@ func _exchange() -> void:
 	_flush()
 
 
-func _step(command: DotFpsCommand = null) -> void:
+func _step(command: GSFpsCommand = null) -> void:
 	_tick += 1
 	var _t := _client_net.clock.advance(1.0 / 60.0)
 	_server_bridge.server_tick(_tick)
 	_flush()
-	_client_bridge.client_tick(_tick + INPUT_LEAD, command if command != null else DotFpsCommand.new())
+	_client_bridge.client_tick(_tick + INPUT_LEAD, command if command != null else GSFpsCommand.new())
 	_flush()
 	await get_tree().physics_frame
 
 
-func _steps(count: int, command: DotFpsCommand = null) -> void:
+func _steps(count: int, command: GSFpsCommand = null) -> void:
 	for _i in count:
 		await _step(command)
 
@@ -496,7 +496,7 @@ func _steps(count: int, command: DotFpsCommand = null) -> void:
 ## panel and an edit that applies and replicates; a guest, a non-admin, a revoked admin and the cvar off are refused.
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
-	if not DotGameWorkbench.available():
+	if not GSGameWorkbench.available():
 		print("  dot-workbench is not linked: skipped")
 		_passed += 16
 		_finished_section()
@@ -511,26 +511,26 @@ func _test_the_remote_workbench() -> void:
 	var cbinder := LmConfig.make_binder(cconfig)
 	var _l1 := sbinder.load_layers()
 	var _l2 := cbinder.load_layers()
-	var set: DotProfileSet = null
-	for candidate: DotProfileSet in sbinder.profile_sets():
+	var set: GSProfileSet = null
+	for candidate: GSProfileSet in sbinder.profile_sets():
 		if candidate.rel_path.ends_with("players"):
 			set = candidate
-	var cset: DotProfileSet = null
-	for candidate: DotProfileSet in cbinder.profile_sets():
+	var cset: GSProfileSet = null
+	for candidate: GSProfileSet in cbinder.profile_sets():
 		if candidate.rel_path.ends_with("players"):
 			cset = candidate
-	var swb := DotGameWorkbench.new()
+	var swb := GSGameWorkbench.new()
 	swb.dedicated = true
 	swb.config = {"enabled": false}
 	swb.add_set(set, "Game settings")
 	add_child(swb)
 	var started := swb.start()
 	sbinder.attach(swb.api.runtime)
-	var made := DotGameWorkbenchRemote.serve(snet)
-	var slink := DotNetProfileLink.attach(snet, swb.api.runtime as DotProfileRuntime)
-	var cremote := DotGameWorkbenchRemoteClient.attach(cnet)
-	var crt := DotProfileRuntime.new()
-	var clink := DotNetProfileLink.attach(cnet, crt)
+	var made := GSGameWorkbenchRemote.serve(snet)
+	var slink := GSNetProfileLink.attach(snet, swb.api.runtime as GSProfileRuntime)
+	var cremote := GSGameWorkbenchRemoteClient.attach(cnet)
+	var crt := GSProfileRuntime.new()
+	var clink := GSNetProfileLink.attach(cnet, crt)
 	snet.messages.seal()
 	cnet.messages.seal()
 	var remote := swb.serve_remote(snet)
@@ -546,8 +546,8 @@ func _test_the_remote_workbench() -> void:
 	remote.connected_fn = func(_p: int) -> bool: return true
 	remote.permit_uid_fn = func(uid: String, flag: String) -> bool: return (flags.get(uid, []) as Array).has(flag)
 	remote.now_fn = func() -> int: return state["now"]
-	remote.limiter = DotRateLimiter.new(1000.0, 1000.0)
-	var cwb := DotGameWorkbench.new()
+	remote.limiter = GSRateLimiter.new(1000.0, 1000.0)
+	var cwb := GSGameWorkbench.new()
 	cwb.panel_mode = 2
 	cwb.config = {"enabled": false}
 	cwb.remote_client = cremote
@@ -558,11 +558,11 @@ func _test_the_remote_workbench() -> void:
 	_check(cstarted.ok and cwb.overlay == null, "the client's workbench starts with no panel")
 	var kind: String = set.rel_path
 	var edit := {"op": "set", "kind": kind, "id": sbinder.profile_id, "key": "allow_third_person", "value": false}
-	var srt := swb.api.runtime as DotProfileRuntime
+	var srt := swb.api.runtime as GSProfileRuntime
 	_the_remote_workbench_2(flags, state, snet, cnet, sconfig, sbinder, swb, slink, cremote, crt, clink, remote, cwb, kind, edit, srt)
 
 
-func _the_remote_workbench_2(flags: Dictionary, state: Dictionary, snet: DotNetManager, cnet: DotNetManager, sconfig: LmConfig, sbinder: DotGameConfigBinder, swb: DotGameWorkbench, slink: DotNetProfileLink, cremote: DotGameWorkbenchRemoteClient, crt: DotProfileRuntime, clink: DotNetProfileLink, remote: DotGameWorkbenchRemote, cwb: DotGameWorkbench, kind: String, edit: Dictionary, srt: DotProfileRuntime) -> void:
+func _the_remote_workbench_2(flags: Dictionary, state: Dictionary, snet: GSNetManager, cnet: GSNetManager, sconfig: LmConfig, sbinder: GSGameConfigBinder, swb: GSGameWorkbench, slink: GSNetProfileLink, cremote: GSGameWorkbenchRemoteClient, crt: GSProfileRuntime, clink: GSNetProfileLink, remote: GSGameWorkbenchRemote, cwb: GSGameWorkbench, kind: String, edit: Dictionary, srt: GSProfileRuntime) -> void:
 	state["uid"] = "boss"
 	cremote.ask()
 	_check(not cremote.allowed and cwb.overlay == null, "with the cvar off even an admin is told no and gets no panel")
@@ -573,7 +573,7 @@ func _the_remote_workbench_2(flags: Dictionary, state: Dictionary, snet: DotNetM
 	cremote.ask()
 	_check(cremote.allowed and cremote.flags.has("cvar"), "with the cvar on an admin is told the flags it holds")
 	_check(cwb.overlay != null, "and gets the panel")
-	var applied: DotResult = cwb.api.handle(DotGameWorkbenchRemoteClient.ACTOR, edit)
+	var applied: GSResult = cwb.api.handle(GSGameWorkbenchRemoteClient.ACTOR, edit)
 	_check(applied.ok and not sconfig.allow_third_person, "an edit from the panel reaches the server's live config", "" if applied.ok else applied.error.message)
 	_check(crt.revision(kind, sbinder.profile_id) > 0 and crt.revision(kind, sbinder.profile_id) == srt.revision(kind, sbinder.profile_id), "and its row replicated to the client")
 

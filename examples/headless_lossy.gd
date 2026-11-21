@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 const LMTestPorts := preload("test_ports.gd")
 
 ## A real look-at-me server and client on ENet through dot-net's lossy UDP relay (`godot --headless --path . res://examples/headless_lossy.tscn [-- --verbose]`).
@@ -40,20 +40,20 @@ var _verbose := false
 var _stock := false
 
 var _server_side: Node = null
-var _server: DotServer = null
+var _server: GSServer = null
 var _server_game: LmGame = null
 var _relay = null
 
 var _client_side: Node = null
-var _link: DotClientLink = null
+var _link: GSClientLink = null
 var _client_game: LmGame = null
-var _client_net: DotNetManager = null
+var _client_net: GSNetManager = null
 var _client_bridge: LmNetBridge = null
 var _spawned := [false]
 var _gone := [""]
 
 ## The command the client plays each tick while [member _driving].
-var _move: DotFpsCommand = null
+var _move: GSFpsCommand = null
 var _driving := false
 
 
@@ -61,13 +61,13 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	_verbose = "--verbose" in args
 	_stock = "--stock-throttle" in args
-	DotLog.set_level(DotLog.Level.DEBUG if _verbose else DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.DEBUG if _verbose else GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("look at me, over ENet through a lossy relay%s" % (" (stock throttle)" if _stock else ""))
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	DirAccess.make_dir_recursive_absolute(DATA)
 
 	if await _boot() and await _connect():
@@ -75,7 +75,7 @@ func _run() -> void:
 			await _walk_window(window)
 
 	await _teardown()
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 
 	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
@@ -112,7 +112,7 @@ func _seconds(s: float) -> void:
 		await get_tree().physics_frame
 
 
-func _module() -> DotModule:
+func _module() -> GSModule:
 	return _server.modules.get_module("lookatme") if _server != null else null
 
 
@@ -160,7 +160,7 @@ func _boot() -> bool:
 	var scene: Node = (load("res://scenes/lm_server.tscn") as PackedScene).instantiate()
 	_server_side.add_child(scene)
 	await get_tree().process_frame
-	_server_game = DotRegistry.get_node_service(LmGame.SERVICE) as LmGame
+	_server_game = GSRegistry.get_node_service(LmGame.SERVICE) as LmGame
 
 	if not _check(_server_game != null and _server_game.levels.size() == 32, "the server scene builds the house"):
 		_done()
@@ -168,7 +168,7 @@ func _boot() -> bool:
 
 	_server_game.config.winners_file = "%s/winners.json" % DATA
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "look at me lossy"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -186,20 +186,20 @@ func _boot() -> bool:
 	config.stdin_console_enabled = false
 	config.log_level = "debug" if _verbose else "error"
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	_server_side.add_child(_server)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 
 	if not _check(booted.ok, "the server boots, WebSocket and ENet", str(booted.error)):
 		_done()
 		return false
 
-	var loaded: DotResult = await _server.modules.load_module("res://game/lm_module.gd")
+	var loaded: GSResult = await _server.modules.load_module("res://game/lm_module.gd")
 
 	if not _check(loaded.ok, "the module loads", str(loaded.error)):
 		_done()
@@ -210,16 +210,16 @@ func _boot() -> bool:
 	var w: Array = WINDOWS[0]
 	_relay.up.configure(float(w[1]), float(w[2]), float(w[3]))
 	_relay.down.configure(float(w[1]), float(w[2]), float(w[3]))
-	var relayed: DotResult = _relay.start(0, "127.0.0.1", config.effective_enet_port())
+	var relayed: GSResult = _relay.start(0, "127.0.0.1", config.effective_enet_port())
 	_check(relayed.ok, "the relay listens in front of UDP %d" % config.effective_enet_port(), str(relayed.error))
 	_done()
 	return relayed.ok
 
 
-## A client: a [DotClientLink] on ENet only, in a world of its own (its player is a body, and
+## A client: a [GSClientLink] on ENet only, in a world of its own (its player is a body, and
 ## the server's is another one in the same place), and the netcode `LmClient._build_netcode`
 ## builds, minus everything that draws.
-func _build_client_net() -> DotResult:
+func _build_client_net() -> GSResult:
 	_client_game = LmGame.new()
 	_client_game.name = "World"
 	_client_game.authoritative = false
@@ -228,14 +228,14 @@ func _build_client_net() -> DotResult:
 	_client_game.self_tick = false
 	_client_side.add_child(_client_game)
 
-	_client_net = DotNetManager.new()
+	_client_net = GSNetManager.new()
 	_client_net.name = "Net"
 	_client_net.is_server = false
 	_client_net.auto_tick = false
 	_client_net.config_file = ""
 	# Not the server's manager's registry slot: two ends in one process.
 	_client_net.service_scope = &"lossy_client"
-	var cfg := DotNetConfig.new()
+	var cfg := GSNetConfig.new()
 	cfg.tick_rate = Engine.physics_ticks_per_second
 	cfg.snapshot_rate = LmGame.NET_SNAPSHOT_RATE
 	cfg.world_extent = LmGame.NET_WORLD_EXTENT
@@ -268,7 +268,7 @@ func _connect() -> bool:
 	view.add_child(_client_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _client_side.get_path())
 
-	_link = DotClientLink.new()
+	_link = GSClientLink.new()
 	_link.name = "Server"
 	_link.player_name = "Walker"
 	_link.transport_preference = "udp"
@@ -282,7 +282,7 @@ func _connect() -> bool:
 
 	_link.connect_to_server("127.0.0.1:%d" % PORT)
 	await _until(func() -> bool:
-		return _spawned[0] or _gone[0] != "" or _link.phase == DotClientLink.Phase.FAILED, 30.0)
+		return _spawned[0] or _gone[0] != "" or _link.phase == GSClientLink.Phase.FAILED, 30.0)
 
 	_check(_spawned[0] and _link.transport_used == "enet", "the client is seated, on ENet",
 		"transport %s, %s" % [_link.transport_used, _gone[0]])
@@ -292,8 +292,8 @@ func _connect() -> bool:
 		var mp: Object = _client_side.multiplayer.multiplayer_peer
 		var to_server: Object = mp.call("get_peer", 1) if mp != null and mp.has_method("get_peer") else null
 		if to_server != null:
-			to_server.call("throttle_configure", DotTransportENet.ENET_DEFAULT_THROTTLE_INTERVAL_MS,
-				DotTransportENet.ENET_DEFAULT_THROTTLE_ACCELERATION, DotTransportENet.ENET_DEFAULT_THROTTLE_DECELERATION)
+			to_server.call("throttle_configure", GSTransportENet.ENET_DEFAULT_THROTTLE_INTERVAL_MS,
+				GSTransportENet.ENET_DEFAULT_THROTTLE_ACCELERATION, GSTransportENet.ENET_DEFAULT_THROTTLE_DECELERATION)
 
 	# Under the link once it is playing, as a delivered game's scene does: the link retires
 	# whatever it finds under itself when it loads the game.
@@ -324,7 +324,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var ticks := _client_net.clock.advance(delta)
-	var move := _move if _move != null else DotFpsCommand.new()
+	var move := _move if _move != null else GSFpsCommand.new()
 
 	for i in range(ticks):
 		if _client_net.clock.is_synced():
@@ -419,7 +419,7 @@ func _walk_window(window: Array) -> void:
 
 	var travelled := await _walk_legs(deadline, server_player, throttle_low, t0, [in_sent, in_got, snap_sent, snap_got])
 
-	_move = DotFpsCommand.new()
+	_move = GSFpsCommand.new()
 	await _seconds(0.8)
 
 	var inputs_sent := int(client_link.get("inputs_sent")) - in_sent
@@ -445,7 +445,7 @@ func _walk_window(window: Array) -> void:
 	_check(travelled > 2.0, "the client's keys walk the server's player", "%.1f m walked" % travelled)
 	var gap := mine.controller.state.position.distance_to(server_player.controller.state.position)
 	_check(gap < 0.5, "and the client's prediction ends within half a metre of it", "%.3f m" % gap)
-	_check(_link.phase == DotClientLink.Phase.PLAYING and _gone[0] == "", "the client is still connected", _gone[0])
+	_check(_link.phase == GSClientLink.Phase.PLAYING and _gone[0] == "", "the client is still connected", _gone[0])
 	_check(int(said["up"]["delivered"]) > 0 and int(said["down"]["delivered"]) > 0,
 		"and every datagram went through the relay",
 		"up %s, down %s" % [said["up"]["delivered"], said["down"]["delivered"]])
@@ -453,8 +453,8 @@ func _walk_window(window: Array) -> void:
 
 
 ## The command for one leg of the walk: forward, facing one way and then the other.
-static func _leg(n: int) -> DotFpsCommand:
-	var go := DotFpsCommand.new()
+static func _leg(n: int) -> GSFpsCommand:
+	var go := GSFpsCommand.new()
 	go.yaw = 90.0 if n % 2 == 0 else -90.0
 	go.move = Vector2(0, 1)
 	return go
@@ -462,7 +462,7 @@ static func _leg(n: int) -> DotFpsCommand:
 
 func _run_command(line: String) -> PackedStringArray:
 	var captured: Array[String] = []
-	var context := DotCmdContext.console("", PackedStringArray())
+	var context := GSCmdContext.console("", PackedStringArray())
 	context.reply_sink = func(text: String) -> void: captured.append(text)
 	_server.console.execute(line, context)
 	return PackedStringArray(captured)

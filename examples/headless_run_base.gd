@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## The house, headless: shared state and helpers, then the first sections (see headless_run.gd).
 
@@ -84,13 +84,13 @@ func _furthest_from(level: LmLevel, room_id: String, from: Vector3) -> Vector3:
 	return best
 
 
-## Waits for a booted client's loading cover to lift (dot-game's DotGameClient holds it until
+## Waits for a booted client's loading cover to lift (dot-game's GSGameClient holds it until
 ## the player exists and the camera is current); everything is held under it.
 func _shown(client: Node) -> void:
 	for i in 240:
 		await get_tree().process_frame
 		var platform: Variant = client.get("platform")
-		if platform != null and (platform as DotGameClient).is_shown():
+		if platform != null and (platform as GSGameClient).is_shown():
 			break
 	for i in 2:
 		await get_tree().process_frame
@@ -327,7 +327,7 @@ func _test_doors_are_per_player() -> void:
 	var yaw := rad_to_deg(atan2(-normal.x, -normal.z))
 	a.place_at(start + Vector3(0.0, 0.1, 0.0), yaw)
 	b.place_at(start + Vector3(0.0, 0.1, 0.0), yaw)
-	var go := DotFpsCommand.new()
+	var go := GSFpsCommand.new()
 	go.yaw = yaw
 	go.move = Vector2(0, 1)
 

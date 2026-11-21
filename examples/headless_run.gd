@@ -58,11 +58,11 @@ func _ready() -> void:
 		child.free()
 	game = null
 	(load("res://game/lm_surfaces.gd") as GDScript).call(&"clear_cache")
-	DotHumanoidFigure.clear_cache()
-	DotHudPiece.clear_cache()
-	DotMenuKit.clear_cache()
+	GSHumanoidFigure.clear_cache()
+	GSHudPiece.clear_cache()
+	GSMenuKit.clear_cache()
 	LmLevel.clear_cache()
-	DotRegistry.clear()
+	GSRegistry.clear()
 	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
@@ -72,12 +72,12 @@ func _test_voice() -> void:
 	_section("voice: proximity with a short radius, a wall turns it down, witches hear it")
 	var services := LmServices.new()
 	services.game = game
-	var router := DotVoiceRouter.new()
+	var router := GSVoiceRouter.new()
 	var format := LmServices.voice_format()
 	router.config = format
 	router.default_channel = services._voice_default_channel()
 	services.configure_voice(router)
-	_check(router.default_channel == DotVoiceRouter.Channel.PROXIMITY, "voice is proximity by default")
+	_check(router.default_channel == GSVoiceRouter.Channel.PROXIMITY, "voice is proximity by default")
 	_check(router.proximity_range == LmServices.PROXIMITY_RANGE and router.proximity_range <= 20.0, "with a short radius", str(router.proximity_range))
 	_check(router.proximity_occlusion and router.occlusion_fn.is_valid(), "and a wall in the way is on")
 	var specs := {}
@@ -112,23 +112,23 @@ func _test_voice() -> void:
 	router.position_fn = func(peer: int) -> Vector3: return places.get(peer, Vector3.ZERO)
 	var heard := {}
 	router.send_fn = func(peer: int, bytes: PackedByteArray) -> void:
-		var parsed := DotVoicePacket.from_bytes(bytes)
+		var parsed := GSVoicePacket.from_bytes(bytes)
 		heard[peer] = parsed.value.gain if parsed.ok else -1.0
 
 	for peer in places:
 		router.add_peer(peer)
 
-	var packet := DotVoicePacket.new()
+	var packet := GSVoicePacket.new()
 	packet.speaker = 1
 	packet.sample_count = format.frame_samples()
-	packet.channel = DotVoiceRouter.Channel.PROXIMITY
+	packet.channel = GSVoiceRouter.Channel.PROXIMITY
 	packet.codec_id = &"adpcm"
-	packet.payload = DotVoiceCodec.instance_for(&"adpcm").encode(DotVoiceSourceBuffer.tone(300.0, 0.02, format.sample_rate, 0.4))
+	packet.payload = GSVoiceCodec.instance_for(&"adpcm").encode(GSVoiceSourceBuffer.tone(300.0, 0.02, format.sample_rate, 0.4))
 	var relayed := router.relay(1, packet.to_bytes())
 	_check(relayed.ok, "a frame relays", str(relayed.error))
 
-	var expected_clear := DotVoiceProximity.gain(centre.distance_to(clear_at), router.proximity_range, router.proximity_min_distance, router.proximity_falloff)
-	var expected_wall := DotVoiceProximity.gain(centre.distance_to(wall_at), router.proximity_range, router.proximity_min_distance, router.proximity_falloff) * router.occlusion_gain
+	var expected_clear := GSVoiceProximity.gain(centre.distance_to(clear_at), router.proximity_range, router.proximity_min_distance, router.proximity_falloff)
+	var expected_wall := GSVoiceProximity.gain(centre.distance_to(wall_at), router.proximity_range, router.proximity_min_distance, router.proximity_falloff) * router.occlusion_gain
 	_check(heard.has(4) and is_equal_approx(heard[4], 1.0), "a player 0.5 m away hears full volume", str(heard.get(4)))
 	_check(heard.has(2) and absf(heard[2] - expected_clear) < 0.02 and heard[2] < 1.0, "a player in the open at distance hears the falloff's gain", "%.3f expected %.3f" % [heard.get(2, -1.0), expected_clear])
 	_check(heard.has(3) and absf(heard[3] - expected_wall) < 0.02, "through a wall it is turned down by the occlusion gain", "%.3f expected %.3f" % [heard.get(3, -1.0), expected_wall])
@@ -355,7 +355,7 @@ func _scares_4(view: Dictionary) -> void:
 	for i in 6:
 		await get_tree().process_frame
 	var me: LmPlayer = client.get("player")
-	var sink := client.get("audio").get("manager").get("sink") as DotAudioSinkNull
+	var sink := client.get("audio").get("manager").get("sink") as GSAudioSinkNull
 	var view_node: Node3D = client.get("scare_view")
 	var director: LmScares = client.get("scares")
 	director.config.demon_spawn_min = 1.0
@@ -389,25 +389,25 @@ func _scares_4(view: Dictionary) -> void:
 func _test_wheel_jumps() -> void:
 	_section("the wheel jumps")
 	var keys := LmBindings.make()
-	_check(keys.row_for_setting(DotMenuBindings.WHEEL_JUMP_UP_SETTING).get("action", &"") == DotMenuBindings.JUMP_ACTION, "Wheel up is a row")
-	_check(keys.row_for_setting(DotMenuBindings.WHEEL_JUMP_DOWN_SETTING).get("action", &"") == DotMenuBindings.JUMP_ACTION, "Wheel down is a row")
-	var sampler := DotFpsSampler.new(DotFpsTunables.new())
-	DotFpsSampler.register_default_actions(sampler)
+	_check(keys.row_for_setting(GSMenuBindings.WHEEL_JUMP_UP_SETTING).get("action", &"") == GSMenuBindings.JUMP_ACTION, "Wheel up is a row")
+	_check(keys.row_for_setting(GSMenuBindings.WHEEL_JUMP_DOWN_SETTING).get("action", &"") == GSMenuBindings.JUMP_ACTION, "Wheel down is a row")
+	var sampler := GSFpsSampler.new(GSFpsTunables.new())
+	GSFpsSampler.register_default_actions(sampler)
 	var tick := InputEventMouseButton.new()
 	tick.button_index = MOUSE_BUTTON_WHEEL_UP
 	tick.pressed = true
-	InputMap.action_erase_events(DotMenuBindings.JUMP_ACTION)
-	InputMap.action_add_event(DotMenuBindings.JUMP_ACTION, tick)
+	InputMap.action_erase_events(GSMenuBindings.JUMP_ACTION)
+	InputMap.action_add_event(GSMenuBindings.JUMP_ACTION, tick)
 	sampler.handle_event(tick)
 	var release := tick.duplicate() as InputEventMouseButton
 	release.pressed = false
 	sampler.handle_event(release)
-	_check(sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "a wheel tick gives the jump bit in the next sample")
-	_check(not sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "and not in the one after")
+	_check(sampler.sample(0.016).is_pressed(GSFpsCommand.BUTTON_JUMP), "a wheel tick gives the jump bit in the next sample")
+	_check(not sampler.sample(0.016).is_pressed(GSFpsCommand.BUTTON_JUMP), "and not in the one after")
 	_finished_section()
 
 
-## dot-core's [DotCollisionAudit] over every level of both houses, built drawn as a client
+## dot-core's [GSCollisionAudit] over every level of both houses, built drawn as a client
 ## builds it: visible geometry nothing collides with is walked through. Strict.
 func _test_collision_audit() -> void:
 	_section("nothing drawn is walked through")
@@ -422,10 +422,10 @@ func _test_collision_audit() -> void:
 			var drawn := LmLevel.new()
 			add_child(drawn)
 			var _b := drawn.build((game.levels[n] as LmLevel).doc, true)
-			var res := DotCollisionAudit.audit(drawn, true)
+			var res := GSCollisionAudit.audit(drawn, true)
 
 			if res.ok:
-				var report: DotCollisionAudit = res.value
+				var report: GSCollisionAudit = res.value
 				examined += report.examined
 				found += report.count()
 

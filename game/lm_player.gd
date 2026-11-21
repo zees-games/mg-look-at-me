@@ -12,10 +12,10 @@ const EYE_HEIGHT := 1.6
 
 var player_key: StringName = &""
 var display_name: String = "Player"
-var avatar: DotAvatar = null
+var avatar: GSAvatar = null
 var config: LmConfig = null
-var controller: DotFpsController = null
-var sampler: DotFpsSampler = null
+var controller: GSFpsController = null
+var sampler: GSFpsSampler = null
 var figure: LmFigure = null
 
 ## The level they are on (1-based), the highest they have reached, and whether they have
@@ -76,17 +76,17 @@ func _ready() -> void:
 	collider.position = Vector3(0, 0.9, 0)
 	add_child(collider)
 
-	controller = DotFpsController.new()
+	controller = GSFpsController.new()
 	controller.name = "Controller"
 	controller.tick_rate = tick_rate
 	# External even offline: the world owns the tick, as a dedicated server's does.
-	controller.drive = DotFpsController.Drive.EXTERNAL
+	controller.drive = GSFpsController.Drive.EXTERNAL
 	controller.tunables = tunables_for(config)
 	add_child(controller)
 
 
-static func tunables_for(config: LmConfig) -> DotFpsTunables:
-	var t := DotFpsTunables.with_profile("legacy")
+static func tunables_for(config: LmConfig) -> GSFpsTunables:
+	var t := GSFpsTunables.with_profile("legacy")
 	# Friction only bites below stop_speed; classic's 1.43 lets a body coast past a doorway and the bot overshoots every waypoint.
 	t.stop_speed = config.stop_speed if config != null else 4.0
 	t.max_speed = config.run_speed if config != null else 4.6
@@ -104,7 +104,7 @@ static func tunables_for(config: LmConfig) -> DotFpsTunables:
 
 
 ## Rides a lift: before the move on every end that simulates this player, the car is posed for this tick and
-## anyone standing on it goes with it ([DotFpsLiftCycle]; the motor does not carry riders). [member lift_level] is the
+## anyone standing on it goes with it ([GSFpsLiftCycle]; the motor does not carry riders). [member lift_level] is the
 ## level when it has lifts, else null.
 func carry_lift(tick: int) -> void:
 	if lift_level == null:
@@ -128,8 +128,8 @@ func simulate(tick: int, delta: float) -> void:
 	# Offline the keys; on a server, whatever the bridge last applied from this player's input.
 	# Settling under the cover runs the body with its input off: it falls and lands, no keys.
 	if sampler != null:
-		var gate := DotLoadGate.of(self) if is_inside_tree() else null
-		controller.apply_command(sampler.sample(delta) if gate == null or gate.is_open() else DotFpsCommand.new())
+		var gate := GSLoadGate.of(self) if is_inside_tree() else null
+		controller.apply_command(sampler.sample(delta) if gate == null or gate.is_open() else GSFpsCommand.new())
 
 	carry_lift(tick)
 	controller.simulate_tick(tick, delta)
@@ -141,7 +141,7 @@ func eye_position() -> Vector3:
 
 
 ## Where the eye is DRAWN this frame, for this machine's own player: between its last two ticks
-## ([method DotFpsController.render_state]), so the camera does not step at tick rate. [method eye_position]
+## ([method GSFpsController.render_state]), so the camera does not step at tick rate. [method eye_position]
 ## is the simulation's. A connected client hands the controller its `render_clock`; a mirror has no second tick.
 func drawn_eye_position() -> Vector3:
 	var drawn := controller.render_state()
@@ -199,7 +199,7 @@ func reset_level() -> void:
 
 
 ## A new face: the figure is rebuilt on the next draw.
-func set_avatar(next: DotAvatar) -> void:
+func set_avatar(next: GSAvatar) -> void:
 	avatar = next
 
 	if figure != null:
@@ -221,7 +221,7 @@ func present_body(own_view: bool, simulated_here: bool = false) -> void:
 	figure.visible = not own_view
 	var at := controller.render_state().position if simulated_here else global_position
 	figure.set_motion({
-		"on_floor": controller.state.mode == DotFpsState.Mode.GROUND,
+		"on_floor": controller.state.mode == GSFpsState.Mode.GROUND,
 		"vertical": controller.state.velocity.y,
 		"crouched": controller.state.crouch_fraction > 0.5,
 		# The view's pitch: the upper body and the head follow it, which in a game about who is

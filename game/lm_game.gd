@@ -5,9 +5,9 @@ extends "lm_game_witches.gd"
 ## sees a player (range, cone, line of sight; nearer, lit and moving is faster); it climbs while she does, drains after a pause, full is caught.
 
 
-func ensure_runtime() -> DotProfileRuntime:
+func ensure_runtime() -> GSProfileRuntime:
 	if profile_runtime == null:
-		profile_runtime = DotProfileRuntime.new()
+		profile_runtime = GSProfileRuntime.new()
 		profile_runtime.permit = func(actor: Variant, _flag: String) -> bool:
 			return typeof(actor) == TYPE_STRING_NAME and actor == &"local"
 	return profile_runtime
@@ -50,49 +50,49 @@ func _ready() -> void:
 		config_binder = LmConfig.make_binder(config, "user://cfg/lookatme.json")
 	var loaded := config_binder.load_layers()
 	if not loaded.ok:
-		DotGameConfigBinder.fail_boot(get_tree(), loaded)
+		GSGameConfigBinder.fail_boot(get_tree(), loaded)
 		return
 	tick_rate = Engine.physics_ticks_per_second
 	# The config's old switch is the server rule's first value until a cvar says otherwise.
 	if not config.allow_third_person:
-		view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
+		view_rules.force_view = GSPlayerViewRules.FIRST_ONLY
 	if not body_rules.changed.is_connected(_on_body_rules_changed):
 		body_rules.changed.connect(_on_body_rules_changed)
 
 	if authoritative:
 		_find_houses()
-		follow_content(DotContentIndex.shared(), accepted_map_kinds())
+		follow_content(GSContentIndex.shared(), accepted_map_kinds())
 		var _rotation := load_rotation()
 		var start := StringName(config.house) if houses.has(StringName(config.house)) else &"house"
 		var _h := change_house(start)
 		_read_winners()
 
 	if register_service:
-		DotRegistry.register(SERVICE, self)
+		GSRegistry.register(SERVICE, self)
 
 	set_physics_process(self_tick)
-	DotLog.info(CHANNEL, "the house is ready", {"levels": levels.size(), "refused": refused.size()})
+	GSLog.info(CHANNEL, "the house is ready", {"levels": levels.size(), "refused": refused.size()})
 
 
 func _exit_tree() -> void:
 	if register_service:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 
 
 ## Plays house [param id]: its levels replace these, and everybody starts again in its lobby.
 ## What the vote does, and what `lm_house` does for an operator.
-func change_house(id: StringName) -> DotResult:
+func change_house(id: StringName) -> GSResult:
 	sync_content()
 
 	if not houses.has(id):
-		return DotResult.fail(DotError.CODE_INVALID, "There is no house '%s'." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "There is no house '%s'." % id)
 
 	documents.clear()
 	refused.clear()
 	var _n := load_directory(str(houses[id]["directory"]))
 
 	if documents.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "House '%s' has no levels." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "House '%s' has no levels." % id)
 
 	build_levels()
 	house_id = id
@@ -106,12 +106,12 @@ func change_house(id: StringName) -> DotResult:
 	if has_rotation_file() and _defs.get_map(id) != null:
 		_rotation.note_played(id)
 
-	DotLog.info(CHANNEL, "a house opened", {"house": String(id), "levels": levels.size()})
+	GSLog.info(CHANNEL, "a house opened", {"house": String(id), "levels": levels.size()})
 	house_changed.emit(id)
-	return DotResult.success(id)
+	return GSResult.success(id)
 
 
-func join(key: StringName, name_text: String, avatar: DotAvatar = null) -> LmPlayer:
+func join(key: StringName, name_text: String, avatar: GSAvatar = null) -> LmPlayer:
 	if players.has(key):
 		return players[key]
 
@@ -311,7 +311,7 @@ func _write_winners() -> void:
 	if file != null:
 		file.store_string(JSON.stringify(_all_winners, "\t"))
 		file.close()
-		DotWeb.sync_filesystem()
+		GSWeb.sync_filesystem()
 
 
 func describe() -> Dictionary:

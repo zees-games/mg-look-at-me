@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## The phone's controls: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own
-## [DotFpsTouchSampler]. Buttons: use, flashlight, jump and crouch, and one for every key the keyboard has: camera (F5),
+## [GSFpsTouchSampler]. Buttons: use, flashlight, jump and crouch, and one for every key the keyboard has: camera (F5),
 ## command line, scoreboard (Tab, held), map list (M), look-to-gag and look-to-mute (G, K). Help (H) is the menu's own button.
 
 ## Not a shooter: no crosshair, no auto-fire and no aim assist. The client turns a press into what the key would have done.
@@ -11,9 +11,9 @@ const SelfScript := preload("lm_touch.gd")
 ## The margin the layout checks fit the cluster inside.
 const EDGE_MARGIN := 20.0
 
-var controls: DotMobileControls = null
+var controls: GSMobileControls = null
 ## dot-ui's buttons inside the overlay, for the shell's DPI fit.
-var buttons: DotTouchButtons:
+var buttons: GSTouchButtons:
 	get:
 		return controls.buttons if controls != null else null
 
@@ -23,25 +23,25 @@ var on_button: Callable = Callable()
 
 ## Whether this device wants them.
 static func wanted() -> bool:
-	return DotPlatform.has_touch()
+	return GSPlatform.has_touch()
 
 
 ## dot-game's platformer preset without sprint and chat, plus the flashlight in the corner home and a button for every key
 ## the keyboard has. Help (H) is the menu's own button, which opens "Help & commands".
-static func touch_layout() -> DotGameTouchLayout:
-	var res := DotGameTouchLayout.build(DotGameTouchLayout.PLATFORMER, {
-		DotGameTouchLayout.SPRINT: null,
-		DotGameTouchLayout.CHAT: null,
-		DotGameTouchLayout.CAMERA: &"row1",
-		DotGameTouchLayout.COMMAND: &"row2",
-		DotGameTouchLayout.MAPS: &"row4",
-		DotGameTouchLayout.GAG: &"secondary",
-		DotGameTouchLayout.MUTE: &"inner",
+static func touch_layout() -> GSGameTouchLayout:
+	var res := GSGameTouchLayout.build(GSGameTouchLayout.PLATFORMER, {
+		GSGameTouchLayout.SPRINT: null,
+		GSGameTouchLayout.CHAT: null,
+		GSGameTouchLayout.CAMERA: &"row1",
+		GSGameTouchLayout.COMMAND: &"row2",
+		GSGameTouchLayout.MAPS: &"row4",
+		GSGameTouchLayout.GAG: &"secondary",
+		GSGameTouchLayout.MUTE: &"inner",
 		&"flashlight": {"slot": &"corner", "label": "LIGHT"},
 	})
 	if not res.ok:
 		push_error("mg-look-at-me touch layout refused: %s" % str(res.error))
-		return DotGameTouchLayout.custom()
+		return GSGameTouchLayout.custom()
 	return res.value
 
 
@@ -50,24 +50,24 @@ static func overlay_layout() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for b: Dictionary in touch_layout().buttons():
 		var copy := b.duplicate()
-		if copy["id"] == DotGameTouchLayout.JUMP:
-			copy["hold"] = DotFpsCommand.BUTTON_JUMP
-		elif copy["id"] == DotGameTouchLayout.CROUCH:
-			copy["hold"] = DotFpsCommand.BUTTON_CROUCH
+		if copy["id"] == GSGameTouchLayout.JUMP:
+			copy["hold"] = GSFpsCommand.BUTTON_JUMP
+		elif copy["id"] == GSGameTouchLayout.CROUCH:
+			copy["hold"] = GSFpsCommand.BUTTON_CROUCH
 		out.append(copy)
 	return out
 
 
 ## Builds the overlay under [param host] (the HUD) driving [param sampler]. [param menu_fn] returns the menu's own button
 ## (or null), whose corner is left to it. Never null.
-static func build(host: Control, sampler: DotFpsSampler, menu_fn: Callable = Callable()) -> RefCounted:
+static func build(host: Control, sampler: GSFpsSampler, menu_fn: Callable = Callable()) -> RefCounted:
 	var made: RefCounted = (SelfScript as GDScript).new()
 	made.call(&"_setup", host, sampler, menu_fn)
 	return made
 
 
-func _setup(host: Control, sampler: DotFpsSampler, menu_fn: Callable) -> void:
-	controls = DotMobileControls.new()
+func _setup(host: Control, sampler: GSFpsSampler, menu_fn: Callable) -> void:
+	controls = GSMobileControls.new()
 	controls.name = "TouchControls"
 	controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if menu_fn.is_valid():
@@ -81,7 +81,7 @@ func _setup(host: Control, sampler: DotFpsSampler, menu_fn: Callable) -> void:
 
 
 ## Hands the overlay the sampler the client drives now (offline and connected play each have one).
-func use_sampler(sampler: DotFpsSampler) -> void:
+func use_sampler(sampler: GSFpsSampler) -> void:
 	if controls != null and sampler != null:
 		controls.setup(sampler, overlay_layout())
 

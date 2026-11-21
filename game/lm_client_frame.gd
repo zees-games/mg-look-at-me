@@ -30,7 +30,7 @@ func _physics_process(delta: float) -> void:
 	var typing := _command.visible or (chat != null and chat.is_typing())
 	# Under the cover the keys are not read (the sampler is suspended too), so the server and the
 	# prediction see an idle body: the clock still runs and the predicted body settles.
-	var move := _sampler.sample(delta) if _sampler != null and not typing and not _covered() else DotFpsCommand.new()
+	var move := _sampler.sample(delta) if _sampler != null and not typing and not _covered() else GSFpsCommand.new()
 
 	if command_override != null:
 		move = command_override
@@ -99,7 +99,7 @@ func mouse_drives_view() -> bool:
 	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 
 
-## The mouse turns the view: a [DotFpsSampler] is handed mouse motion by the client, in `_input` so
+## The mouse turns the view: a [GSFpsSampler] is handed mouse motion by the client, in `_input` so
 ## no Control can swallow it. While the command line is open the player's sampler is held aside.
 func _input(event: InputEvent) -> void:
 	var motion := event is InputEventMouseMotion
@@ -115,14 +115,14 @@ func _input(event: InputEvent) -> void:
 	if motion and not mouse_drives_view():
 		return
 
-	var sampler: DotFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
+	var sampler: GSFpsSampler = _sampler if not _offline else (player.sampler if player != null else null)
 
 	if sampler != null:
 		sampler.handle_event(event)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# A click taking the pointer back, Tab and M are the platform's (DotGameClient).
+	# A click taking the pointer back, Tab and M are the platform's (GSGameClient).
 	var key := event as InputEventKey
 
 	if key == null or not key.pressed or key.echo or _command.visible:
@@ -177,7 +177,7 @@ func _build_audio() -> void:
 	var ready_now := audio.setup()
 
 	if not ready_now.ok:
-		DotLog.warn(CHANNEL, "no sound", {"why": ready_now.error.message})
+		GSLog.warn(CHANNEL, "no sound", {"why": ready_now.error.message})
 		remove_child(audio)
 		audio.free()
 		audio = null
@@ -187,32 +187,32 @@ func _build_audio() -> void:
 ## the MOMENT of being caught is an effect, and an effect belongs to dot-fx, whose manager is
 ## where "allow flashes", the three-a-second limit and "shake" are enforced.
 func _build_effects() -> void:
-	var catalogue := DotFxCatalogue.new()
+	var catalogue := GSFxCatalogue.new()
 
-	var flash := DotFxDef.new()
+	var flash := GSFxDef.new()
 	flash.id = &"caught"
-	flash.kind = DotFxDef.Kind.SCREEN
+	flash.kind = GSFxDef.Kind.SCREEN
 	flash.flash_peak = 0.55
 	flash.flash_colour = Color(0.75, 0.0, 0.0, 1.0)
 	flash.flash_decay_ms = 700
 	catalogue.add(flash)
 
-	var jolt := DotFxDef.new()
+	var jolt := GSFxDef.new()
 	jolt.id = &"caught_jolt"
-	jolt.kind = DotFxDef.Kind.SHAKE
+	jolt.kind = GSFxDef.Kind.SHAKE
 	jolt.shake_trauma = 0.5
 	catalogue.add(jolt)
 
-	effects = DotFxManager.new()
+	effects = GSFxManager.new()
 	effects.name = "Effects"
 	effects.catalogue = catalogue
-	effects.config = DotFxConfig.new()
+	effects.config = GSFxConfig.new()
 	effects.register_as_service = false
 	add_child(effects)
 	var built := effects.setup()
 
 	if not built.ok:
-		DotLog.warn(CHANNEL, "no effects", {"why": built.error.message})
+		GSLog.warn(CHANNEL, "no effects", {"why": built.error.message})
 		remove_child(effects)
 		effects.free()
 		effects = null
@@ -351,7 +351,7 @@ func _process(delta: float) -> void:
 	if target.is_empty():
 		prompt.clear()
 	else:
-		prompt.show_prompt(String(target["text"]), "" if touch != null else DotInputBinding.describe_action(USE_ACTION))
+		prompt.show_prompt(String(target["text"]), "" if touch != null else GSInputBinding.describe_action(USE_ACTION))
 	_meter_bar.value = player.meter
 	_hear_player(level)
 	_present(delta)

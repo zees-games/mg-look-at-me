@@ -45,13 +45,13 @@ var player: LmPlayer = null
 var camera: Camera3D = null
 var flashlight: SpotLight3D = null
 ## The dot-flashlight node and the beams of the other players, shown from their `flashlight` flag.
-var fl: DotFlashlight = null
-var fl_config: DotFlashlightConfig = null
-var crowd: DotFlashlightCrowd = null
+var fl: GSFlashlight = null
+var fl_config: GSFlashlightConfig = null
+var crowd: GSFlashlightCrowd = null
 var third_person: bool = false
 
-var _probe: DotCameraProbe = null
-var _fade: DotCameraFade = null
+var _probe: GSCameraProbe = null
+var _fade: GSCameraFade = null
 var _focus: Marker3D = null
 
 var _env: Environment = null
@@ -62,7 +62,7 @@ var _events_shown: Dictionary = {}
 var _events_level := -1
 ## Room id -> seconds into its lamps' dying flicker.
 var _dying: Dictionary = {}
-## Seconds the lamps have been running, for their flicker ([DotLampFlicker]).
+## Seconds the lamps have been running, for their flicker ([GSLampFlicker]).
 var _lamp_time := 0.0
 ## Her, at the far end of a corridor, for a moment (a "glimpse" event); and for how long.
 var _glimpse: Node3D = null
@@ -72,39 +72,39 @@ var _step: Label = null
 var _objective: VBoxContainer = null
 var _holds: Label = null
 ## "Take the red key" with the use key drawn as a key, while something is in reach. dot-ui's
-## [DotKeyPrompt]; Not a Label with the letter fixed.
-var prompt: DotKeyPrompt = null
+## [GSKeyPrompt]; Not a Label with the letter fixed.
+var prompt: GSKeyPrompt = null
 var _message: Label = null
 var _meter_bar: ProgressBar = null
 var _vignette: ColorRect = null
 var _command: LineEdit = null
 var _message_left := 0.0
-var _held_sampler: DotFpsSampler = null
+var _held_sampler: GSFpsSampler = null
 
-var net: DotNetManager = null
+var net: GSNetManager = null
 ## Asks a server whether this player may edit it (sv_workbench_remote); null offline.
-var workbench_remote: DotGameWorkbenchRemoteClient = null
+var workbench_remote: GSGameWorkbenchRemoteClient = null
 ## The tuning panel's host: F9 solo, the admin's remote panel on a server that allows it.
-var workbench: DotGameWorkbench = null
+var workbench: GSGameWorkbench = null
 var bridge: LmNetBridge = null
 var link: Node = null
 
-## The Tab board, the menu's ([member DotGameClient.board]). See [method _dress_board].
-var board: DotMenuScoreboard = null
+## The Tab board, the menu's ([member GSGameClient.board]). See [method _dress_board].
+var board: GSMenuScoreboard = null
 
 ## When this client started, for an offline board's "time".
 var _started_msec: int = Time.get_ticks_msec()
 var _offline: bool = true
 ## Connected, the keys are sampled here and sent; the local player is predicted from them.
-var _sampler: DotFpsSampler = null
-var chat: DotGameChatClient = null
+var _sampler: GSFpsSampler = null
+var chat: GSGameChatClient = null
 ## Look at a player and press G to stop hearing them, K to mute them; connected games only.
-var look_mute: DotVoiceLookMute = null
+var look_mute: GSVoiceLookMute = null
 ## The house's sounds, through dot-audio. See [LmAudio].
 var audio: LmAudio = null
 ## The catch, felt: a red flash and a jolt through dot-fx, so the settings' "allow flashes" and
 ## "shake" reach them. See [method _build_effects].
-var effects: DotFxManager = null
+var effects: GSFxManager = null
 var _flash_rect: ColorRect = null
 ## The catch already shown, so a catch is flashed once and not every frame it lasts.
 var _was_caught := false
@@ -140,17 +140,17 @@ var _doors_level := -1
 ## The player's own settings and the screen Escape opens. See [LmSettings].
 var settings: LmSettings = null
 
-## The player's console ([member DotGameClient.console]).
-var console: DotConsoleController = null
+## The player's console ([member GSGameClient.console]).
+var console: GSConsoleController = null
 
 ## dot-game's client platform: the loading cover (held until this player exists and the camera
 ## is current), the settings' menu, the console, the HUD's theme, Tab, M, the pointer and the
-## input block the samplers follow. See [DotGameClient].
-var platform: DotGameClient = null
+## input block the samplers follow. See [GSGameClient].
+var platform: GSGameClient = null
 
 
 ## A command to walk with instead of the keys: what a headless client in a suite has.
-var command_override: DotFpsCommand = null
+var command_override: GSFpsCommand = null
 
 
 ## Dithers the screen so a smooth dark gradient is not drawn as stripes (see _build_hud).
@@ -347,7 +347,7 @@ func _hold_names(level: LmLevel) -> PackedStringArray:
 
 
 ## The camera on the drawn eye, or swept back from it in third person with dot-core's
-## [DotCameraProbe] (set 3.2 m back it sat inside walls). The server's `mp_forceview` applies here
+## [GSCameraProbe] (set 3.2 m back it sat inside walls). The server's `mp_forceview` applies here
 ## every frame.
 func _place_camera() -> void:
 	third_person = game.view_rules.resolve(third_person)
@@ -355,14 +355,14 @@ func _place_camera() -> void:
 	var basis := Basis.from_euler(Vector3(deg_to_rad(player.controller.state.pitch), deg_to_rad(player.controller.state.yaw), 0.0))
 
 	if _fade == null:
-		_fade = DotCameraFade.new()
+		_fade = GSCameraFade.new()
 		_fade.name = "Fade"
 		_fade.bodies_fn = _other_players
 		camera.add_child(_fade)
 
 	if third_person:
 		if _probe == null:
-			_probe = DotCameraProbe.new(camera.get_world_3d(), LmGame.LAYER_WORLD)
+			_probe = GSCameraProbe.new(camera.get_world_3d(), LmGame.LAYER_WORLD)
 		var back := basis.z * 3.2 + Vector3(0, 0.6, 0)
 		camera.global_transform = Transform3D(basis, _probe.resolve(eye, eye + back, get_process_delta_time()))
 		if _focus == null or _focus.get_parent() != player:

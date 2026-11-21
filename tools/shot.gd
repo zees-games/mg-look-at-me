@@ -18,7 +18,7 @@ func _ready() -> void:
 
 	# --touch: the phone layout (buttons, no keyboard hints).
 	if "--touch" in OS.get_cmdline_user_args():
-		DotPlatform.touch_override = 1
+		GSPlatform.touch_override = 1
 
 	var client := LmClient.new()
 	client.start_level = int(_args.get("level", "1"))
@@ -33,7 +33,7 @@ func _ready() -> void:
 		action = [StringName(user_args[action_at + 1]), String(user_args[action_at + 2])]
 		view = "action"
 	client.third_person = view == "third" or view == "action"
-	# --view=cover: the loading cover dot-game's DotGameClient puts up first, before it lifts.
+	# --view=cover: the loading cover dot-game's GSGameClient puts up first, before it lifts.
 	if view == "cover":
 		for _i in 2:
 			await RenderingServer.frame_post_draw
@@ -52,7 +52,7 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	# A house change puts the loading cover back up until the new house is built; wait for it.
 	if _args.has("houses"):
-		if not await DotShotGate.wait_lifted(get_tree(), client.get("platform")):
+		if not await GSShotGate.wait_lifted(get_tree(), client.get("platform")):
 			printerr("shot: load cover still up after the wait; shooting anyway")
 
 	if view == "mapmenu":
@@ -280,7 +280,7 @@ func _add_workshop_fixture() -> void:
 	var level := FileAccess.open(root + "ws_cellar/ws_01.json", FileAccess.WRITE)
 	level.store_string(FileAccess.get_file_as_string("res://levels/lm_01.json"))
 	level.close()
-	var _added := DotContentIndex.shared().add_pack({
+	var _added := GSContentIndex.shared().add_pack({
 		"content_id": "tester/cellar-houses", "version": "1.0.0", "prefix": root,
 		"session": "solo", "source": "subscription",
 		"provides": {"title": "Cellar Pack", "kinds": ["map"], "entries": [
@@ -294,10 +294,10 @@ func _stage_action(client: Node, me: Node3D, kind: StringName, id: String) -> vo
 		await get_tree().process_frame
 	var figure: Object = client.call("_avatar_figure", 0)
 	print("action %s/%s: figure=%s third_person=%s" % [kind, id, figure != null, client.get("third_person")])
-	var entry := DotAvatarActions.defaults().find(kind, id)
-	var input: Object = (client.get("platform") as DotGameClient).avatar_actions.input
+	var entry := GSAvatarActions.defaults().find(kind, id)
+	var input: Object = (client.get("platform") as GSGameClient).avatar_actions.input
 	input.emit_signal(&"action_requested", entry)
-	var yaw := deg_to_rad(float((me.get("controller") as DotFpsController).state.yaw))
+	var yaw := deg_to_rad(float((me.get("controller") as GSFpsController).state.yaw))
 	var ahead := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var feet: Vector3 = me.global_position
 	var camera := Camera3D.new()
@@ -318,15 +318,15 @@ func _stage_action(client: Node, me: Node3D, kind: StringName, id: String) -> vo
 
 
 func _save(client: Node) -> void:
-	var platform: DotGameClient = client.get("platform")
+	var platform: GSGameClient = client.get("platform")
 	# The cover lifts a moment after the player exists; --view=cover is the one that wants it up.
-	if str(_args.get("view", "")) != "cover" and not await DotShotGate.wait_lifted(get_tree(), platform):
+	if str(_args.get("view", "")) != "cover" and not await GSShotGate.wait_lifted(get_tree(), platform):
 		printerr("shot: load cover still up after the wait; shooting anyway")
 	print("cover %s" % ("lifted" if platform == null or platform.is_shown() else "up"))
 	var path := ProjectSettings.globalize_path(str(_args.get("out", "res://screenshots/shot.png")))
 	var saved := get_viewport().get_texture().get_image().save_png(path)
 	print("saved %s (%s)" % [path, error_string(saved)])
-	await DotShotSeq.new().record(get_tree(), path)
+	await GSShotSeq.new().record(get_tree(), path)
 	get_tree().quit()
 
 

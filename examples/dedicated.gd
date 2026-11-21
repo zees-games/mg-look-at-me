@@ -1,7 +1,7 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 const LMTestPorts := preload("test_ports.gd")
 
-## The game as a deployed server runs it: a real [DotServer], the world from the server scene,
+## The game as a deployed server runs it: a real [GSServer], the world from the server scene,
 ## the module loaded BY PATH the way an operator names it.
 
 const LmAmbience := preload("../game/lm_ambience.gd")
@@ -25,24 +25,24 @@ const TICK_RATE := 60
 var _entered := 0
 var _finished := 0
 
-var server: DotServer = null
+var server: GSServer = null
 var scene: Node = null
 var game: LmGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("look at me as a dedicated server")
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	DirAccess.make_dir_recursive_absolute(SERVER_DIR)
 
 	await _boot()
 
-	if server != null and server.state == DotServer.State.RUNNING:
+	if server != null and server.state == GSServer.State.RUNNING:
 		await _test_the_module_loads()
 		_test_the_console()
 		await _test_stand_ins()
@@ -57,7 +57,7 @@ func _run() -> void:
 	_test_no_message_preloads_itself()
 
 	await _shut_down()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	_report_sections(_entered, _finished, SECTIONS, CHECKS)
 
 
@@ -93,7 +93,7 @@ func _boot() -> void:
 	cfg.store_line("sv_tickrate %d" % TICK_RATE)
 	cfg.close()
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.startup_config = cfg_path
 	config.autoexec_config = ""
 	config.hostname = "look at me test"
@@ -107,7 +107,7 @@ func _boot() -> void:
 	config.audit_log_path = "%s/audit.jsonl" % SERVER_DIR
 	config.stdin_console_enabled = false
 
-	server = DotServer.new()
+	server = GSServer.new()
 	server.name = "Server"
 	server.config = config
 	add_child(server)
@@ -115,10 +115,10 @@ func _boot() -> void:
 	for _i in range(120):
 		await get_tree().process_frame
 
-		if server.state == DotServer.State.RUNNING:
+		if server.state == GSServer.State.RUNNING:
 			break
 
-	_check(server.state == DotServer.State.RUNNING, "the server boots", DotServer.State.keys()[server.state])
+	_check(server.state == GSServer.State.RUNNING, "the server boots", GSServer.State.keys()[server.state])
 	_check(Engine.physics_ticks_per_second == TICK_RATE, "and sv_tickrate reached the engine")
 	_finished_section()
 
@@ -128,15 +128,15 @@ func _test_the_module_loads() -> void:
 	scene = (load("res://scenes/lm_server.tscn") as PackedScene).instantiate()
 	add_child(scene)
 	await get_tree().process_frame
-	game = DotRegistry.get_node_service(LmGame.SERVICE) as LmGame
+	game = GSRegistry.get_node_service(LmGame.SERVICE) as LmGame
 	_check(game != null and game.levels.size() == 32, "the server scene builds the house and publishes it")
 	_check(game != null and not game.draws, "and draws nothing")
 	game.config.winners_file = "%s/winners.json" % SERVER_DIR
-	var loaded: DotResult = await server.modules.load_module("res://game/lm_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/lm_module.gd")
 	_check(loaded.ok, "the module loads into the server", loaded.error.message if not loaded.ok else "")
 	var module := _module()
 	_check(module != null and module.get("net") != null and module.get("bridge") != null, "with its netcode and bridge")
-	var net: DotNetManager = module.get("net") if module != null else null
+	var net: GSNetManager = module.get("net") if module != null else null
 	_check(net != null and net.config.enable_prediction and absf(net.config.world_extent - LmGame.NET_WORLD_EXTENT) < 0.01,
 		"predicting players, against the extent a client decodes with")
 	_noblock_and_config(module)
@@ -146,7 +146,7 @@ func _test_the_module_loads() -> void:
 
 ## The family cvar `stats_report` is registered, off, and turning it on makes the tracker report.
 func _test_stats_report() -> void:
-	var cv: DotConVar = server.console.find_cvar("stats_report")
+	var cv: GSConVar = server.console.find_cvar("stats_report")
 	var progress = _module().get("progress") if _module() != null else null
 	_check(cv != null and cv.get_string() == "0", "stats_report is registered and off by default")
 	_check(progress != null and progress.stats != null and not progress.stats.report_to_backbone,
@@ -161,25 +161,25 @@ func _test_stats_report() -> void:
 	script.source_code = "extends Node\nfunc post_integration(_a = null, _b = null, _c = null): return null\n"
 	var _reloaded := script.reload()
 	client.set_script(script)
-	DotRegistry.register(&"dot_backbone_client", client)
+	GSRegistry.register(&"dot_backbone_client", client)
 	var _r0 := cv.set_value("0")
 	var _r1 := cv.set_value("1")
 	_check(progress.stats.report_to_backbone, "on with a backbone client makes the tracker report")
 	var _r2 := cv.set_value("0")
 	_check(not progress.stats.report_to_backbone, "off stops it again")
-	DotRegistry.unregister_instance(&"dot_backbone_client", client)
+	GSRegistry.unregister_instance(&"dot_backbone_client", client)
 	client.free()
 
 	_check(progress.stats.schema.has(&"rank_score") and progress.rank != null, "rank_score is declared and the rank is set up")
-	var _held := DotStatsValues.new()
+	var _held := GSStatsValues.new()
 	_held.values = {"lm.wins": 2.0}
 	progress.rank.seed_baseline(&"lm-rank", _held)
-	var _life: float = progress.rank.publish_lifetime(&"lm-rank", DotStatsValues.new(), progress.stats.schema)
+	var _life: float = progress.rank.publish_lifetime(&"lm-rank", GSStatsValues.new(), progress.stats.schema)
 	_check(_life == 10.0, "a stored lifetime baseline (2 wins) is what the published rank is built on")
 
 
-## Config cvars, the workbench, and dot-team's block rules through dot-game's DotGameNoblock.
-func _noblock_and_config(module: DotModule) -> void:
+## Config cvars, the workbench, and dot-team's block rules through dot-game's GSGameNoblock.
+func _noblock_and_config(module: GSModule) -> void:
 	var teamblock := server.console.find_cvar("mp_teamblock")
 	var enemyblock := server.console.find_cvar("mp_enemyblock")
 	_check(teamblock != null and teamblock.get_string() == "0" and enemyblock != null and enemyblock.get_string() == "1",
@@ -219,11 +219,11 @@ func _test_the_console() -> void:
 		and server.console.find_cvar("sv_map_menu_flag").get_string() == "generic"
 		and (menu_half.get("change_fn") as Callable).is_valid(),
 		"the map menu is there, staff-only by default, changing the house now")
-	var staff := DotCmdContext.new()
-	staff.source = DotCmdContext.Source.CHAT
+	var staff := GSCmdContext.new()
+	staff.source = GSCmdContext.Source.CHAT
 	staff.permissions = PackedStringArray(["generic"])
-	var player := DotCmdContext.new()
-	player.source = DotCmdContext.Source.CHAT
+	var player := GSCmdContext.new()
+	player.source = GSCmdContext.Source.CHAT
 	var offered: Dictionary = menu_half.call("offer", player)
 	_check((offered["maps"] as Array).size() > 1 and not bool(offered["allowed"]) and bool(offered["vote"]),
 		"a player is offered every house, as a vote")
@@ -251,11 +251,11 @@ func _test_stand_ins() -> void:
 
 ## Nobody connected. With hibernation off (this suite's server) the house's time running out
 ## changes the house on its own, at random; with it on, the clock waits and starts again from
-## the top on waking. DotGameModule hands the director the server; this game writes no line.
+## the top on waking. GSGameModule hands the director the server; this game writes no line.
 func _test_an_empty_server() -> void:
 	_section("an empty server: a new house on its own, or a clock that waits")
 	var vote: Node = _module().get("vote")
-	var director: DotVoteDirector = vote.get("director") if vote != null else null
+	var director: GSVoteDirector = vote.get("director") if vote != null else null
 
 	if director == null:
 		_check(false, "the house vote is built")
@@ -307,7 +307,7 @@ func _test_a_covered_seat_is_not_caught() -> void:
 	var module := _module()
 	var joined_as := await _join_client("CoverClient", "Covered")
 	var side: Node = joined_as["side"]
-	var link: DotClientLink = joined_as["link"]
+	var link: GSClientLink = joined_as["link"]
 	var peer: int = joined_as["peer"]
 	var key: StringName = joined_as["key"]
 	var victim: Object = game.players.get(key)
@@ -339,7 +339,7 @@ func _test_a_covered_seat_is_not_caught() -> void:
 	_check(is_equal_approx(victim.meter, 0.5), "a witch's look (and the drain) leaves its meter alone",
 		"meter %s" % victim.meter)
 
-	DotGameClient.report_cover(link, false)
+	GSGameClient.report_cover(link, false)
 	var lifted := await _until(func() -> bool: return not bool(module.call("is_peer_loading", peer)), 10.0)
 	_check(lifted and game.can_be_harmed(key), "its cover report crosses the wire and ends the loading state")
 	victim.spooked_at = -100.0
@@ -363,7 +363,7 @@ func _test_a_clown_lunge_over_the_socket() -> void:
 	var module := _module()
 	var joined_as := await _join_client("ClownClient", "Clowned")
 	var side: Node = joined_as["side"]
-	var link: DotClientLink = joined_as["link"]
+	var link: GSClientLink = joined_as["link"]
 	var peer: int = joined_as["peer"]
 	var key: StringName = joined_as["key"]
 	var victim: Object = game.players.get(key)
@@ -378,27 +378,27 @@ func _test_a_clown_lunge_over_the_socket() -> void:
 		_finished_section()
 		return
 
-	DotGameClient.report_cover(link, false)
+	GSGameClient.report_cover(link, false)
 	var _lifted := await _until(func() -> bool: return not bool(module.call("is_peer_loading", peer)), 10.0)
 	var sink := link.get_node(NodePath(LmNetLink.NODE_NAME))
 	# A client-side manager only to encode what the client's bridge would send.
-	var client_net := DotNetManager.new()
+	var client_net := GSNetManager.new()
 	client_net.name = "ClownNet"
 	client_net.is_server = false
 	client_net.local_peer_id = peer
 	client_net.auto_tick = false
 	client_net.config_file = ""
-	client_net.config = DotNetConfig.new()
+	client_net.config = GSNetConfig.new()
 	side.add_child(client_net)
 	var _setup := client_net.setup()
-	var _reg := client_net.messages.register(LmRequest.NAME, LmRequest, DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_SERVER)
+	var _reg := client_net.messages.register(LmRequest.NAME, LmRequest, GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_SERVER)
 	client_net.send_fn = func(_p: int, payload: PackedByteArray, _d: int) -> void: sink.send_request(payload)
 	var spook := func(amount: float) -> void:
 		var _r := client_net.send(LmRequest.new(LmEvents.Ask.ACT, LmEvents.write_json({"action": "spook", "amount": amount})), 1)
 	await _a_clown_lunge_over_the_socket_2(side, link, victim, spook)
 
 
-func _a_clown_lunge_over_the_socket_2(side: Node, link: DotClientLink, victim: Object, spook: Callable) -> void:
+func _a_clown_lunge_over_the_socket_2(side: Node, link: GSClientLink, victim: Object, spook: Callable) -> void:
 	var cfg: LmConfig = game.config
 	cfg.scare_meter_cap = 1.0
 	# The lunge as the director makes it, at a half-full meter.
@@ -475,7 +475,7 @@ func _test_ambient_cvars_reach_the_client() -> void:
 	var mirror := Node.new()
 	mirror.name = "Dedicated"
 	side.add_child(mirror)
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Ambient"
 	link.transport_preference = "udp"
@@ -491,8 +491,8 @@ func _test_ambient_cvars_reach_the_client() -> void:
 	link.connect_to_server("127.0.0.1:%d" % PORT)
 	var rules := LmAmbience.make_rules()
 	var _followed := rules.follow_cvars(link)
-	var director := DotAmbienceDirector.new()
-	director.ambient = DotAmbience.new()
+	var director := GSAmbienceDirector.new()
+	director.ambient = GSAmbience.new()
 	director.follow_settings(null, rules)
 	var joined := await _until(func() -> bool: return link.replicated_cvar("lm_ambient_volume", "") != "", 30.0)
 	_check(joined and link.replicated_cvar("lm_ambient_dir", "x") == "x",
@@ -537,14 +537,14 @@ func _test_a_reload_leaves_one_link() -> void:
 	await get_tree().process_frame
 	var stale := 0
 	for child in server.get_children():
-		if child is LmNetLink and not String(child.name).begins_with(DotGameLink.RETIRED):
+		if child is LmNetLink and not String(child.name).begins_with(GSGameLink.RETIRED):
 			stale += 1
 	_check(stale == 0, "unloading takes the link off the server", "%d left" % stale)
-	var loaded: DotResult = await server.modules.load_module("res://game/lm_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/lm_module.gd")
 	_check(loaded.ok, "and the module loads again", loaded.error.message if not loaded.ok else "")
 	var links := 0
 	for child in server.get_children():
-		if child is LmNetLink and not String(child.name).begins_with(DotGameLink.RETIRED):
+		if child is LmNetLink and not String(child.name).begins_with(GSGameLink.RETIRED):
 			links += 1
 	_check(links == 1 and server.get_node_or_null(NodePath(LmNetLink.NODE_NAME)) is LmNetLink,
 		"leaving one link, under its own name", "%d links" % links)
@@ -576,7 +576,7 @@ func _test_rotation_file() -> void:
 
 	var keep_a: Array = ["house", "rot_0"]
 	var keep_b: Array = ["rot_2", "rot_3"]
-	var parsed := DotMapRotationFile.from_trees([{"defaults": {
+	var parsed := GSMapRotationFile.from_trees([{"defaults": {
 		"rotation": "a",
 		"rotations": {"a": {"maps": keep_a, "mode": "random"}, "b": {"maps": keep_b, "mode": "cycle"}},
 		"commands": {"names": {"rtv": "rockit", "lm_house": "gohouse"}},
@@ -617,7 +617,7 @@ func _test_rotation_file() -> void:
 		"the game's own map command is renameable from the file")
 
 	var host := CommandHost.new()
-	var bound: DotResult = vote.call("install_commands", host) if vote != null else null
+	var bound: GSResult = vote.call("install_commands", host) if vote != null else null
 	_check(bound != null and bound.ok and host.added.has("rockit") and not host.added.has("rtv"),
 		"and a renamed rtv is registered under its new name", ", ".join(host.added.keys().slice(0, 6)))
 	host.free()
@@ -643,7 +643,7 @@ func _rotation_ballot(vote: Node) -> void:
 	if vote != null:
 		vote.call("refresh_maps")
 		var ballot: Array = []
-		for choice in (vote.get("source") as DotVoteListSource).entries:
+		for choice in (vote.get("source") as GSVoteListSource).entries:
 			ballot.append(String(choice.id))
 		_check(ballot.has("rot_0") and not ballot.has("rot_2") and not ballot.has("asylum"),
 			"never on a ballot", str(ballot))
@@ -700,7 +700,7 @@ func _join_client(node_name: String, player_name: String) -> Dictionary:
 	side.name = node_name
 	add_child(side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = player_name
 	link.transport_preference = "udp"
@@ -724,7 +724,7 @@ func _join_client(node_name: String, player_name: String) -> Dictionary:
 	link.spawned.connect(func() -> void: spawned[0] = true)
 	link.connect_to_server("127.0.0.1:%d" % PORT)
 	var joined := await _until(func() -> bool:
-		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
+		return spawned[0] or link.phase == GSClientLink.Phase.FAILED, 30.0)
 	joined = joined and spawned[0]
 	var peer := side.multiplayer.get_unique_id() if joined else 0
 	var key: StringName = &""
@@ -753,7 +753,7 @@ func _test_no_message_preloads_itself() -> void:
 		if file.ends_with(".gd"):
 			var source := FileAccess.get_file_as_string("res://game/net/" + file)
 
-			if source.contains("extends DotNetMessage") and source.contains("preload(\"%s\")" % file):
+			if source.contains("extends GSNetMessage") and source.contains("preload(\"%s\")" % file):
 				offenders.append(file)
 
 	_check(offenders.is_empty(), "no message preloads itself", ", ".join(offenders))
@@ -761,13 +761,13 @@ func _test_no_message_preloads_itself() -> void:
 
 
 
-func _module() -> DotModule:
+func _module() -> GSModule:
 	return server.modules.get_module("lookatme") if server != null and server.modules != null else null
 
 
 func _run_command(line: String) -> PackedStringArray:
 	var captured: Array[String] = []
-	var context := DotCmdContext.console("", PackedStringArray())
+	var context := GSCmdContext.console("", PackedStringArray())
 	context.reply_sink = func(text: String) -> void: captured.append(text)
 	server.console.execute(line, context)
 	return PackedStringArray(captured)
