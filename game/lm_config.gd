@@ -243,7 +243,7 @@ extends GSConfig
 ## The house a server opens with.
 @export var house: String = "house"
 
-## `cfg/maps.yml` in the `--config` directory (dot-map's `GSMapRotationFile`) says which houses rotate;
+## `cfg/maps.yml` in the `--config` directory (gs-map's `GSMapRotationFile`) says which houses rotate;
 ## empty or missing rotates all. A house left out stays installed (`lm_house` loads it) but is never
 ## drawn, balloted or nominated. `sv_map_rotation_file`.
 @export var map_rotation_file: String = "cfg/maps.yml"

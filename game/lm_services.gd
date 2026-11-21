@@ -1,6 +1,6 @@
 extends GSGameServices
 
-## Chat, voice and moderation over dot-game's base: what this game decides about them.
+## Chat, voice and moderation over gs-game's base: what this game decides about them.
 ## Everybody talks to everybody whatever level they are on (the lobby socialises); voice is push-to-talk with a short
 ## proximity radius, and a wall turns it down.
 

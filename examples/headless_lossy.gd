@@ -1,14 +1,14 @@
 extends GSGameCheckSuite
 const LMTestPorts := preload("test_ports.gd")
 
-## A real look-at-me server and client on ENet through dot-net's lossy UDP relay (`godot --headless --path . res://examples/headless_lossy.tscn [-- --verbose]`).
+## A real look-at-me server and client on ENet through gs-net's lossy UDP relay (`godot --headless --path . res://examples/headless_lossy.tscn [-- --verbose]`).
 ## Only this sees ENet's congestion control react to the 32-level house sent reliably beside snapshots; windows: 60 ms, a house change mid-walk, 5% loss.
 ## `--stock-throttle` is the control (the engine's own packet throttle): the throttle check fails every run.
 
 const LmGame := preload("res://game/lm_game.gd")
 const LmNetBridge := preload("res://game/net/lm_net_bridge.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
-const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
+const Relay := preload("res://addons/gs_net/testing/gs_net_udp_relay.gd")
 
 ## Long frames while a new house arrives, and how long each is.
 const HITCHES := 3
@@ -30,7 +30,7 @@ const WINDOWS := [
 	["60 ms, 5% loss, the house changes back", 0.05, 60.0, 0.0, 8.0, "house"],
 ]
 
-## Waits on anything sent reliably: ENet's own contract with dot-core's peer timeouts (30 s),
+## Waits on anything sent reliably: ENet's own contract with gs-core's peer timeouts (30 s),
 ## as game-fatal-contact's headless_lossy says. A wait on it ends the moment the thing arrives.
 const RELIABLE_SECONDS := 35.0
 
@@ -335,7 +335,7 @@ func _switch_house(house: String, key: StringName, t0: int, throttle_low: Array)
 	_run_command("lm_house %s" % house)
 	# Walking while it arrives: the commands keep going, as a player's would.
 	_move = _leg(0)
-	# A frame as long as the delivered client's while it built the house (dot-server-deploy's
+	# A frame as long as the delivered client's while it built the house (gs-server-deploy's
 	# lookatme_client measured 600 ms): one process, so both ends stall, as a real server
 	# does on a long frame of its own. Acknowledgements read after it are late by its length.
 	for i in range(HITCHES):

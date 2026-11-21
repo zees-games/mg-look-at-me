@@ -1,6 +1,6 @@
 extends GSGameNetchaosServer
 
-## Look At Me's side of `tools/netchaos.sh` (dot-game's GSGameNetchaosServer): the house, the witches, the module; no bots.
+## Look At Me's side of `tools/netchaos.sh` (gs-game's GSGameNetchaosServer): the house, the witches, the module; no bots.
 
 var _scene: Node = null
 

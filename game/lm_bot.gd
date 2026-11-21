@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## A stand-in player (tests and the soak only): real movement and E on the house's own puzzle
-## format, so game code; there is no navigation mesh for dot-bot to use. Each tick [method drive]
+## format, so game code; there is no navigation mesh for gs-bot to use. Each tick [method drive]
 ## walks door to door to the nearest useful thing and presses E. Witches are ignored.
 
 const LmGame := preload("lm_game.gd")

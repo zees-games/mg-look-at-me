@@ -1,6 +1,6 @@
 extends Node
 
-## What a player has done in the house, as dot-stats numbers, and the achievements over them, reported to TMC's backbone when
+## What a player has done in the house, as gs-stats numbers, and the achievements over them, reported to TMC's backbone when
 ## the server has one. The brief's "Out" is getting out of the whole house; the crown is [LmPlayer]'s.
 ## It listens and nothing calls it: the house's own signals are the whole input. Server only.
 
@@ -12,7 +12,7 @@ const LEVELS_DONE := &"lm.levels_done"
 const BEST_LEVEL := &"lm.best_level"
 const CATCHES := &"lm.catches"
 const WINS := &"lm.wins"
-## The published skill figure the site orders by (dot-stats' GSStatsRank).
+## The published skill figure the site orders by (gs-stats' GSStatsRank).
 const RANK_SCORE := &"rank_score"
 
 signal earned(key: StringName, title: String, points: int)
@@ -28,7 +28,7 @@ var rank: GSStatsRank = null
 var achievements: GSAchievementTracker = null
 var link: GSAchievementStatsLink = null
 
-## Only the stats report is filed under dot-game's stable key; `game.players` and awards keep `uid:...`.
+## Only the stats report is filed under gs-game's stable key; `game.players` and awards keep `uid:...`.
 var stats_feed := GSGameStatsFeed.new()
 ## world key -> [stats key, userid], noted at admission by [method note_session].
 var _stats_keys: Dictionary = {}

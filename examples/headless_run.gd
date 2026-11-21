@@ -407,7 +407,7 @@ func _test_wheel_jumps() -> void:
 	_finished_section()
 
 
-## dot-core's [GSCollisionAudit] over every level of both houses, built drawn as a client
+## gs-core's [GSCollisionAudit] over every level of both houses, built drawn as a client
 ## builds it: visible geometry nothing collides with is walked through. Strict.
 func _test_collision_audit() -> void:
 	_section("nothing drawn is walked through")

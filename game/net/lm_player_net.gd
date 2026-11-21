@@ -1,6 +1,6 @@
 extends GSNetBehaviour
 
-## One player on the wire: movement (dot-player-controller's own sync, predicted by the owner), plus what everybody needs
+## One player on the wire: movement (gs-player-controller's own sync, predicted by the owner), plus what everybody needs
 ## to draw them and what only they need to play. The server simulates for real; the owner predicts with the same controller.
 
 const LmNetCommand := preload("lm_net_command.gd")
@@ -17,7 +17,7 @@ var net_crouch: float = 0.0
 var net_flags: int = 0
 var net_modifiers: int = 0
 
-## The jump timers (coyote, jump buffer, cooldown), owner only, for the owner's rewind. Opt-in on dot-player-controller API 10; see its docs/networking.md.
+## The jump timers (coyote, jump buffer, cooldown), owner only, for the owner's rewind. Opt-in on gs-player-controller API 10; see its docs/networking.md.
 var net_timers: int = 0
 
 ## Which level they are on: everybody's, so a client draws only the people in its own house.
@@ -46,7 +46,7 @@ func _register_net_vars() -> void:
 
 	# Owner-only jump timers, appended after the movement specs (declaration order is wire order).
 	# Guarded: a shell without API 10 has no GSFpsNetSync.rewind_specs().
-	if GSAddonApi.build_level("dot_player_controller") >= 10:
+	if GSAddonApi.build_level("gs_player_controller") >= 10:
 		for spec in GSFpsNetSync.rewind_specs():
 			var _timers := replicate(spec["property"], GSNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
 

@@ -6,15 +6,15 @@ The owner's rule (2026-11-08): every house is a converted Steam Workshop map, he
 
 A converted house has two parts:
 
-- The source map's **geometry**, converted by dot-map-convert (`bsp.py mesh`) with every texture and model mapped to a free or own one. It ships as a world pack next to the levels (`houses/<house>/world/<pack>/`). The source's textures, models, sounds and text are never used.
+- The source map's **geometry**, converted by gs-map-convert (`bsp.py mesh`) with every texture and model mapped to a free or own one. It ships as a world pack next to the levels (`houses/<house>/world/<pack>/`). The source's textures, models, sounds and text are never used.
 - The source's **plan**: rooms, floors, stairs and the openings between them, read off the same geometry. The builder deals our puzzles, doors, keys, furniture, witches and events on it, and proves every level solvable as it writes it.
 
 A house without a world pack (the built-in House, the Forgotten Wing) is still rooms on the 4 m grid (`docs/levels.md`), with walls we build.
 
 ## The pipeline
 
-1. The `.gma` is unpacked and the `.bsp` read by dot-map-convert (`bsp.py convert`) into its intermediate JSON. That stays in the map source store, outside every repository.
-2. `adapters/mg-look-at-me/bsp_house.py` in dot-map-convert turns the intermediate and a spec into a layout, with numpy only and no choices of its own: the same intermediate and spec give the same layout, byte for byte (the layout records the intermediate's sha256).
+1. The `.gma` is unpacked and the `.bsp` read by gs-map-convert (`bsp.py convert`) into its intermediate JSON. That stays in the map source store, outside every repository.
+2. `adapters/mg-look-at-me/bsp_house.py` in gs-map-convert turns the intermediate and a spec into a layout, with numpy only and no choices of its own: the same intermediate and spec give the same layout, byte for byte (the layout records the intermediate's sha256).
    - Each storey's walkable, roofed floor is rasterised from the world brushes and the wall-like brush entities (a floor top in the storey's band, no wall at eye height above it, a ceiling over it).
    - The floor is eroded to pinch it apart at the doorways, labelled into pieces, and grown back. Two pieces that touch are joined by an opening of the source's, which is the only place a door can go.
    - Each 4 m cell takes the piece covering most of it, and the pieces become rectangles, biggest first. A rectangle one cell wide is a corridor.
@@ -25,7 +25,7 @@ A house without a world pack (the built-in House, the Forgotten Wing) is still r
 
 Regenerate the Asylum's layout with:
 
-    python3 -P <dot-map-convert>/adapters/mg-look-at-me/bsp_house.py <intermediate.json> tools/convert/asylum.json --out tools/layouts/asylum.json
+    python3 -P <gs-map-convert>/adapters/mg-look-at-me/bsp_house.py <intermediate.json> tools/convert/asylum.json --out tools/layouts/asylum.json
 
 `--ascii` prints the plan of each floor.
 

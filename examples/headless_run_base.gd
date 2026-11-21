@@ -84,7 +84,7 @@ func _furthest_from(level: LmLevel, room_id: String, from: Vector3) -> Vector3:
 	return best
 
 
-## Waits for a booted client's loading cover to lift (dot-game's GSGameClient holds it until
+## Waits for a booted client's loading cover to lift (gs-game's GSGameClient holds it until
 ## the player exists and the camera is current); everything is held under it.
 func _shown(client: Node) -> void:
 	for i in 240:

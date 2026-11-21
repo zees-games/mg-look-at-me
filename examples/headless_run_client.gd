@@ -30,7 +30,7 @@ func _test_the_client_settings() -> void:
 	var lamp: GSFlashlight = client.get("fl")
 	var lit_player: LmPlayer = client.get("player")
 	_check(lamp != null and lamp.beam != null and lamp.beam.spot_range == lit_player.get_parent().get("config").flashlight_range
-		and lamp.on == lit_player.flashlight, "the flashlight is dot-flashlight's beam, in the house's range and state")
+		and lamp.on == lit_player.flashlight, "the flashlight is gs-flashlight's beam, in the house's range and state")
 	lit_player.flashlight = false
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -53,7 +53,7 @@ func _test_the_client_settings() -> void:
 	_check(self_player != null and self_player.figure != null and action_fig == self_player.figure.person and action_fig.has_method(&"skeleton"),
 		"an avatar action and a wearable go on the player's own person, which can hang a wearable")
 	# The figure steps its clip by game time (GSHumanoidFigure.frame_delta), which stamps the frame it ran in.
-	if self_player != null and self_player.figure != null and GSAddonApi.build_level("dot_player_char") >= 11:
+	if self_player != null and self_player.figure != null and GSAddonApi.build_level("gs_player_char") >= 11:
 		self_player.figure.pose(self_player.global_position, 0.0, 3.0)
 		_check(int(self_player.figure.person.get("_posed_frame")) == Engine.get_process_frames(),
 			"a posed figure animates by game time, not the wall clock")
@@ -101,7 +101,7 @@ func _the_client_settings_2(client: Node, settings: Variant) -> void:
 	_check(f.is_action(&"lm_flashlight") and not f.is_action(GSMenuBindings.HELP_ACTION),
 		"the flashlight is its table row's action, on F")
 
-	# Something in reach: dot-ui's GSKeyPrompt says what, with the use action's binding drawn
+	# Something in reach: gs-ui's GSKeyPrompt says what, with the use action's binding drawn
 	# as the key, and that key does it.
 	var LmClientScript: GDScript = load("res://game/lm_client.gd")
 	var me: LmPlayer = client.get("player")
@@ -213,13 +213,13 @@ func _the_client_settings_3(client: Node, settings: Variant, keys: GSMenuBinding
 
 
 func _the_client_settings_4(client: Node) -> void:
-	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so the
-	# requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
+	# A pack naming these classes does not parse on a shell whose gs-ui predates them, so the
+	# requires.json gs-ci derives must ask for gs-ui 4, and nothing may lower it.
 	var asks := GSAddonApi.derive()
 	_check(
-		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
-		"the pack asks a shell for dot-ui level 4, the glance pieces",
-		str(asks.get("dot_ui"))
+		int(asks.get("gs_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
+		"the pack asks a shell for gs-ui level 4, the glance pieces",
+		str(asks.get("gs_ui"))
 	)
 
 	remove_child(client)
@@ -243,11 +243,11 @@ func _the_client_settings_4(client: Node) -> void:
 	_finished_section()
 
 
-## The client's sounds and the catch's effects, through dot-audio and dot-fx. Headless has no
+## The client's sounds and the catch's effects, through gs-audio and gs-fx. Headless has no
 ## sound device, so the manager runs its null sink, which is the real limits and catalogue
 ## with a log in place of a speaker; tools/audio_probe (xvfb) is what says a sound is heard.
 func _test_sound_and_effects() -> void:
-	_section("the house's sounds and the catch, through dot-audio and dot-fx")
+	_section("the house's sounds and the catch, through gs-audio and gs-fx")
 	var LmAudio: GDScript = load("res://game/lm_audio.gd")
 	var catalogue: GSAudioCatalogue = LmAudio.call("sound_catalogue")
 	var ids: Array = LmAudio.call("ids")
@@ -271,7 +271,7 @@ func _test_sound_and_effects() -> void:
 	var settings: Variant = client.get("settings")
 	_check(
 		sink != null and settings != null and bool(settings.describe().get("audio_bound", false)),
-		"the sounds are dot-audio's, and the volume settings reach its mixer",
+		"the sounds are gs-audio's, and the volume settings reach its mixer",
 		str(settings.describe()) if settings != null else "no settings"
 	)
 
@@ -308,10 +308,10 @@ func _test_sound_and_effects() -> void:
 	player.caught_left = 1.0
 	await get_tree().process_frame
 	var flashed := effects != null and effects.flash_colour.a > 0.0 and effects.shake.trauma() > 0.0
-	_check(flashed, "being caught flashes red and jolts the view, through dot-fx",
+	_check(flashed, "being caught flashes red and jolts the view, through gs-fx",
 		str(effects.describe()) if effects != null else "no effects")
 
-	# "Allow flashes" off: the settings reach dot-fx, and the next catch is not flashed.
+	# "Allow flashes" off: the settings reach gs-fx, and the next catch is not flashed.
 	player.caught_left = 0.0
 	await _sound_and_effects_2(client, audio, player, sink, settings, effects)
 

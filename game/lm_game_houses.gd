@@ -51,7 +51,7 @@ signal house_changed(id: StringName)
 
 var config: LmConfig = null
 
-## dot-player-controller's `mp_forceview` (may a player switch to third person; the config's
+## gs-player-controller's `mp_forceview` (may a player switch to third person; the config's
 ## `allow_third_person` false is `1`, first person only) and `mp_solidplayers` (players block
 ## each other). Bound by the module (REPLICATED) and followed by a client through its link.
 var view_rules: GSPlayerViewRules = GSPlayerViewRules.new()
@@ -66,7 +66,7 @@ var config_binder: GSGameConfigBinder = null
 var profile_runtime: GSProfileRuntime = null
 
 
-## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `GSGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
+## gs-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `GSGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
 var block_rules: Object = null:
 	set(value):
 		if block_rules != null and block_rules.has_signal(&"changed") and block_rules.is_connected(&"changed", body_rules.refresh):
@@ -136,7 +136,7 @@ var _content_ids: Dictionary = {}
 
 
 ## The server's maps.yml, or null when there is none (every house rotates, as it always did).
-## dot-map's rotation file speaks GSMapDef; this game holds house records, so [member _defs]
+## gs-map's rotation file speaks GSMapDef; this game holds house records, so [member _defs]
 ## mirrors the ids and the file marks `in_rotation` on the mirror. See [method rotating_houses].
 var rotation_file: GSMapRotationFile = null
 
@@ -154,7 +154,7 @@ var hold_clock: Callable = Callable()
 
 
 ## `func(key: StringName) -> bool`: whether a player may be caught now, assigned by the module
-## from dot-game's `can_peer_be_harmed` (a client still behind its loading cover cannot be). Unset
+## from gs-game's `can_peer_be_harmed` (a client still behind its loading cover cannot be). Unset
 ## offline, and a bot is never loading.
 var harm_gate: Callable = Callable()
 
@@ -499,7 +499,7 @@ func command_names(role: String) -> PackedStringArray:
 
 ## Every house, as the map menu (M) lists them: `{id, name, detail, current}`, how many levels
 ## under the name. Solo the client's list, online the server's (the module hands it to
-## dot-vote's map menu), so both say the same.
+## gs-vote's map menu), so both say the same.
 func house_rows() -> Array:
 	sync_content()
 	var out: Array = []

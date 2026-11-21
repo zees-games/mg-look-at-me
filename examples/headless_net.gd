@@ -121,9 +121,9 @@ func _build() -> bool:
 	_check(_server_game.levels.size() == 32 and _client_game.levels.is_empty(), "the server reads the levels; the client reads none")
 	_server_net = _make_manager(true, server_side)
 	_client_net = _make_manager(false, client_side)
-	# This harness stamps every command itself, so the client must not ask for dot-net's input-lead report:
+	# This harness stamps every command itself, so the client must not ask for gs-net's input-lead report:
 	# steered by reports about commands it never stamped, the clock runs away. By the constant map, so it
-	# parses against a dot-net from before the report.
+	# parses against a gs-net from before the report.
 	var lead_bit := int((GSNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
 	_client_net.messages.features &= ~lead_bit
 
@@ -425,7 +425,7 @@ func _test_progress_and_meter() -> void:
 
 
 ## Two browser tabs of one guest share a device id, so one uid, so one key. The newest connection
-## wins: the module is told to drop the older (dot-server-deploy's lookatme_client sees the reason
+## wins: the module is told to drop the older (gs-server-deploy's lookatme_client sees the reason
 ## arrive), and the older's leave, which follows the kick, must not take the newcomer's player.
 func _test_one_account_twice() -> void:
 	_section("one account on two connections: the newest wins")
@@ -497,7 +497,7 @@ func _steps(count: int, command: GSFpsCommand = null) -> void:
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
 	if not GSGameWorkbench.available():
-		print("  dot-workbench is not linked: skipped")
+		print("  gs-workbench is not linked: skipped")
 		_passed += 16
 		_finished_section()
 		return

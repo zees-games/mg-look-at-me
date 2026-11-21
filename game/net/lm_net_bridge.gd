@@ -138,7 +138,7 @@ func remove_peer(peer_id: int) -> void:
 		var _gone := net.remove_peer(peer_id)
 
 
-## A name or a face that arrived after the player was seated (dot-platform admits AFTER the
+## A name or a face that arrived after the player was seated (gs-platform admits AFTER the
 ## seat, so the first JOIN is a guest's whenever the profile store is slower than the join),
 ## or a wardrobe change later: the player takes it and everybody is sent the JOIN again.
 func refresh_player(session_id: int, display_name: String, avatar: GSAvatar) -> bool:
@@ -464,7 +464,7 @@ func _tell_key(key: StringName, kind: int, data: Dictionary) -> void:
 		_tell(peer, kind, data)
 
 
-## One peer, never zero: `net.send(msg, 0)` is a broadcast in dot-net.
+## One peer, never zero: `net.send(msg, 0)` is a broadcast in gs-net.
 func _tell(peer_id: int, kind: int, data: Dictionary) -> void:
 	if peer_id <= 0 or net == null:
 		return

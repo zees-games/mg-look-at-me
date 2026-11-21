@@ -1,6 +1,6 @@
 extends RefCounted
 
-## What a player looks like, as a dot-user-avatar document: the schema, the stock avatar and the skin asked for.
+## What a player looks like, as a gs-user-avatar document: the schema, the stock avatar and the skin asked for.
 ## One slot: the six people are six atlases on one mesh, and the side goes on the torso as a tint.
 ## Data only, loads nothing, so a server validates without the art; [constant SKINS] matches `LmFigure.ATLASES`.
 

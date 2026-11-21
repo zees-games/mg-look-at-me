@@ -1,12 +1,12 @@
 extends GSGameVisualQaCapture
 
-## Look At Me's visual QA capture (the loop is dot-game's docs/visual-qa.md). Three kinds of item, each recorded frame by frame
+## Look At Me's visual QA capture (the loop is gs-game's docs/visual-qa.md). Three kinds of item, each recorded frame by frame
 ## at --fps in three views (f first person, t behind-right, o in front):
 ##   person_<letter>  one of the six people (LmFigure) idling, walking, running, crouching and jumping; f is another player's eye a few metres in front.
 
 ##   witch            the witch (LmWitch) idling, walking, reaching for you with the fan flared, and lunging.
 ##   clown            the clown hallucination (LmClown) watching you with its mouth shut and talking.
-## This game has no weapons, so no weapon items. The outside views and frame saving are dot-game's GSGameVisualQaViews.
+## This game has no weapons, so no weapon items. The outside views and frame saving are gs-game's GSGameVisualQaViews.
 
 const LmFigure := preload("../game/lm_figure.gd")
 const LmWitch := preload("../game/lm_witch.gd")

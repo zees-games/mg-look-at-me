@@ -85,7 +85,7 @@ HOUSES = {
     "house": ("levels", LEVELS, 1000, LEVEL_NAMES, "The Lobby", "The House", ROOM_NAMES, CORRIDOR_NAMES, STAIR_NAMES),
 }
 
-# Houses converted from a Workshop map's plan (dot-map-convert bsp_house.py, spec in tools/convert/),
+# Houses converted from a Workshop map's plan (gs-map-convert bsp_house.py, spec in tools/convert/),
 # so every house has a real building under it; level n is the first plan(n) rooms from the entrance.
 # id -> (directory, layout, seed base, how many levels, level names).
 CONVERTED = {

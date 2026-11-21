@@ -33,7 +33,7 @@ func _ready() -> void:
 		action = [StringName(user_args[action_at + 1]), String(user_args[action_at + 2])]
 		view = "action"
 	client.third_person = view == "third" or view == "action"
-	# --view=cover: the loading cover dot-game's GSGameClient puts up first, before it lifts.
+	# --view=cover: the loading cover gs-game's GSGameClient puts up first, before it lifts.
 	if view == "cover":
 		for _i in 2:
 			await RenderingServer.frame_post_draw
@@ -156,7 +156,7 @@ func _ready_4(client: LmClient, view: String, action: Array, player: Variant, le
 		client.game.set_flashlight(player.player_key, str(_args.get("light", "on")) != "off")
 	await get_tree().create_timer(float(_args.get("seconds", "1"))).timeout
 
-	# --caught=1: the moment of being caught, a tenth of a second in (dot-fx's flash and jolt).
+	# --caught=1: the moment of being caught, a tenth of a second in (gs-fx's flash and jolt).
 	if _args.has("caught"):
 		player.caught_left = 2.0
 		await get_tree().create_timer(0.1).timeout

@@ -30,7 +30,7 @@ func _on_body_rules_changed() -> void:
 	apply_pass_through()
 
 
-## The side a player is on for dot-team's block rules: everybody is one, because the house is played together.
+## The side a player is on for gs-team's block rules: everybody is one, because the house is played together.
 func team_of_side(_key: Variant) -> Variant:
 	return "1"
 

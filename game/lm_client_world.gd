@@ -15,8 +15,8 @@ const LmScares := preload("lm_scares.gd")
 const LmTouch := preload("lm_touch.gd")
 const LmScareView := preload("lm_scare_view.gd")
 
-## Where dot-server's client publishes its link before the game scene loads.
-const LINK_SERVICE := &"dot_client_link"
+## Where gs-server's client publishes its link before the game scene loads.
+const LINK_SERVICE := &"gs_client_link"
 
 const CHANNEL := "lookatme.client"
 
@@ -44,7 +44,7 @@ var game: LmGame = null
 var player: LmPlayer = null
 var camera: Camera3D = null
 var flashlight: SpotLight3D = null
-## The dot-flashlight node and the beams of the other players, shown from their `flashlight` flag.
+## The gs-flashlight node and the beams of the other players, shown from their `flashlight` flag.
 var fl: GSFlashlight = null
 var fl_config: GSFlashlightConfig = null
 var crowd: GSFlashlightCrowd = null
@@ -71,7 +71,7 @@ var _hud: Control = null
 var _step: Label = null
 var _objective: VBoxContainer = null
 var _holds: Label = null
-## "Take the red key" with the use key drawn as a key, while something is in reach. dot-ui's
+## "Take the red key" with the use key drawn as a key, while something is in reach. gs-ui's
 ## [GSKeyPrompt]; Not a Label with the letter fixed.
 var prompt: GSKeyPrompt = null
 var _message: Label = null
@@ -100,9 +100,9 @@ var _sampler: GSFpsSampler = null
 var chat: GSGameChatClient = null
 ## Look at a player and press G to stop hearing them, K to mute them; connected games only.
 var look_mute: GSVoiceLookMute = null
-## The house's sounds, through dot-audio. See [LmAudio].
+## The house's sounds, through gs-audio. See [LmAudio].
 var audio: LmAudio = null
-## The catch, felt: a red flash and a jolt through dot-fx, so the settings' "allow flashes" and
+## The catch, felt: a red flash and a jolt through gs-fx, so the settings' "allow flashes" and
 ## "shake" reach them. See [method _build_effects].
 var effects: GSFxManager = null
 var _flash_rect: ColorRect = null
@@ -143,7 +143,7 @@ var settings: LmSettings = null
 ## The player's console ([member GSGameClient.console]).
 var console: GSConsoleController = null
 
-## dot-game's client platform: the loading cover (held until this player exists and the camera
+## gs-game's client platform: the loading cover (held until this player exists and the camera
 ## is current), the settings' menu, the console, the HUD's theme, Tab, M, the pointer and the
 ## input block the samplers follow. See [GSGameClient].
 var platform: GSGameClient = null
@@ -210,7 +210,7 @@ func _covered() -> bool:
 
 
 ## Everything the sanity meter drives goes back to rest: audio layers, pending jump scare, demons,
-## the dot-fx flash and shake. The HUD's meter and vignette follow `player.meter`, which the server
+## the gs-fx flash and shake. The HUD's meter and vignette follow `player.meter`, which the server
 ## resets with the player.
 func rest_sanity() -> void:
 	if audio != null:
@@ -310,7 +310,7 @@ func _present(delta: float) -> void:
 		effects.viewer_position = camera.global_position
 		effects.viewer_forward = -camera.global_basis.z
 		effects.advance(delta)
-		# dot-fx computes the jolt and touches no camera; it is added here, after the camera
+		# gs-fx computes the jolt and touches no camera; it is added here, after the camera
 		# is placed from the player, so it never feeds back into where the player looks.
 		camera.global_position += camera.global_basis * effects.shake.offset()
 		_flash_rect.color = effects.flash_colour
@@ -346,7 +346,7 @@ func _hold_names(level: LmLevel) -> PackedStringArray:
 	return out
 
 
-## The camera on the drawn eye, or swept back from it in third person with dot-core's
+## The camera on the drawn eye, or swept back from it in third person with gs-core's
 ## [GSCameraProbe] (set 3.2 m back it sat inside walls). The server's `mp_forceview` applies here
 ## every frame.
 func _place_camera() -> void:

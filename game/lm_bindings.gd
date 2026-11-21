@@ -1,8 +1,8 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [GSMenuBindings] table: action, storing setting, label, default, card.
+## Every key this game reads, as one gs-menu [GSMenuBindings] table: action, storing setting, label, default, card.
 ## One table because the client, the settings document, the Controls page and the help screen (H) all read it.
-## Enter opens the command line as a fixed second key no row holds; H is help in every game (dot-menu adds the row), so nothing here may default to it.
+## Enter opens the command line as a fixed second key no row holds; H is help in every game (gs-menu adds the row), so nothing here may default to it.
 
 ## The use key's action, which `LmClient.USE_ACTION` names and the prompt draws.
 const USE := &"lm_use"
@@ -10,7 +10,7 @@ const FLASHLIGHT := &"lm_flashlight"
 const VIEW := &"lm_view"
 const COMMAND := &"lm_command"
 const SCOREBOARD := &"lm_scoreboard"
-## dot-voice's own action names, so GSVoiceLookMute reads the rows this table binds.
+## gs-voice's own action names, so GSVoiceLookMute reads the rows this table binds.
 const VOICE_GAG := &"voice_gag"
 const VOICE_MUTE := &"voice_mute"
 

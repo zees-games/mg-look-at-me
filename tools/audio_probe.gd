@@ -2,7 +2,7 @@ extends Node
 
 ## Under xvfb-run (never --headless, whose audio driver is Dummy): does the house make a noise?
 ##   xvfb-run -a godot --path . res://tools/audio_probe.tscn
-## Asks the engine's own players, not dot-audio's book-keeping: an accepted id is no sound unless a pooled player is playing a stream.
+## Asks the engine's own players, not gs-audio's book-keeping: an accepted id is no sound unless a pooled player is playing a stream.
 
 const LmClient := preload("res://game/lm_client.gd")
 const LmPlayer := preload("res://game/lm_player.gd")
@@ -36,7 +36,7 @@ func _ready() -> void:
 				heard[stream.resource_path.get_file().get_basename().split("_")[0]] = true
 
 	var sink := client.audio.manager.sink.sink_name() if client.audio.manager.sink != null else "none"
-	# A looping sound plays a copy of its stream (dot-audio's rule), which has no path: the
+	# A looping sound plays a copy of its stream (gs-audio's rule), which has no path: the
 	# ambience and the drones are asked of the manager by handle instead.
 	if client.audio.manager.is_playing(int(client.audio.get(&"_ambience"))):
 		heard["ambience"] = true

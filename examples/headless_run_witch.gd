@@ -85,10 +85,10 @@ func _the_witch_and_the_house_2(client: Node, me: LmPlayer, level: LmLevel, sink
 	await get_tree().physics_frame
 	var steps_before := sink.count_of(&"step")
 	# The forward key held, through the player's own sampler, for two seconds.
-	Input.action_press(&"dot_fps_forward")
+	Input.action_press(&"gs_fps_forward")
 	for i in 120:
 		await get_tree().physics_frame
-	Input.action_release(&"dot_fps_forward")
+	Input.action_release(&"gs_fps_forward")
 	_check(sink.count_of(&"step") > steps_before, "walking, you hear your own steps", "%d -> %d" % [steps_before, sink.count_of(&"step")])
 	var door_id: String = level.doors.keys()[0]
 	me.opened[door_id] = true
@@ -239,19 +239,19 @@ func _test_upstairs() -> void:
 	me.place_at(level.position + foot + Vector3(0, 0.1, 0), yaw)
 	me.controller.state.yaw = yaw
 	await get_tree().physics_frame
-	Input.action_press(&"dot_fps_forward")
+	Input.action_press(&"gs_fps_forward")
 	for i in 300:
 		await get_tree().physics_frame
-	Input.action_release(&"dot_fps_forward")
+	Input.action_release(&"gs_fps_forward")
 	var top := me.global_position - level.position
 	var upstairs := level.room_at(top)
 	_check(top.y > level.storey() - 0.2 and upstairs == stair and _along(level, stair, top) > level._stair_length(level.rooms[stair]) - cell,
 		"a player walks up the stairs to the landing at the head, a floor up", "%s in %s" % [top, upstairs])
 	me.place_at(me.global_position, yaw + 180.0)
-	Input.action_press(&"dot_fps_forward")
+	Input.action_press(&"gs_fps_forward")
 	for i in 300:
 		await get_tree().physics_frame
-	Input.action_release(&"dot_fps_forward")
+	Input.action_release(&"gs_fps_forward")
 	var bottom := me.global_position - level.position
 	_check(bottom.y < 0.3 and level.room_at(bottom) == stair, "and back down again", str(bottom))
 	remove_child(client)

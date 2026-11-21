@@ -330,7 +330,7 @@ static func _hull_faces(points: PackedVector3Array, out: PackedVector3Array) -> 
 
 
 func _draw_world(prefix: String, at: Transform3D) -> void:
-	var read: GSResult = await GSMapDrawnWorld.read(prefix, GSRegistry.get_service(&"dot_cloud_client"))
+	var read: GSResult = await GSMapDrawnWorld.read(prefix, GSRegistry.get_service(&"gs_cloud_client"))
 
 	if not read.ok or not is_inside_tree():
 		GSLog.warn(CHANNEL, "the world was not drawn", {"prefix": prefix, "why": read.error.message if not read.ok else "the level is gone"})

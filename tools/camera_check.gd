@@ -1,7 +1,7 @@
 extends Node
 
 ## The first play test's cameras and bodies, in the real offline house: the third-person camera flown round every room and both sides of every door
-## (dot-core's GSCameraCheck, armed), a walked player vs a held one under `mp_solidplayers` 1 and 0, and `mp_forceview` through the view key.
+## (gs-core's GSCameraCheck, armed), a walked player vs a held one under `mp_solidplayers` 1 and 0, and `mp_forceview` through the view key.
 ##   tools/camera_check.sh [--render]   # headless, exit 1 on failure; --render also writes frames to screenshots/cameras/
 
 const LmClient := preload("res://game/lm_client.gd")
@@ -84,14 +84,14 @@ func _walk(game: LmGame, other: LmPlayer, solid: bool) -> float:
 	var from := centre + Vector3(0.0, 0.05, 1.3)
 	me.place_at(from, 0.0)
 	await get_tree().physics_frame
-	Input.action_press(&"dot_fps_forward")
+	Input.action_press(&"gs_fps_forward")
 	var closest := INF
 	for i in 90:
 		other.place_at(spot, 0.0)
 		await get_tree().physics_frame
 		var a := me.controller.state.position
 		closest = minf(closest, Vector2(a.x - spot.x, a.z - spot.z).length())
-	Input.action_release(&"dot_fps_forward")
+	Input.action_release(&"gs_fps_forward")
 	print("    %s: closest %.2f m" % ["solid" if solid else "pass-through", closest])
 	game.body_rules.solid = true
 	return closest

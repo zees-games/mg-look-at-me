@@ -6,7 +6,7 @@ const LmLevel := preload("../game/lm_level.gd")
 const LmPlayer := preload("../game/lm_player.gd")
 
 ## Bot soak: N stand-ins (LmBot) play one house (the "map") for M simulated minutes through
-## dot-bot's GSBotSoak: `./game.sh soak [house] [minutes]`. Writes .godot/test-logs/soak-<house>.json,
+## gs-bot's GSBotSoak: `./game.sh soak [house] [minutes]`. Writes .godot/test-logs/soak-<house>.json,
 ## prints the SOAK line, exits 1 on failure. A stand-in is stuck only while it has a goal.
 
 const DEFAULT_MAP := &"house"

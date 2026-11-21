@@ -5,7 +5,7 @@ const LmGame := preload("../game/lm_game.gd")
 const LmLevel := preload("../game/lm_level.gd")
 const LmPlayer := preload("../game/lm_player.gd")
 
-## What a witch hears, sees and does each tick ([method LmGame._watch]) is run by dot-sim's `GSSimWitches` when the
+## What a witch hears, sees and does each tick ([method LmGame._watch]) is run by gs-sim's `GSSimWitches` when the
 ## library is there, and it must do what the script does: a bot round on every level, the players thrown in front of
 ## and behind the witches with their lights and noise seeded, run with [member LmGame.witch_verify] on, re-runs the
 
@@ -44,8 +44,8 @@ func _run() -> void:
 	_entered += 1
 	print("the library has the witches")
 	if not GSSim.has(&"witches"):
-		print("  dot-sim's witches module is not loaded: the native half is skipped")
-		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) == "1"
+		print("  gs-sim's witches module is not loaded: the native half is skipped")
+		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("GS_SIM_REQUIRE_NATIVE")) == "1"
 		_check(not required, "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, 1, 1)
@@ -77,7 +77,7 @@ func _run() -> void:
 		if t % 32 == 0:
 			await get_tree().physics_frame
 	LmGame.witch_verify = false
-	_check(game._witches != null, "the world runs its witches in dot-sim")
+	_check(game._witches != null, "the world runs its witches in gs-sim")
 	_check(LmGame.witch_checked >= TICKS, "the watches were compared", "%d compared" % LmGame.witch_checked)
 	_check(LmGame.witch_differ == 0, "every watch gave the same gaze, rates and noise", "%d of %d differ" % [LmGame.witch_differ, LmGame.witch_checked])
 	_check(modes.size() >= 4 and heard[0] > 0, "the witches walked, listened, turned and ran", "modes %s, %d listens" % [modes.keys(), heard[0]])

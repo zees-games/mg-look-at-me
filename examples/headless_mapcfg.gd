@@ -14,9 +14,9 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("mg-look-at-me: per-map rules from cfg/game/mg-look-at-me/dot_map/map")
-	if not ResourceLoader.exists("res://addons/dot_map/config/dot_map_config.gd"):
-		print("SKIPPED: dot-map is not linked at addons/dot_map")
+	print("mg-look-at-me: per-map rules from cfg/game/mg-look-at-me/gs_map/map")
+	if not ResourceLoader.exists("res://addons/gs_map/config/gs_map_config.gd"):
+		print("SKIPPED: gs-map is not linked at addons/gs_map")
 		get_tree().quit(0)
 		return
 	var console := GSConsole.new()
@@ -26,7 +26,7 @@ func _run() -> void:
 	console.cvar("lm_bots", "1", "", GSConVar.FLAG_ARCHIVE)
 	var cfg := GSGameMapConfig.for_console(LmMapConfig.GAME_ID, console, LmMapConfig.KEYS)
 
-	var dir := "res://cfg/server/game/%s/dot_map/map" % LmMapConfig.GAME_ID
+	var dir := "res://cfg/server/game/%s/gs_map/map" % LmMapConfig.GAME_ID
 	var real := ProjectSettings.globalize_path(dir)
 	DirAccess.make_dir_recursive_absolute(real)
 	var path := real.path_join("lm_testhouse.yml")

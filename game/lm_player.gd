@@ -1,6 +1,6 @@
 extends CharacterBody3D
 
-## One person in the house: movement (dot-player-controller's first person, driven by the world's tick), a
+## One person in the house: movement (gs-player-controller's first person, driven by the world's tick), a
 ## flashlight, and what they carry and have done on this level. Progress is the player's own (everybody does
 ## every level themselves, so the server never has to end): holds, opened doors, used things, taken items.
 

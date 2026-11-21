@@ -3,7 +3,7 @@ extends "lm_game_senses.gd"
 ## What a witch sees and hears: [method _watch] and the senses and modes it runs.
 
 ## [method _watch]'s witches (every witch's [method _listen_witch], then her [method exposure]) are
-## run by dot-sim's `GSSimWitches` when the library has it, to the script's bit
+## run by gs-sim's `GSSimWitches` when the library has it, to the script's bit
 ## (`headless_native_witches`); off, or with no library (the web), the script runs them.
 static var native_witches := true
 ## Runs the script beside every native watch and counts the watches compared and any that differ;
@@ -79,7 +79,7 @@ func _watch_script(player: LmPlayer, level: LmLevel, seconds: float, delta: floa
 	return rates
 
 
-## The witches in dot-sim: the same gaze, rates and `listened` as [method _watch_script]. Null when
+## The witches in gs-sim: the same gaze, rates and `listened` as [method _watch_script]. Null when
 ## the library has no witches, and the script runs. With [member witch_verify] the script runs
 ## too, from the same start, and its answer is kept.
 func _watch_native(player: LmPlayer, level: LmLevel, seconds: float, delta: float) -> Variant:

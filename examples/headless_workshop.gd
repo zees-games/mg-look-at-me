@@ -5,7 +5,7 @@ const LmVote := preload("res://game/lm_vote.gd")
 
 ## Workshop houses: a subscribed pack's house is listed (M menu, ballot) and played in solo, not offered online;
 ## a map kind the game does not accept is left out and a pack document that is not a house of that id is refused.
-## Fixture: a solo pack on disk under user://, registered in dot-core's content index as the Workshop sync does.
+## Fixture: a solo pack on disk under user://, registered in gs-core's content index as the Workshop sync does.
 
 const ROOT := "user://lm_ws_fixture/"
 const CHECKS := 19

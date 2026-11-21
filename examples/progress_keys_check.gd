@@ -3,7 +3,7 @@ extends RefCounted
 const LmGame := preload("res://game/lm_game.gd")
 const LmProgress := preload("res://game/lm_progress.gd")
 
-## Stats are filed under dot-game's stable key; `game.players` and awards stay on `uid:...`.
+## Stats are filed under gs-game's stable key; `game.players` and awards stay on `uid:...`.
 
 class _Platform extends RefCounted:
 	func key() -> String:

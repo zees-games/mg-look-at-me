@@ -1,8 +1,8 @@
 extends GSGameModule
 
-## This game, as a module a dedicated server loads, over dot-game: the netcode's numbers, the operator's commands,
+## This game, as a module a dedicated server loads, over gs-game: the netcode's numbers, the operator's commands,
 ## where who won is kept, and the key progress is kept under. A chat line beginning with / that the house
-## understands is the house's. No `class_name`: a module delivered inside a dot-cloud pack cannot have one.
+## understands is the house's. No `class_name`: a module delivered inside a gs-cloud pack cannot have one.
 
 const LmNetBridge := preload("net/lm_net_bridge.gd")
 const LmServices := preload("lm_services.gd")
@@ -27,7 +27,7 @@ func _module_name() -> String:
 	return "lookatme"
 
 
-## The rules a house's `cfg/game/mg-look-at-me/dot_map/map/<house>.yml` may set (see docs/map-config.md in dot-game).
+## The rules a house's `cfg/game/mg-look-at-me/gs_map/map/<house>.yml` may set (see docs/map-config.md in gs-game).
 func _map_config_keys() -> Dictionary:
 	return LmMapConfig.KEYS
 
@@ -86,7 +86,7 @@ func _make_services() -> Node:
 	return LmServices.new()
 
 
-## Profiles, names and faces: dot-platform's identity over mg-deathrun's one-slot schema, so a
+## Profiles, names and faces: gs-platform's identity over mg-deathrun's one-slot schema, so a
 ## TMC account walks the house as the avatar it picked on the site. Authentication is the
 ## host's, as for every game; with it off everybody is a guest with a stock face.
 func _make_identity() -> Node:
@@ -119,7 +119,7 @@ func _game_load() -> GSResult:
 
 	_bind_rule_cvars(world)
 
-	# dot-game's "still loading": a seat behind its client's cover is not caught (LmGame.harm_gate).
+	# gs-game's "still loading": a seat behind its client's cover is not caught (LmGame.harm_gate).
 	world.harm_gate = func(key: StringName) -> bool:
 		if bridge == null:
 			return true
@@ -176,7 +176,7 @@ func _game_load() -> GSResult:
 
 
 func _bind_rule_cvars(world: LmGame) -> void:
-	# dot-player-controller's mp_forceview (0 the player's choice, 1 first person only, 2 third
+	# gs-player-controller's mp_forceview (0 the player's choice, 1 first person only, 2 third
 	# only; the config's allow_third_person false starts it at 1) and mp_solidplayers.
 	# REPLICATED: each client places its own camera and predicts its own player under them.
 	var _views := world.view_rules.bind_cvars(
@@ -196,7 +196,7 @@ func _add_commands(world: LmGame) -> void:
 	add_command("lm_status", _cmd_status, "Show the house and who is on which level")
 	add_command("lm_send", _cmd_send, "Send a player to a level: lm_send <name> <level>", GSAdminFlags.CHANGEMAP)
 	add_command("lm_winners", _cmd_winners, "List everybody who has got out of this house")
-	# Renameable from maps.yml's `commands:` block, like dot-vote's. An admin's lm_house loads
+	# Renameable from maps.yml's `commands:` block, like gs-vote's. An admin's lm_house loads
 	# any house, in the rotation or not.
 	for name in world.command_names("lm_house"):
 		add_command(name, _cmd_house, "Play another house now: lm_house <id>, or the list with none", GSAdminFlags.CHANGEMAP)
@@ -212,7 +212,7 @@ func _add_commands(world: LmGame) -> void:
 			vote.refresh_maps())
 
 
-## dot-workbench over the config; the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
+## gs-workbench over the config; the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled`.
 var workbench: GSGameWorkbench = null
 
 var _file_cvar: GSConVar = null
@@ -301,9 +301,9 @@ func _game_unload() -> void:
 	noblock = null
 
 
-## Voice's server side beyond what dot-game binds (sv_voice_enable, _mode and the proximity
+## Voice's server side beyond what gs-game binds (sv_voice_enable, _mode and the proximity
 ## cvars, which [LmServices] gave this game's defaults): the witches hearing a talker.
-## The look-to-gag switches are registered by dot-game's module.
+## The look-to-gag switches are registered by gs-game's module.
 func _wire_voice(world: LmGame) -> void:
 	var router: Object = services.get("voice") if services != null else null
 
@@ -334,7 +334,7 @@ func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> vo
 		bridge.call("notice", peer_id, said.error.message)
 
 
-## dot-vote over the houses: a time limit (house_minutes), rock the vote, nominations. The
+## gs-vote over the houses: a time limit (house_minutes), rock the vote, nominations. The
 ## ballot is drawn on clients from a `map_ballot` notice, as every game's map vote is.
 func _build_vote(world: LmGame) -> void:
 	vote = LmVote.new()
@@ -356,8 +356,8 @@ func _build_vote(world: LmGame) -> void:
 				out.append(StringName(str(session.userid)))
 
 		return out
-	# Through this game's chat router, not dot-server's system chat: a routed line keeps the channel and colour
-	# every other line has, and reaches a client whose shell is older than dot-game's GSGameChatClient.
+	# Through this game's chat router, not gs-server's system chat: a routed line keeps the channel and colour
+	# every other line has, and reaches a client whose shell is older than gs-game's GSGameChatClient.
 	# smash and the other minigames announce the same way.
 	vote.announce_fn = func(line: String) -> void:
 		var chat: Object = services.get("chat") if services != null else null
@@ -369,7 +369,7 @@ func _build_vote(world: LmGame) -> void:
 	vote.is_admin_fn = func(voter: StringName) -> bool:
 		var session := server.session_by_userid(String(voter).to_int()) if server != null else null
 		return session != null and session.has_permission(GSAdminFlags.CHANGEMAP)
-	# Who a voter is: the ballot draws their avatar, and dot-vote's chat lines ("Alice
+	# Who a voter is: the ballot draws their avatar, and gs-vote's chat lines ("Alice
 	# nominated The Asylum.") name them with it. Unset, both fell back to the userid.
 	vote.people_fn = func(voter: StringName) -> Dictionary:
 		var session := server.session_by_userid(String(voter).to_int()) if server != null else null
@@ -397,9 +397,9 @@ func _build_vote(world: LmGame) -> void:
 		return
 
 	GSLog.result(CHANNEL, "the house vote's commands", vote.install_commands(self))
-	# The map menu (M), dot-vote's: a player holding the owner's `sv_map_menu_flag` opens a house
+	# The map menu (M), gs-vote's: a player holding the owner's `sv_map_menu_flag` opens a house
 	# now, and sees the same rows a solo player does. Read by name, because a server on a
-	# dot-vote older than the menu has no `map_menu` and runs without it.
+	# gs-vote older than the menu has no `map_menu` and runs without it.
 	var menu_half: Variant = vote.commands.get(&"map_menu") if vote.commands != null else null
 	if menu_half is Object:
 		(menu_half as Object).set(&"change_fn", world.change_house)
@@ -531,7 +531,7 @@ func _wire_identity() -> void:
 
 ## Through the platform module's `player_for`, never the hub by a key made here: the hub keys a player by the
 ## scoped profile key only admission knows, so any other lookup finds nobody. Duck-typed, because a server
-## without dot-platform is a configuration.
+## without gs-platform is a configuration.
 func _avatar_for(session_id: int) -> GSAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
 	var platform: Object = server.modules.get_module("platform") \

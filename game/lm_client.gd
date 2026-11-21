@@ -81,7 +81,7 @@ func _build_view() -> void:
 	add_child(camera)
 	camera.current = true
 
-	# The flashlight (dot-flashlight): a hard bright middle with a soft edge, so it reads as a
+	# The flashlight (gs-flashlight): a hard bright middle with a soft edge, so it reads as a
 	# torch in a dark house and not a flat disc. The house owns on/off (LmPlayer.flashlight), so
 	# this node only draws it; a witch sees you by it, which is the game's trade.
 	fl_config = GSFlashlightConfig.new()
@@ -118,7 +118,7 @@ func _build_view() -> void:
 	camera.add_child(spill)
 
 
-## The load gate is dot-game's ([member GSGameClient.gate]); this holds the house on it. Released
+## The load gate is gs-game's ([member GSGameClient.gate]); this holds the house on it. Released
 ## by [method _release_map] when the house stands.
 func _hold_gate() -> void:
 	var gate := platform.gate if platform != null else null
@@ -142,7 +142,7 @@ func _hold_rebuild() -> void:
 		gate.release.call_deferred(&"map")
 
 
-## dot-team's block rules followed from the server, and the F9 tuning panel where this process hosts the house.
+## gs-team's block rules followed from the server, and the F9 tuning panel where this process hosts the house.
 func _add_noblock_and_workbench() -> void:
 	if link != null and not _offline:
 		GSLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
@@ -193,7 +193,7 @@ func _build_settings() -> void:
 	# a player can restyle in the menu.
 	platform.hud_accent = piece_theme()
 	platform.chat = chat
-	# dot-game's look-to-gag on the keys LmBindings binds (G, K: H is help); this game aims with a ray.
+	# gs-game's look-to-gag on the keys LmBindings binds (G, K: H is help); this game aims with a ray.
 	platform.look_target_fn = voice_target
 	platform.look_chat_mute_fn = _chat_mute
 	# The command line has the keyboard while it is open: its Escape is its own.
@@ -201,7 +201,7 @@ func _build_settings() -> void:
 	platform.board_snapshot_fn = board_snapshot
 	# M: the house list. Solo a choice opens that house here at once; connected the server
 	# decides, by the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead
-	# (dot-vote's map menu, wired in [LmModule]).
+	# (gs-vote's map menu, wired in [LmModule]).
 	platform.maps_rows_fn = func() -> Array: return game.house_rows() if game != null else []
 	platform.maps_change_fn = func(id: StringName) -> GSResult: return game.change_house(id)
 	platform.maps_title = "Change house"
@@ -447,7 +447,7 @@ func _refresh_key_line() -> void:
 		return
 	_key_line.text = "%s use   %s flashlight   %s camera   %s crouch   %s command   %s house   %s help" % [
 		k.call(LmBindings.USE, "E"), k.call(LmBindings.FLASHLIGHT, "F"), k.call(LmBindings.VIEW, "F5"),
-		k.call(&"dot_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"dot_menu_maps", "M"),
+		k.call(&"gs_fps_crouch", "Ctrl"), k.call(LmBindings.COMMAND, "/"), k.call(&"gs_menu_maps", "M"),
 		k.call(GSMenuBindings.HELP_ACTION, "H")]
 
 
@@ -668,8 +668,8 @@ func _chat_mute(peer: int, muted: bool) -> void:
 		chat.self_mute.call(&"set_muted", {"key": "", "name": other.display_name}, muted)
 
 
-## dot-game's chat box and microphone with this game's channels and voice format; it also draws
-## dot-server's own lines, which arrive on the shell's client link. Static so a suite can build it.
+## gs-game's chat box and microphone with this game's channels and voice format; it also draws
+## gs-server's own lines, which arrive on the shell's client link. Static so a suite can build it.
 static func new_chat() -> GSGameChatClient:
 	var box := GSGameChatClient.new()
 	box.name = "Chat"

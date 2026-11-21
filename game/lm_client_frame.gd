@@ -104,7 +104,7 @@ func mouse_drives_view() -> bool:
 func _input(event: InputEvent) -> void:
 	var motion := event is InputEventMouseMotion
 	var finger := event is InputEventScreenTouch or event is InputEventScreenDrag
-	# dot-mobile's overlay forwards every touch itself, and the mouse Godot emulates from one would turn the view twice.
+	# gs-mobile's overlay forwards every touch itself, and the mouse Godot emulates from one would turn the view twice.
 	if touch != null and touch.takes(event):
 		return
 	# A wheel tick is a press and a release in one frame, so polling misses it; the sampler
@@ -184,7 +184,7 @@ func _build_audio() -> void:
 
 
 ## The catch, felt. The red screen while caught is the meter's vignette and stays the HUD's;
-## the MOMENT of being caught is an effect, and an effect belongs to dot-fx, whose manager is
+## the MOMENT of being caught is an effect, and an effect belongs to gs-fx, whose manager is
 ## where "allow flashes", the three-a-second limit and "shake" are enforced.
 func _build_effects() -> void:
 	var catalogue := GSFxCatalogue.new()

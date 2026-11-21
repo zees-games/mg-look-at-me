@@ -1,8 +1,8 @@
 extends GSVoteTimedGame
 
-## The players choose the next house through dot-vote's [GSVoteTimedGame], with Look At Me's names:
+## The players choose the next house through gs-vote's [GSVoteTimedGame], with Look At Me's names:
 ## no rounds, so a house plays [member LmConfig.house_minutes], then a ballot opens; `!rtv` works any time.
-## Server side only; the rest is dot-vote's settings (`user://cfg/lookatme_vote.json`, `game.yml` `house_vote:`).
+## Server side only; the rest is gs-vote's settings (`user://cfg/lookatme_vote.json`, `game.yml` `house_vote:`).
 
 ## The key in the running game's descriptor metadata an operator's overrides are read from —
 ## [code]metadata: house_vote:[/code] in a delivered game's [code]game.yml[/code].
@@ -21,7 +21,7 @@ func _init() -> void:
 	command_names = COMMAND_NAMES
 	noun = "house"
 	config_path = "user://cfg/lookatme_vote.json"
-	# Every house the game lists, Workshop ones labelled "Name [Pack]", read again before each ballot. Not dot-vote's follow_content: it
+	# Every house the game lists, Workshop ones labelled "Name [Pack]", read again before each ballot. Not gs-vote's follow_content: it
 	# cannot leave out a pack document the game refused, and a ballot must not offer a house that cannot open.
 	follows_content = false
 	# Reports no round and no score, yet always took an operator's trigger as given; and registers as the vote service.

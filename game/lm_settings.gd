@@ -3,21 +3,21 @@ extends GSMenuGameSettings
 const LmBindings := preload("lm_bindings.gd")
 
 ## A player's own settings and the menu that changes them: view turn rate and width, volumes, the window, the menu's look.
-## dot-menu's `GSMenuGameSettings` with this game's spec; scopes are the family's: `sensitivity` ACCOUNT (`tmc_account`), `field_of_view`
+## gs-menu's `GSMenuGameSettings` with this game's spec; scopes are the family's: `sensitivity` ACCOUNT (`tmc_account`), `field_of_view`
 ## SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes per machine. Use: setup(), bind_look/camera/audio(), open().
 
 const SCHEMA_VERSION := 1
 
-## Where this game's own document lives. The shared account document is dot-settings'.
+## Where this game's own document lives. The shared account document is gs-settings'.
 const SETTINGS_DIR := "user://lookatme_settings"
 
-## The app's namespace. ACCOUNT settings are shared under dot-menu's `tmc_account`.
+## The app's namespace. ACCOUNT settings are shared under gs-menu's `tmc_account`.
 const APP_NAMESPACE := &"look_at_me"
 
 ## The field of view the camera had before this existed, and still the default.
 const DEFAULT_FOV := 75
 
-## Stock keys nothing here applies: every sound is on dot-audio's SFX bus (so master and
+## Stock keys nothing here applies: every sound is on gs-audio's SFX bus (so master and
 ## effects are the two volumes), the only effects are the catch's flash and jolt (no spawned
 ## effect for a quality setting to thin out), and the chat box has no switch.
 const NOT_APPLIED: Array[StringName] = [

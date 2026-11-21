@@ -1,12 +1,12 @@
 extends GSGameClientBench
 
-## Client prediction bench (dot-game's GSGameClientBench): see that class for the flags.
+## Client prediction bench (gs-game's GSGameClientBench): see that class for the flags.
 ## This game has no stand-in players (its witches are the server's), so `--bots` is ignored.
 
 
 func _configure() -> void:
 	client_scene = "res://game/lm.tscn"
-	forward_action = &"dot_fps_forward"
+	forward_action = &"gs_fps_forward"
 
 
 func _boot_server(_bots_wanted: int, data_dir: String) -> GSNetManager:

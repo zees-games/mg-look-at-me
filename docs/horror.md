@@ -18,7 +18,7 @@ The client asks `LmGame.exposure` for the local player only, from the same clock
 
 ## The witch
 
-`game/lm_witch.gd`. The Zombie Apocalypse Kit's basic zombie (Quaternius, CC0), copied from game-zombie-zone and recoloured grey and black by `tools/make_witch.py`; 2.2 m tall and drawn narrow; a black cone skirt from hips to floor wide enough to hide her stride, so she glides; a hat, lank hair and two glowing eyes on a `BoneAttachment3D` of her head. The family's people (dot-player-char) were tried first and drew a cheerful girl in a crop top.
+`game/lm_witch.gd`. The Zombie Apocalypse Kit's basic zombie (Quaternius, CC0), copied from game-zombie-zone and recoloured grey and black by `tools/make_witch.py`; 2.2 m tall and drawn narrow; a black cone skirt from hips to floor wide enough to hide her stride, so she glides; a hat, lank hair and two glowing eyes on a `BoneAttachment3D` of her head. The family's people (gs-player-char) were tried first and drew a cheerful girl in a crop top.
 
 - **Animated from her loop's speed, posed at the interpolated time.** Her pose only changes when the clock ticks; measured per frame, she stood still on every frame between ticks and flickered between her walk and her idle, and posed at the tick she stepped at the tick rate on any faster display.
 - **The head turn is written right after the clip is advanced, every frame.** Written onto a pose the clip did not just write, it adds up.
@@ -45,7 +45,7 @@ Beyond the witches, three things frighten the player, all the client's own (`gam
 
 ## Light
 
-Dark, but never so dark a player cannot step through a room: ambient 0.05, fog 0.05, filmic at 1.1, a little glow so lamps and eyes bloom, saturation down. The flashlight is a 36° spot with `spot_angle_attenuation` 0.55 (under 1 it falls away from a hot middle; at 1 and over it was the flat disc the play test saw), and a faint 3 m spill round the camera so the floor at your feet is there with the light off. The flashlight is still what a witch sees you by. The beam itself is dot-flashlight's `GSFlashlight` (others' beams are its `GSFlashlightCrowd`); the lit state and the witch's sight stay in `LmPlayer`.
+Dark, but never so dark a player cannot step through a room: ambient 0.05, fog 0.05, filmic at 1.1, a little glow so lamps and eyes bloom, saturation down. The flashlight is a 36° spot with `spot_angle_attenuation` 0.55 (under 1 it falls away from a hot middle; at 1 and over it was the flat disc the play test saw), and a faint 3 m spill round the camera so the floor at your feet is there with the light off. The flashlight is still what a witch sees you by. The beam itself is gs-flashlight's `GSFlashlight` (others' beams are its `GSFlashlightCrowd`); the lit state and the witch's sight stay in `LmPlayer`.
 
 ## Signs and the HUD
 

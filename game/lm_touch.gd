@@ -1,6 +1,6 @@
 extends RefCounted
 
-## The phone's controls: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own
+## The phone's controls: gs-mobile's stick, drag-look and buttons over the HUD, driving the client's own
 ## [GSFpsTouchSampler]. Buttons: use, flashlight, jump and crouch, and one for every key the keyboard has: camera (F5),
 ## command line, scoreboard (Tab, held), map list (M), look-to-gag and look-to-mute (G, K). Help (H) is the menu's own button.
 
@@ -12,7 +12,7 @@ const SelfScript := preload("lm_touch.gd")
 const EDGE_MARGIN := 20.0
 
 var controls: GSMobileControls = null
-## dot-ui's buttons inside the overlay, for the shell's DPI fit.
+## gs-ui's buttons inside the overlay, for the shell's DPI fit.
 var buttons: GSTouchButtons:
 	get:
 		return controls.buttons if controls != null else null
@@ -26,7 +26,7 @@ static func wanted() -> bool:
 	return GSPlatform.has_touch()
 
 
-## dot-game's platformer preset without sprint and chat, plus the flashlight in the corner home and a button for every key
+## gs-game's platformer preset without sprint and chat, plus the flashlight in the corner home and a button for every key
 ## the keyboard has. Help (H) is the menu's own button, which opens "Help & commands".
 static func touch_layout() -> GSGameTouchLayout:
 	var res := GSGameTouchLayout.build(GSGameTouchLayout.PLATFORMER, {
@@ -45,7 +45,7 @@ static func touch_layout() -> GSGameTouchLayout:
 	return res.value
 
 
-## The layout as dot-mobile takes it: jump and crouch are held on the sampler by the overlay.
+## The layout as gs-mobile takes it: jump and crouch are held on the sampler by the overlay.
 static func overlay_layout() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for b: Dictionary in touch_layout().buttons():

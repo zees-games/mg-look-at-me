@@ -2,39 +2,39 @@
 .godot/
 /android/
 
-# Every dot-* addon is a separate repository. For local development, symlink them.
-# THIS LIST IS ALSO THE DEPENDENCY MANIFEST: dot-bootstrap derives what to link from it.
-/addons/dot_core
-/addons/dot_input
-/addons/dot_profile
-/addons/dot_profiler
-/addons/dot_net
-# dot-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
-# bootstrap fetches this release's library for the machine (dot-bootstrap: bootstrap-natives).
-# bootstrap-natives: dot-sim v0.2.10
-/addons/dot_sim
-/addons/dot_player
-/addons/dot_player_controller
-/addons/dot_user_avatar
-/addons/dot_achievements
-/addons/dot_vote
-/addons/dot_stats
-/addons/dot_ui
-/addons/dot_settings
-/addons/dot_menu
-/addons/dot_console
-/addons/dot_platform
-/addons/dot_user
-/addons/dot_auth
-/addons/dot_cloud
-/addons/dot_moderation
-/addons/dot_voice
-/addons/dot_chat
-/addons/dot_game
-/addons/dot_workbench
-/addons/dot_server
-/addons/dot_audio
-/addons/dot_fx
+# Every gs-* addon is a separate repository. For local development, symlink them.
+# THIS LIST IS ALSO THE DEPENDENCY MANIFEST: gs-bootstrap derives what to link from it.
+/addons/gs_core
+/addons/gs_input
+/addons/gs_profile
+/addons/gs_profiler
+/addons/gs_net
+# gs-sim: optional native library (snapshot codec); without its built library the GDScript twins run.
+# bootstrap fetches this release's library for the machine (gs-bootstrap: bootstrap-natives).
+# bootstrap-natives: gs-sim v0.2.10
+/addons/gs_sim
+/addons/gs_player
+/addons/gs_player_controller
+/addons/gs_user_avatar
+/addons/gs_achievements
+/addons/gs_vote
+/addons/gs_stats
+/addons/gs_ui
+/addons/gs_settings
+/addons/gs_menu
+/addons/gs_console
+/addons/gs_platform
+/addons/gs_user
+/addons/gs_auth
+/addons/gs_cloud
+/addons/gs_moderation
+/addons/gs_voice
+/addons/gs_chat
+/addons/gs_game
+/addons/gs_workbench
+/addons/gs_server
+/addons/gs_audio
+/addons/gs_fx
 
 # Exports
 build/
@@ -49,17 +49,17 @@ Thumbs.db
 
 # Editors
 .vscode/
-/addons/dot_player_char
-/addons/dot_animation
-/addons/dot_save
-/addons/dot_camera
+/addons/gs_player_char
+/addons/gs_animation
+/addons/gs_save
+/addons/gs_camera
 tools/__pycache__/
-/addons/dot_map
-/addons/dot_bot
-/addons/dot_spawn
-/addons/dot_team
-/addons/dot_flashlight
-/addons/dot_lighting
+/addons/gs_map
+/addons/gs_bot
+/addons/gs_spawn
+/addons/gs_team
+/addons/gs_flashlight
+/addons/gs_lighting
 
 # The Look At Me maps are lam-maps, a repository and a pack of their own: one house each, linked into houses/.
 # bootstrap-link: lam-maps/houses/lam_villa_night
@@ -69,13 +69,13 @@ tools/__pycache__/
 # bootstrap-link: lam-maps/houses/lam_deco_mansion_night
 /houses/lam_deco_mansion_night
 
-# More dot-* addons linked locally (dot-bootstrap links them; each is its own repository).
-/addons/dot_bot_record
-/addons/dot_combat
-/addons/dot_player_class
-/addons/dot_server_query
-/addons/dot_spectate
-/addons/dot_sql
-# godot-sqlite comes from dot-bot tools/fetch_sqlite.sh
+# More gs-* addons linked locally (gs-bootstrap links them; each is its own repository).
+/addons/gs_bot_record
+/addons/gs_combat
+/addons/gs_player_class
+/addons/gs_server_query
+/addons/gs_spectate
+/addons/gs_sql
+# godot-sqlite comes from gs-bot tools/fetch_sqlite.sh
 /addons/godot-sqlite
-/addons/dot_mobile
+/addons/gs_mobile

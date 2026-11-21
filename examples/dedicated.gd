@@ -161,13 +161,13 @@ func _test_stats_report() -> void:
 	script.source_code = "extends Node\nfunc post_integration(_a = null, _b = null, _c = null): return null\n"
 	var _reloaded := script.reload()
 	client.set_script(script)
-	GSRegistry.register(&"dot_backbone_client", client)
+	GSRegistry.register(&"gs_backbone_client", client)
 	var _r0 := cv.set_value("0")
 	var _r1 := cv.set_value("1")
 	_check(progress.stats.report_to_backbone, "on with a backbone client makes the tracker report")
 	var _r2 := cv.set_value("0")
 	_check(not progress.stats.report_to_backbone, "off stops it again")
-	GSRegistry.unregister_instance(&"dot_backbone_client", client)
+	GSRegistry.unregister_instance(&"gs_backbone_client", client)
 	client.free()
 
 	_check(progress.stats.schema.has(&"rank_score") and progress.rank != null, "rank_score is declared and the rank is set up")
@@ -178,7 +178,7 @@ func _test_stats_report() -> void:
 	_check(_life == 10.0, "a stored lifetime baseline (2 wins) is what the published rank is built on")
 
 
-## Config cvars, the workbench, and dot-team's block rules through dot-game's GSGameNoblock.
+## Config cvars, the workbench, and gs-team's block rules through gs-game's GSGameNoblock.
 func _noblock_and_config(module: GSModule) -> void:
 	var teamblock := server.console.find_cvar("mp_teamblock")
 	var enemyblock := server.console.find_cvar("mp_enemyblock")
@@ -213,7 +213,7 @@ func _test_the_console() -> void:
 	_check(_module().get("vote") != null and _said(_run_command("lm_house"), "asylum"), "the house vote is built, and lm_house lists the houses")
 
 	# The map menu's server half (M): the owner's flag changes the house now, anybody else
-	# gets a nomination and a rock-the-vote. Contexts as dot-server makes them for a chat line.
+	# gets a nomination and a rock-the-vote. Contexts as gs-server makes them for a chat line.
 	var menu_half: Object = _module().get("vote").get("commands").get("map_menu")
 	_check(menu_half != null and server.console.find_command("mapmenu") != null
 		and server.console.find_cvar("sv_map_menu_flag").get_string() == "generic"
@@ -266,7 +266,7 @@ func _test_an_empty_server() -> void:
 		"the house vote follows the server's hibernation")
 
 	# The vote's lines go through this game's chat router, which is what the box draws.
-	# dot-server's system chat reaches no box in this game.
+	# gs-server's system chat reaches no box in this game.
 	var chat: Object = _module().get("services").get("chat") if _module().get("services") != null else null
 	var heard: Array[String] = []
 	var hear := func(message: Object, _to: PackedInt32Array) -> void: heard.append(str(message.get("text")))
@@ -298,7 +298,7 @@ func _test_an_empty_server() -> void:
 	_finished_section()
 
 
-## A seat whose client has not lifted its loading cover cannot be caught (dot-game's "still loading") over a
+## A seat whose client has not lifted its loading cover cannot be caught (gs-game's "still loading") over a
 ## real ENet socket: its reported fright is refused and a witch's look leaves the meter alone, until it
 ## sends `game.cover`. Stand-ins never reach this: a bot is never loading.
 func _test_a_covered_seat_is_not_caught() -> void:

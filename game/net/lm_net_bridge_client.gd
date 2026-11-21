@@ -60,7 +60,7 @@ var voice_relay_fn: Callable = Callable()
 ## kept under. The module returns the account uid; unset, the session.
 var key_fn: Callable = Callable()
 
-## (session_id) -> GSAvatar: what a session looks like, set by the module to dot-platform's
+## (session_id) -> GSAvatar: what a session looks like, set by the module to gs-platform's
 ## answer. Unset, or answering null, is the stock person for the key.
 var avatar_fn: Callable = Callable()
 

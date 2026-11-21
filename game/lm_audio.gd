@@ -73,7 +73,7 @@ const CREAK_FAR := 13.0
 
 var manager: GSAudioManager = null
 
-## Quiet moods under the house (dot-audio's stock set); the old bed plays only when none loaded.
+## Quiet moods under the house (gs-audio's stock set); the old bed plays only when none loaded.
 var ambient: GSAmbienceDirector = null
 
 ## 0 to 1: how close she is to seeing you. Set by the client every frame.
@@ -210,7 +210,7 @@ static func _scare_sounds(c: GSAudioCatalogue) -> void:
 	behind.max_distance = 10.0
 	behind.gain_db = -2.0
 	c.add(behind)
-	# The torch's switch clicks, dot-audio's stock; dot-flashlight plays them by id.
+	# The torch's switch clicks, gs-audio's stock; gs-flashlight plays them by id.
 	for d in GSAudioStock.flashlight_defs():
 		c.add(d)
 

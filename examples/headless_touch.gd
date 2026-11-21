@@ -2,7 +2,7 @@ extends GSGameCheckSuite
 
 const LmTouch := preload("../game/lm_touch.gd")
 
-## The touch layout and dot-mobile's overlay: the buttons fit a phone at three sizes without overlapping, and each GSTouchButtons is freed.
+## The touch layout and gs-mobile's overlay: the buttons fit a phone at three sizes without overlapping, and each GSTouchButtons is freed.
 ## Run: `godot --headless --path . res://examples/headless_touch.tscn`
 
 const CHECKS := 24
@@ -54,7 +54,7 @@ func _run() -> void:
 	_report(CHECKS)
 
 
-## dot-mobile's overlay on a HUD-typed host (a Control, as the client's is): it drives the client's own sampler.
+## gs-mobile's overlay on a HUD-typed host (a Control, as the client's is): it drives the client's own sampler.
 func _overlay() -> void:
 	GSPlatform.touch_override = 1
 	var host := Control.new()

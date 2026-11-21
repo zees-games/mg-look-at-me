@@ -85,7 +85,7 @@ func pose(at: Vector3, yaw_radians: float, speed: float) -> void:
 	if person == null:
 		return
 	var delta: float
-	if GSAddonApi.build_level("dot_player_char") >= 11:
+	if GSAddonApi.build_level("gs_player_char") >= 11:
 		# Game time, as the body moves: a wall-clock step skated the feet (slow motion, fixed-rate frames).
 		delta = person.frame_delta()
 	else:
