@@ -155,6 +155,7 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 | The Asylum (`houses/asylum/`) | Converted from the plan of [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=903842886) by The Old Swashbuckler; rooms read automatically, then grown, cut into twenty levels and furnished by this game; no original textures, props, sounds or text | none stated (no request against porting on 2026-10-20) | [docs/converted-houses.md](docs/converted-houses.md) |
 | The Pit (`houses/ashpit/`) | Converted the same way from [Ashpit](https://steamcommunity.com/sharedfiles/filedetails/?id=2902149974) by Redstone.Co; every texture is a CC0 replacement | none stated | `houses/*/world/*/CREDITS.md` |
 | The Mall Deck (`houses/mallparking/`) | Converted the same way from the ground deck of [gm_mallparking](https://steamcommunity.com/sharedfiles/filedetails/?id=2619660952) by bean; every texture is a CC0 replacement | none stated | `houses/*/world/*/CREDITS.md` |
+| Godot logo (boot splash) | Andrea Calabro, [godotengine.org/press](https://godotengine.org/press/) | CC BY 4.0 | `branding/splash.png` |
 
 **Made one of these maps or assets and want it removed? Open an issue, or tell us, and it goes.**
 
