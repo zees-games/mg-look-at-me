@@ -45,7 +45,7 @@ func _run() -> void:
 	print("the library has the witches")
 	if not GSSim.has(&"witches"):
 		print("  gs-sim's witches module is not loaded: the native half is skipped")
-		var required := (OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("GS_SIM_REQUIRE_NATIVE")) == "1"
+		var required := OS.get_environment("GS_SIM_REQUIRE_NATIVE") == "1"
 		_check(not required, "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, 1, 1)
