@@ -232,7 +232,9 @@ func _level_mood() -> Dictionary:
 	if game == null or player == null or not game.levels.has(player.level):
 		return {}
 	var level: LmLevel = game.levels[player.level]
-	return level.doc.get("mood", {})
+	# A level's `mood` may also be the ambient mood NAME (a String, "indoor_hall"): only a table sets fog.
+	var mood: Variant = level.doc.get("mood", {})
+	return mood if mood is Dictionary else {}
 
 
 ## The house closes in as the meter rises: the fog thickens and goes faintly red, and the
