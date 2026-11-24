@@ -24,7 +24,7 @@ game/
   lm_audio.gd    the sounds as a gs-audio catalogue of audio/ files: ambience, creaks, steps, a witch's hum and steps, door, latch, stinger, shriek, heartbeat, slam, lights out; a -1 dB limiter on master
   lm_scares.gd   sanity scares, demons and the look-behind whisper decided as pure scheduling (lm_* cvars, seeded); lm_scare_view.gd draws and plays them; see docs/horror.md
   lm_surfaces.gd the wallpaper, floorboards and ceiling painted into mipmapped, tileable images (world-space triplanar, anisotropic); LM_FLAT=1 in the environment draws the old flat colours for a before/after (tools/shot.sh --view=range --dist=N)
-  lm_witch.gd    a witch drawn: the kit's zombie recoloured, skirt, hat, glowing eyes, head turned with her sight, the floor fan; flares while she sees you
+  lm_witch.gd    a witch drawn: the gaunt Sketchfab witch, glowing eyes, head turned with her sight, the floor fan; flares while she sees you
   net/           lm_events (JSON kinds), lm_event/lm_request, lm_net_link, lm_net_command (the move), lm_player_net (movement + level/flashlight/won, meter/caught to the owner), lm_net_bridge
   lm_figure.gd   a player drawn as one of the family's animated people (gs-player-char's GSHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
   lm_bot.gd      a stand-in player (tests and the soak only): walks the puzzle with real movement and E; see docs/soak.md
@@ -34,7 +34,7 @@ houses/asylum/   The Asylum: asylum_01 .. asylum_20, cut from a converted plan (
 houses/forgotten/ The Forgotten Wing: one 51-room level laid over a Workshop map's plan (tools/layouts/forgotten.json, tools/bsp_layout.py, docs/map-bases.md)
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
-assets/witch/   her body and atlas (tools/make_witch.py)
+assets/witch/   her body and atlas, CC-BY (CREDITS.md; tools/make_witch.py)
 assets/clown/   the clown hallucination's model, CC-BY (CREDITS.md; tools/make_clown.py); game/lm_clown.gd draws it, LmScares schedules it (lm_clown_* cvars: chance, wait and damage are curves over the meter; so are the demon and look-behind spikes, lm_demon_spike_min/max, lm_look_behind_spike_min/max, lm_spike_curve); tools/shot.sh --view=clown|clownlunge
 examples/        headless_run, headless_net, headless_lossy, dedicated, headless_workshop, headless_config
 tools/           build_levels.py (--check, --stats; furnishing and its proof in lm_furnish.py); make_sounds.py (--levels); make_witch.py; shot.sh/.gd (render: eyes, third, witch, glimpse, above = a labelled plan of one --floor, prompt, door --near=m, --caught=1); playthrough.sh (xvfb: eight frames of level 1 and the recorded mix, measured); witch_shot (the witch from four sides); audio_probe (xvfb only: is there a sound); probe.gd

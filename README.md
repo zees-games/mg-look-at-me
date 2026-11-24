@@ -149,6 +149,7 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 | Footsteps, creaks, doors, latch | Kenney, Impact Sounds and RPG Audio | CC0 | `audio/CREDITS.md` |
 | Flashlight click | Kenney, Interface Sounds | CC0 | `audio/CREDITS.md` |
 | Ambience, witch's hum, stinger, shriek, heartbeat, scare sound, whispers | Synthesised for this game by `tools/make_sounds.py` | CC0 | `audio/CREDITS.md` |
+| Witch | [Witch](https://sketchfab.com/3d-models/witch-0b6f69bbaa864bd78c0cfa98dabca0aa) by Tamko Dmitry; made gaunt and hunched, rigged and animated | CC BY 4.0 | `assets/witch/`, `tools/make_witch.py` |
 | Clown hallucination | [Da-Clown #StylizedBustChallenge](https://sketchfab.com/3d-models/da-clown-stylizedbustchallenge-59bdbb3cc60748b995106b6020b25303) by Nwilly_art; eyes split off, jaw bone added | CC BY 4.0 | `assets/clown/`, `tools/make_clown.py` |
 | Everything else | Drawn in code | none | in code |
 | The Forgotten Wing (`houses/forgotten/`) | Laid out over the floor plan of [Forgotten Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=1682965311) by WhiteKnuckles. Only the plan was used; rebuilt by hand with this game's own art | none stated (no request against porting on 2026-10-20) | [docs/map-bases.md](docs/map-bases.md) |

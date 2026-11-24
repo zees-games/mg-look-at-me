@@ -1,8 +1,8 @@
 extends Node3D
 
-## A witch, drawn: the zombie kit's basic zombie recoloured (tools/make_witch.py) in a black skirt and pointed hat, shambling her clock loop, head turning with her sight, which lies on the floor as a red fan.
+## A witch, drawn: a hunched, hooded crone (the Sketchfab "Witch" made gaunt and clawed by tools/make_witch.py), shambling her clock loop, head turning with her sight, which lies on the floor as a red fan.
 ## Only what the server already decides is drawn: pose is [method LmLevel.witch_pose] (Decision 2), whether she sees YOU is [method LmGame.exposure], asked by [LmClient] for the local player alone.
-## Seeing you, her eyes and lamp flare, the fan goes hard red and her arms come up: the meter is filling and the way out is out of the fan. The skirt is a cone to the floor so her stride cannot show.
+## Seeing you, her eyes and lamp flare, the fan goes hard red and her arms come up: the meter is filling and the way out is out of the fan.
 
 const CHANNEL := "lookatme.witch"
 
@@ -11,19 +11,22 @@ const LmPaths := preload("lm_paths.gd")
 ## Taller than the tallest player (1.8 m): something you look up at.
 const HEIGHT := 2.2
 
-## Her body: the Zombie Apocalypse Kit's basic zombie (Quaternius, CC0), and its atlas in grey
-## and black. tools/make_witch.py makes both from the kit's files in game-zombie-zone.
+## Her body: "Witch" by Tamko Dmitry (CC BY 4.0, assets/witch/CREDITS.md) rigged, hunched and
+## drained to grey and black, with its atlas. tools/make_witch.py makes both from the Sketchfab file.
 static var BODY := LmPaths.rebase("res://assets/witch/witch.glb")
 static var ATLAS := LmPaths.rebase("res://assets/witch/witch_atlas.png")
 
 ## Her skin when the atlas is missing.
 const SKIN := Color("9aa293")
 
-## Where her eyes are under the top of her head, and in front of its middle.
-const EYE_DROP := -0.36
-const EYE_FORWARD := 0.36
+## Where her eyes are from the top of her hood (the mount), measured on the model: below it, in
+## front of the head bone, and a little off to one side of it; and how far apart they sit.
+const EYE_DROP := -0.235
+const EYE_FORWARD := 0.247
+const EYE_SIDE := -0.068
+const EYE_APART := 0.04
 
-## The clips that loop (the kit's are imported once-through).
+## The clips that loop (glTF clips import once-through).
 const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"run_arms", &"attack_idle"]
 
 ## The fan's alpha: barely there while she walks, hard red while she sees you.
@@ -91,9 +94,9 @@ func build(sight: float, cone: float) -> void:
 		var mesh := _model.find_children("*", "MeshInstance3D", true, false).front() as MeshInstance3D
 		mesh.material_override = _skin()
 		var raw := mesh.get_aabb().end.y
-		# The kit faces +Z and this family's forward is -Z; drawn a little narrow for her height.
+		# The model faces +Z and this family's forward is -Z; it is built at HEIGHT already.
 		var s := HEIGHT / maxf(raw, 0.01)
-		_model.basis = Basis(Vector3.UP, PI).scaled(Vector3(s * 0.8, s, s * 0.8))
+		_model.basis = Basis(Vector3.UP, PI).scaled(Vector3(s, s, s))
 		_head_bone = _skeleton.find_bone("Head") if _skeleton != null else -1
 
 	if _anim != null:
@@ -110,33 +113,13 @@ func build(sight: float, cone: float) -> void:
 		add_child(fan)
 
 
-## A skirt to the floor, a hat, hair down her back and two eyes, on the head bone where they
-## must move with it. Placed once from the rest pose, in her own frame; a BoneAttachment3D
-## keeps each where it was put as the bone moves.
+## Her eyes and the lamp in her face, on the head bone where they must move with it. Placed once
+## from the rest pose, in her own frame; a BoneAttachment3D keeps them where they were put.
 func _dress() -> void:
-	var black := StandardMaterial3D.new()
-	black.albedo_color = Color(0.035, 0.03, 0.04)
-	black.roughness = 1.0
-
-	# The skirt: from the hips to the floor, wide enough that a stride stays inside it, so
-	# she seems to glide.
-	var skirt := MeshInstance3D.new()
-	skirt.name = "Skirt"
-	var skirt_mesh := CylinderMesh.new()
-	skirt_mesh.top_radius = 0.32
-	skirt_mesh.bottom_radius = 0.74
-	skirt_mesh.height = HEIGHT * 0.52
-	skirt_mesh.radial_segments = 14
-	skirt.mesh = skirt_mesh
-	skirt.material_override = black
-	skirt.position = Vector3(0, HEIGHT * 0.26 + 0.02, 0)
-	add_child(skirt)
-
-	var head := _mount_head()
-	_dress_head(head, black)
+	_dress_head(_mount_head())
 
 
-## The node her hat, hair and eyes hang from, on the head bone when she has a skeleton.
+## The node her eyes hang from, on the head bone when she has a skeleton.
 func _mount_head() -> Node3D:
 	var head := Node3D.new()
 	head.name = "HeadMount"
@@ -157,39 +140,7 @@ func _mount_head() -> Node3D:
 	return head
 
 
-func _dress_head(head: Node3D, black: StandardMaterial3D) -> void:
-	var brim := MeshInstance3D.new()
-	var brim_mesh := CylinderMesh.new()
-	brim_mesh.top_radius = 0.46
-	brim_mesh.bottom_radius = 0.5
-	brim_mesh.height = 0.025
-	brim.mesh = brim_mesh
-	brim.material_override = black
-	brim.position = Vector3(0, -0.1, 0)
-	head.add_child(brim)
-	var point := MeshInstance3D.new()
-	var point_mesh := CylinderMesh.new()
-	point_mesh.top_radius = 0.0
-	point_mesh.bottom_radius = 0.26
-	point_mesh.height = 0.85
-	point.mesh = point_mesh
-	point.material_override = black
-	point.position = Vector3(0.04, 0.3, 0.06)
-	point.rotation = Vector3(deg_to_rad(-14.0), 0.0, deg_to_rad(8.0))
-	head.add_child(point)
-
-	# Lank hair down her back, under the brim.
-	for i in 5:
-		var strand := MeshInstance3D.new()
-		var strand_mesh := BoxMesh.new()
-		strand_mesh.size = Vector3(0.09, 0.75 + 0.1 * float(i % 3), 0.03)
-		strand.mesh = strand_mesh
-		strand.material_override = black
-		var across := -0.24 + 0.12 * float(i)
-		strand.position = Vector3(across, -0.5 - 0.05 * float(i % 3), 0.22 - absf(across) * 0.3)
-		strand.rotation = Vector3(deg_to_rad(8.0), atan2(across, 0.2) * 0.5, 0.0)
-		head.add_child(strand)
-
+func _dress_head(head: Node3D) -> void:
 	_eyes_material = StandardMaterial3D.new()
 	_eyes_material.albedo_color = Color(1.0, 0.12, 0.05)
 	_eyes_material.emission_enabled = true
@@ -197,11 +148,11 @@ func _dress_head(head: Node3D, black: StandardMaterial3D) -> void:
 	_eyes_material.emission_energy_multiplier = EYES_IDLE
 	_eyes_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
-	for side in [-0.09, 0.09]:
+	for side in [EYE_SIDE - EYE_APART * 0.5, EYE_SIDE + EYE_APART * 0.5]:
 		var eye := MeshInstance3D.new()
 		var dot := SphereMesh.new()
-		dot.radius = 0.03
-		dot.height = 0.06
+		dot.radius = 0.014
+		dot.height = 0.028
 		eye.mesh = dot
 		eye.material_override = _eyes_material
 		eye.position = Vector3(side, EYE_DROP, -EYE_FORWARD)
@@ -211,11 +162,11 @@ func _dress_head(head: Node3D, black: StandardMaterial3D) -> void:
 	_glow.light_color = Color(1.0, 0.18, 0.1)
 	_glow.light_energy = GLOW_IDLE
 	_glow.omni_range = 3.2
-	_glow.position = Vector3(0, EYE_DROP, -0.4)
+	_glow.position = Vector3(EYE_SIDE, EYE_DROP, -EYE_FORWARD - 0.08)
 	head.add_child(_glow)
 
 
-## Her skin and rags: the kit's atlas recoloured grey and black (tools/make_witch.py).
+## Her skin and rags: the atlas drained grey and black (tools/make_witch.py).
 static func _skin() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = load(ATLAS) as Texture2D if ResourceLoader.exists(ATLAS) else null
@@ -295,7 +246,7 @@ func place(at: Vector3, facing: float, head: float, delta: float, speed: float =
 		elif speed < 0.2:
 			_play(&"idle", 1.0)
 		elif seeing > 0.5:
-			# Arms up and reaching, legs still under the skirt: she glides at you.
+			# Arms up and reaching, legs shambling: she lurches at you.
 			_play(&"attack_idle", 1.0)
 		else:
 			_play(&"walk", clampf(speed / 1.3, 0.6, 1.8))
