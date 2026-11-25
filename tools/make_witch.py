@@ -1284,16 +1284,16 @@ def idle(t):
 # forward at the victim and a little apart so they read from in front and behind, the upper arm never above
 # her shoulder (a raised arm tears through her hood brim and capelet): held (claws hooked), full (thrust at
 # your face, fingers spread), clutch (closing on you).
-REACH_HELD = ((0.4, -0.85, 0.05), (0.2, -0.95, 0.15), (0.08, -0.95, 0.05), (0.0, -0.45, -0.85))
-REACH_FULL = ((0.35, -0.9, 0.15), (0.15, -0.97, 0.2), (0.05, -0.98, 0.1), (0.0, -0.7, -0.6))
+REACH_HELD = ((0.55, -0.75, -0.1), (0.3, -0.9, 0.2), (0.1, -0.9, 0.2), (0.0, -0.3, -0.95))
+REACH_FULL = ((0.3, -0.94, 0.15), (0.12, -0.99, 0.1), (0.05, -0.99, 0.05), (0.05, -0.85, -0.5))
 REACH_CLUTCH = ((0.38, -0.88, 0.08), (0.1, -0.97, 0.15), (-0.05, -0.95, 0.0), (-0.1, -0.2, -0.95))
 REACH_KEYS = [(0.0, REACH_HELD), (0.25, REACH_FULL), (0.42, REACH_CLUTCH), (0.6, REACH_HELD), (0.78, REACH_FULL),
               (0.92, REACH_CLUTCH), (1.0, REACH_HELD)]
 # her trunk through it (deg, + leans forward): Spine, Chest, Neck, Head pitch and the hips forward (m): leaning
 # after her claws, a little further at each thrust
-REACH_TRUNK = [(0.0, (12, 8, -8, -16, -0.08)), (0.25, (15, 10, -12, -22, -0.13)), (0.42, (13, 9, -10, -19, -0.1)),
-               (0.6, (12, 8, -8, -16, -0.08)), (0.78, (15, 10, -12, -22, -0.13)), (0.92, (13, 9, -10, -19, -0.1)),
-               (1.0, (12, 8, -8, -16, -0.08))]
+REACH_TRUNK = [(0.0, (10, 6, -8, -16, -0.06)), (0.25, (22, 14, -16, -28, -0.2)), (0.42, (16, 10, -12, -22, -0.12)),
+               (0.6, (10, 6, -8, -16, -0.06)), (0.78, (22, 14, -16, -28, -0.2)), (0.92, (16, 10, -12, -22, -0.12)),
+               (1.0, (10, 6, -8, -16, -0.06))]
 STALK_CYCLES = 4          # foot cycles a 48-frame clip: short quick steps, not the walk's long stride
 STALK_SWING = 0.35        # of a cycle, the foot in the air
 STALK_LIFT = 0.08
@@ -1359,23 +1359,26 @@ _LUNGE_LEGS = {}
 # 0.31-0.6 (both feet off the floor and tucked, the claws thrown out at your face at shoulder height, never
 # overhead), land 0.6-0.66 (she drops into a deep crouch a long leap on, the left foot ahead), then she holds
 # you: the claws stay on you, she pants over you (the capture and the game both stop near 0.93).
-LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.12, (0, 0.06, -0.14)), (0.24, (0, 0.12, -0.3)), (0.31, (0, -0.12, -0.12)),
+LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.12, (0, 0.06, -0.1)), (0.24, (0, 0.12, -0.2)), (0.31, (0, -0.12, -0.12)),
               (0.38, (0, -0.45, 0.12)), (0.46, (0, -0.78, 0.2)), (0.54, (0, -1.02, 0.08)), (0.6, (0, -1.14, -0.14)),
               (0.66, (0, -1.18, -0.26)), (0.78, (0, -1.2, -0.14)), (0.9, (0, -1.2, -0.08)), (1.0, (0, -1.2, -0.08))]
-# Spine, Chest, Neck, Head pitch (deg, + leans forward; the neck and head bend back to keep her eyes on you)
+# Spine, Chest, Neck, Head pitch (deg, + leans forward; the neck and head bend back to keep her eyes on you and
+# her head up out of the hood in the crouch: a deep chest lean there sank it to chest height)
 # and the chest's twist
-LUNGE_TRUNK = [(0.0, (0, 0, 0, 0, 0)), (0.12, (10, 10, -5, -10, 6)), (0.24, (18, 16, -10, -18, 10)),
+LUNGE_TRUNK = [(0.0, (0, 0, 0, 0, 0)), (0.12, (8, 4, -10, -14, 6)), (0.24, (12, 6, -16, -24, 10)),
                (0.32, (10, 8, -10, -20, -4)), (0.44, (14, 10, -16, -28, -6)), (0.56, (16, 12, -16, -30, -4)),
                (0.64, (22, 16, -18, -32, -2)), (0.76, (14, 10, -14, -26, 0)), (1.0, (10, 8, -10, -20, 0))]
 COCKED = ((0.35, 0.5, -0.8), (0.2, -0.4, 0.5), (0.05, -0.8, 0.35), (0.0, -0.5, -0.8))
-STRIKE = ((0.2, -0.97, 0.1), (0.1, -1.0, 0.1), (0.05, -1.0, 0.0), (0.1, -0.9, 0.3))
+# the claws stay hooked through the strike: thrown open at the lens they read as a hand twice the size and
+# snapped open in one frame
+STRIKE = ((0.2, -0.97, 0.1), (0.1, -1.0, 0.1), (0.05, -1.0, 0.0), (0.0, -0.55, -0.83))
 GRAB = ((0.2, -0.95, 0.12), (-0.1, -0.95, 0.2), (-0.2, -0.9, 0.05), (-0.15, -0.25, -0.95))
 HOLD = ((0.25, -0.9, 0.1), (-0.05, -0.92, 0.2), (-0.15, -0.9, 0.05), (-0.1, -0.35, -0.9))
 LUNGE_ARMS = [(0.0, COCKED), (0.24, COCKED), (0.36, STRIKE), (0.52, STRIKE), (0.64, GRAB), (0.78, HOLD), (1.0, HOLD)]
 # Each foot: (take-off, landing, landing spot ahead of the stand (m), height of its tuck (m)). Both push off
 # together and leave the floor before the hips peak; the left lands first, a little ahead of her hips, the
 # right just behind them.
-LUNGE_FEET = (("L", 0.30, 0.58, 1.18 + 0.22, 0.42), ("R", 0.33, 0.62, 1.18 - 0.15, 0.35))
+LUNGE_FEET = (("L", 0.30, 0.58, 1.18 + 0.22, 0.62), ("R", 0.33, 0.62, 1.18 - 0.15, 0.55))
 
 
 def _lunge_foot(t, stand, off, land, ahead, high):
@@ -1385,8 +1388,9 @@ def _lunge_foot(t, stand, off, land, ahead, high):
     if t <= off:
         return tgt
     u = min(1.0, (t - off) / (land - off))
-    tgt.y -= ahead * smooth(u)
-    tgt.z += high * math.sin(math.pi * u)
+    # the feet trail the hips off the floor and kick through late (heels tucked up under her, not hanging)
+    tgt.y -= ahead * smooth(u * u * (3.0 - 2.0 * u))
+    tgt.z += high * math.sin(math.pi * u) ** 0.7
     return tgt
 
 
