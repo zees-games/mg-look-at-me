@@ -12,19 +12,17 @@ const LmPaths := preload("lm_paths.gd")
 const HEIGHT := 2.2
 
 ## Her body: "Witch" by Tamko Dmitry (CC BY 4.0, assets/witch/CREDITS.md) rigged, hunched and
-## drained to grey and black, with its atlas. tools/make_witch.py makes both from the Sketchfab file.
+## clawed, with its painted atlas. tools/make_witch.py makes both from the Sketchfab file.
 static var BODY := LmPaths.rebase("res://assets/witch/witch.glb")
 static var ATLAS := LmPaths.rebase("res://assets/witch/witch_atlas.png")
 
 ## Her skin when the atlas is missing.
 const SKIN := Color("9aa293")
 
-## Where her eyes are from the top of her hood (the mount), measured on the model: below it, in
-## front of the head bone, and a little off to one side of it; and how far apart they sit.
-const EYE_DROP := -0.235
-const EYE_FORWARD := 0.285
-const EYE_SIDE := -0.075
-const EYE_APART := 0.07
+## Her eye bones (tools/make_witch.py puts one at the centre of each socket, its +Y out of the face),
+## and how far in front of the socket's centre the glowing core sits (model units, along the bone).
+const EYE_BONES: PackedStringArray = ["Eye.L", "Eye.R"]
+const EYE_OUT := 0.005
 
 ## The clips that loop (glTF clips import once-through).
 const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"run_arms", &"attack_idle"]
@@ -114,34 +112,30 @@ func build(sight: float, cone: float) -> void:
 		add_child(fan)
 
 
-## Her eyes and the lamp in her face, on the head bone where they must move with it. Placed once
-## from the rest pose, in her own frame; a BoneAttachment3D keeps them where they were put.
+## Her eyes and the lamp in her face, each eye on its own bone in the centre of its socket, so
+## they stay in the sockets whatever the head does.
 func _dress() -> void:
-	_dress_head(_mount_head())
+	var mounts: Array[Node3D] = []
+	if _skeleton != null:
+		for bone_name in EYE_BONES:
+			if _skeleton.find_bone(bone_name) < 0:
+				continue
+			var bone := BoneAttachment3D.new()
+			bone.name = bone_name.replace(".", "")
+			bone.bone_name = bone_name
+			_skeleton.add_child(bone)
+			mounts.append(bone)
+	if mounts.is_empty():
+		# No eye bones (the column): two points high on its front.
+		for side: float in PackedFloat32Array([-0.04, 0.04]):
+			var at := Node3D.new()
+			at.position = Vector3(side, HEIGHT - 0.25, -0.3)
+			add_child(at)
+			mounts.append(at)
+	_dress_eyes(mounts)
 
 
-## The node her eyes hang from, on the head bone when she has a skeleton.
-func _mount_head() -> Node3D:
-	var head := Node3D.new()
-	head.name = "HeadMount"
-
-	if _skeleton != null and _head_bone >= 0:
-		var bone := BoneAttachment3D.new()
-		bone.name = "HeadBone"
-		bone.bone_name = "Head"
-		_skeleton.add_child(bone)
-		bone.add_child(head)
-		# Where the top of her head is at rest, upright and at metre scale in her frame.
-		var at_rest := global_transform.affine_inverse() * _skeleton.global_transform * _skeleton.get_bone_global_rest(_head_bone)
-		var top := Vector3(at_rest.origin.x, HEIGHT, at_rest.origin.z)
-		head.global_transform = global_transform * Transform3D(Basis.IDENTITY, top)
-	else:
-		head.position = Vector3(0, HEIGHT, 0)
-		add_child(head)
-	return head
-
-
-func _dress_head(head: Node3D) -> void:
+func _dress_eyes(mounts: Array[Node3D]) -> void:
 	_eyes_material = StandardMaterial3D.new()
 	_eyes_material.albedo_color = Color(1.0, 0.12, 0.05)
 	_eyes_material.emission_enabled = true
@@ -155,39 +149,41 @@ func _dress_head(head: Node3D) -> void:
 	_halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
-	for side in [EYE_SIDE - EYE_APART * 0.5, EYE_SIDE + EYE_APART * 0.5]:
+	for mount in mounts:
 		var eye := MeshInstance3D.new()
 		var dot := SphereMesh.new()
-		dot.radius = 0.014
-		dot.height = 0.028
+		dot.radius = 0.012
+		dot.height = 0.024
 		eye.mesh = dot
 		eye.material_override = _eyes_material
-		eye.position = Vector3(side, EYE_DROP, -EYE_FORWARD)
-		head.add_child(eye)
-		var halo := MeshInstance3D.new()      # a short soft halo round the bright core
+		eye.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		eye.position = Vector3(0.0, EYE_OUT, 0.0)
+		mount.add_child(eye)
+		var halo := MeshInstance3D.new()      # a short soft halo round the bright core, inside the socket
 		var haze := SphereMesh.new()
-		haze.radius = 0.032
-		haze.height = 0.064
+		haze.radius = 0.022
+		haze.height = 0.044
 		halo.mesh = haze
 		halo.material_override = _halo_material
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		halo.position = eye.position
-		head.add_child(halo)
+		mount.add_child(halo)
 
+	# The lamp in her face: a little out in front of her first eye, lighting the socket rims.
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.18, 0.1)
 	_glow.light_energy = GLOW_IDLE
 	_glow.omni_range = 0.7
-	_glow.position = Vector3(EYE_SIDE, EYE_DROP, -EYE_FORWARD - 0.08)
-	head.add_child(_glow)
+	_glow.position = Vector3(0.0, 0.08, 0.0)
+	mounts[0].add_child(_glow)
 
 
-## Her skin and rags: the atlas drained grey and black (tools/make_witch.py).
+## Her skin and rags: the painted atlas (tools/make_witch.py), mipmapped so its cloth grain does not shimmer.
 static func _skin() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = load(ATLAS) as Texture2D if ResourceLoader.exists(ATLAS) else null
 	m.albedo_color = Color.WHITE if m.albedo_texture != null else SKIN
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	m.roughness = 0.95
 	return m
 
@@ -260,7 +256,7 @@ func place(at: Vector3, facing: float, head: float, delta: float, speed: float =
 		# A shamble when she walks; seeing you, her arms come up and reach.
 		if _lunge_left > 0.0:
 			_lunge_left -= delta
-			_play(&"attack", 1.3)
+			_play(&"attack", 1.0)
 		elif speed < 0.2:
 			_play(&"idle", 1.0)
 		elif seeing > 0.5:
@@ -309,12 +305,13 @@ func set_seeing(on: bool, delta: float) -> void:
 		_glow.light_energy = lerpf(GLOW_IDLE, GLOW_SEEING, seeing)
 
 
-## The lunge of a catch: arms up at you.
+## The lunge of a catch: she gathers, then strikes and grabs, the whole clip once through.
 func lunge() -> void:
 	_lunge_left = 0.9
 	if _anim != null and _anim.has_animation(&"attack"):
+		_lunge_left = _anim.get_animation(&"attack").length
 		_clip = &""
-		_play(&"attack", 1.3)
+		_play(&"attack", 1.0)
 		_anim.seek(0.0, true)
 
 
