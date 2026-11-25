@@ -164,10 +164,15 @@ print("custom normals", body.data.has_custom_normals, "smooth faces", sum(f.smoo
 cl = [f for f in bm.faces if f[kind_l] in (CLOAK, HOODIN) and min(v.co.z for v in f.verts) > fz(16.0)]
 n0 = len(bm.verts)
 bmesh.ops.subdivide_edges(bm, edges=list({e for f in cl for e in f.edges}), cuts=1, smooth=1.0, use_grid_fill=True)
+# The arms and hands too: their few long segments read as faceted tubes, and the wrist pinched into a
+# candy wrapper when the hand turned.
+sk = [f for f in bm.faces if f[kind_l] == SKIN and max(v.co.z for v in f.verts) < fz(22.5)]
+bmesh.ops.subdivide_edges(bm, edges=list({e for f in sk for e in f.edges}), cuts=1, smooth=1.0, use_grid_fill=True)
 for f in bm.faces:
     f.smooth = True
 bm.verts.ensure_lookup_table()
 print("hood subdivided", n0, "->", len(bm.verts))
+print("arm skin faces subdivided", len(sk))
 
 # ---------------------------------------------------------------- 2. tatter, sockets
 robe = [v for v in bm.verts if v.co.z > fz(8.0) and v.co.z < fz(12) and abs(v.co.x) < 6]
@@ -1002,7 +1007,8 @@ def _cloth_rows(name, rows, loop):
     for f in range(n):
         g, h = (f + 1) % n if loop else min(f + 1, n - 1), (f - 1) % n if loop else max(f - 1, 0)
         fwd.append(speed - (rows[g]["hy"] - rows[h]["hy"]) / ((g - h) % n * dt if loop else max(g - h, 1) * dt))
-    drag = [d(8.0) * v for v in fwd]                       # radians the hem trails per m/s
+    # radians the hem trails per m/s, capped: the lunge's 3 m/s burst swung the hem out behind her like a shell
+    drag = [max(-d(14), min(d(14), d(5.0) * v)) for v in fwd]
     robe = _spring(drag, loop)
     hood_x = _spring([r["head_x"] + 0.6 * dg for r, dg in zip(rows, drag)], loop, w=2 * math.pi * 1.8)
     hood_z = _spring([r["head_z"] for r in rows], loop, w=2 * math.pi * 1.8)
@@ -1025,8 +1031,9 @@ def _cloth_rows(name, rows, loop):
         # hood up off her head into a tent that buried her face
         hx = max(-d(8), min(d(8), 0.5 * (hood_x[f] - r["head_x"]))) * fade
         hz = max(-d(8), min(d(8), 0.5 * (hood_z[f] - r["head_z"]))) * fade
-        cx = (cape_x[f] - r["chest_x"]) * fade
-        cz = (cape_z[f] - r["chest_z"]) * fade
+        # capped: uncapped, the crouch flung the cape up over her hood into a mushroom cap
+        cx = max(-d(12), min(d(12), cape_x[f] - r["chest_x"])) * fade
+        cz = max(-d(12), min(d(12), cape_z[f] - r["chest_z"])) * fade
         # a shoulder flap rides up with its arm once the arm is raised past 40 degrees, out to her side
         # (the flaps ride the upper arms through their skin weights now; this only lifts their free edge)
         al = 0.6 * max(0.0, r["arm_l"] - d(35))
@@ -1034,12 +1041,15 @@ def _cloth_rows(name, rows, loop):
         st = stride[f]
         ry = roll[f] - r["hips_y"]
         rz = yaw[f] - r["hips_z"]
+        # the skirt hangs back toward plumb against the hips' pitch (riding it, the hunched lunge bent
+        # robe and trunk into one banana-shaped tube)
+        pl = -0.35 * r["hips_x"]
         up = {
             # a little flare at rest: the back hem stood tucked under her
-            "F": (rb - 1.8 * kf, ry, rz),
-            "B": (d(6) + rb + 2.8 * kb, 2.0 * ry + 1.4 * st, 1.8 * rz),
-            "L": (rb - 1.8 * st, d(-4) + 1.8 * ry, 1.2 * rz),
-            "R": (rb + 1.8 * st, d(4) + 1.8 * ry, 1.2 * rz),
+            "F": (pl + rb - 1.8 * kf, ry, rz),
+            "B": (pl + d(6) + rb + 2.8 * kb, 2.0 * ry + 1.4 * st, 1.8 * rz),
+            "L": (pl + rb - 1.8 * st, d(-4) + 1.8 * ry, 1.2 * rz),
+            "R": (pl + rb + 1.8 * st, d(4) + 1.8 * ry, 1.2 * rz),
         }
         for n in ("FL", "BL", "BR", "FR"):        # the diagonals: halfway between their neighbours
             a, b = up[n[0]], up[n[1]]
@@ -1377,7 +1387,8 @@ def walk(t):
         a = sgn * amp * sw(tc, ph)                       # + swings the arm back
         f = sgn * 1.3 * amp * sw(tc, ph + 0.1)           # the forearm trails the upper arm
         g = sgn * 1.4 * amp * sw(tc, ph + 0.16)          # the claws trail the forearm
-        dirs = [(0.3, a, -0.9), (0.35, f - 0.45, -0.85), (0.2, g - 0.4, -0.9), (0.05, g - 0.2, -1.0)]
+        # out 9 degrees, not 18: both arms passing mid-swing together opened into an A-pose every step
+        dirs = [(0.15, a, -0.95), (0.2, f - 0.65, -0.75), (0.1, g - 0.55, -0.8), (0.0, g - 0.3, -0.95)]
         dirs = [Vector(v).normalized()[:] for v in dirs]
         _aim_arm(r, hips, s, dirs)
     return r, {"Hips": hips}
@@ -1569,6 +1580,13 @@ def idle(t):
         # the cloth springs sample out of order), so every frame lands on the same branch
         r["UpperLeg." + s], r["LowerLeg." + s] = (d(-4), 0, 0), (d(8), 0, 0)
         _plant(r, hips, s, _stand()[s])
+    # both arms hang low and a little forward, claws half-open and twitching (the rest pose held her
+    # right hand up at her chest, holding nothing)
+    for s, sgn, ph in (("L", 1.0, 0.0), ("R", -1.0, 0.37)):
+        k = sw(t * 2, ph)
+        dirs = [(0.18, -0.12 + 0.04 * sw(t, ph), -0.97), (0.22, -0.55 - 0.08 * k, -0.8),
+                (0.08, -0.8, -0.55 + 0.1 * sw(t * 3, ph)), (0.0, -0.45 - 0.2 * k, -0.9)]
+        _aim_arm(r, hips, s, [Vector(v).normalized()[:] for v in dirs])
     return r, {"Hips": hips}
 
 
@@ -1586,7 +1604,7 @@ def idle(t):
 REACH_REST = ((0.35, -0.2, -0.92), (0.3, -0.75, -0.2), (0.1, -0.9, -0.2), (0.0, -0.6, -0.8))
 # the wind-up a claw raised high beside the hood, elbow out and up (drawn back behind her, the elbow pushed
 # out through the shawl's back)
-REACH_WIND = ((0.6, 0.15, 0.78), (0.35, -0.3, 0.88), (0.1, -0.7, 0.7), (0.0, -0.8, -0.6))
+REACH_WIND = ((0.6, 0.55, -0.35), (0.45, -0.25, 0.86), (0.15, -0.65, 0.7), (0.0, -0.85, -0.5))
 REACH_STRIKE = ((0.3, -0.92, 0.25), (0.12, -0.97, 0.2), (0.05, -0.98, 0.18), (0.0, -0.98, -0.2))
 REACH_CLUTCH = ((0.29, -0.92, 0.24), (0.1, -0.97, 0.2), (0.03, -0.98, 0.17), (0.0, -0.3, -0.95))
 REACH_RECOVER = ((0.35, -0.55, -0.7), (0.3, -0.9, 0.1), (0.1, -0.9, -0.1), (0.0, -0.5, -0.85))

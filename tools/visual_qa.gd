@@ -26,7 +26,9 @@ const SECONDS := {"idle": 2.0, "walk": 2.4, "run": 2.0, "crouch": 2.0, "jump": 1
 const WITCH_WALK := 1.3
 ## The witch's victim (the first-person view): where they stand per clip, far enough back that her boots stay in frame
 ## (the lunge, a 1.2 m leap, ends 1.6 m short of them, her reach, the scare distance); their eye height and torch.
-const VICTIM_Z := {"idle": -3.4, "walk": -4.4, "reach": -3.3, "lunge": -2.8}
+const VICTIM_Z := {"idle": -2.6, "walk": -4.4, "reach": -3.3, "lunge": -3.3}
+## Off to her right in the idle, so the victim's eye sees her three-quarter, not the opponent view's straight-on copy.
+const VICTIM_X := {"idle": -1.1}
 const VICTIM_EYE := 1.65
 const VICTIM_SIDE := -0.12
 const VICTIM_FOV := 70.0
@@ -40,6 +42,9 @@ const REACH_BEHIND := Vector3(3.6, 1.5, -0.4)
 ## her in milky grey), and a depth haze in the sky's colour so the floor fades out instead of ending in an edge.
 const WITCH_AMBIENT := Color(0.36, 0.37, 0.43)
 const WITCH_HAZE := Vector2(9.0, 18.0)
+## The stage sun turned round this far (degrees about up) for her clips, to light her from the side: the shared stage lights
+## from behind her, which left her face in its own shadow in every front view.
+const WITCH_SUN_YAW := 100.0
 ## How high the floating clown bust hangs (metres), its bust being 0.9 m.
 const CLOWN_HEIGHT := 1.6
 
@@ -52,6 +57,7 @@ var _staged := ""
 var _torch := SpotLight3D.new()
 var _env: Environment = null
 var _ambient := Color.WHITE
+var _sun_turned := false
 
 
 func _items() -> PackedStringArray:
@@ -111,6 +117,13 @@ func _witch_light(on: bool) -> void:
 	_env.ambient_light_color = WITCH_AMBIENT if on else _ambient
 	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if on else Environment.TONE_MAPPER_LINEAR
 	_env.fog_enabled = on
+	if on == _sun_turned:
+		return
+	_sun_turned = on
+	# turned relative to where it is, so the judge's light variants (which turn the sun too) still apply
+	var turn := Basis(Vector3.UP, deg_to_rad(WITCH_SUN_YAW if on else -WITCH_SUN_YAW))
+	for light: Node in root.find_children("*", "DirectionalLight3D", true, false):
+		(light as DirectionalLight3D).global_basis = turn * (light as DirectionalLight3D).global_basis
 
 
 func _stage(item: String, clip: String) -> GSResult:
@@ -254,7 +267,8 @@ func _place_first_person(_item: String) -> void:
 	if _kind == "witch":
 		_torch.visible = true
 		first_person.fov = VICTIM_FOV
-		first_person.global_position = Vector3(VICTIM_SIDE, VICTIM_EYE, float(VICTIM_Z.get(_staged, -2.4)))
+		first_person.global_position = Vector3(VICTIM_SIDE + float(VICTIM_X.get(_staged, 0.0)), VICTIM_EYE,
+			float(VICTIM_Z.get(_staged, -2.4)))
 		# aimed below her face, so her boots stay in frame as she closes in
 		first_person.look_at(at + Vector3(0.0, WITCH_LOOK, 0.0))
 		return
