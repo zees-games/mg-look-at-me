@@ -249,15 +249,26 @@ for s, sx in ((".L", 1.0), (".R", -1.0)):
 B("UpperArm.L", "Chest", (4.5, 2.5, 20.0), (6.1, 2.9, 15.5))
 B("LowerArm.L", "UpperArm.L", (6.1, 2.9, 15.5), (6.2, 2.5, 12.3))
 B("Hand.L", "LowerArm.L", (6.2, 2.5, 12.3), (6.2, 2.4, 10.8))
-B("Fingers.L", "Hand.L", (6.2, 2.4, 10.8), (6.0, 2.2, 9.0))
+# jointed claws on both hands: knuckle (Fingers) and last joint (Tips); the right hand, raised by her face
+# in the source, was one bone from wrist to nail and every grab was a paddle
+B("Fingers.L", "Hand.L", (6.2, 2.4, 10.8), (6.1, 2.3, 9.9))
+B("Tips.L", "Fingers.L", (6.1, 2.3, 9.9), (6.0, 2.2, 9.0))
 B("UpperArm.R", "Chest", (-4.5, 2.5, 20.0), (-5.9, 2.0, 16.4))
 B("LowerArm.R", "UpperArm.R", (-5.9, 2.0, 16.4), (-7.0, -1.6, 19.2))
-B("Hand.R", "LowerArm.R", (-7.0, -1.6, 19.2), (-7.0, -2.9, 22.0))
-# cloth: four hem bones hanging off the hips, one for the hood's crown and back
-B("Robe.F", "Hips", (0.8, -2.2, 12.5), (0.8, -2.8, 6.0))
-B("Robe.B", "Hips", (0.8, 4.8, 12.5), (0.8, 5.6, 6.0))
-B("Robe.L", "Hips", (4.6, 1.5, 12.5), (5.2, 1.5, 6.0))
-B("Robe.R", "Hips", (-3.0, 1.5, 12.5), (-3.6, 1.5, 6.0))
+B("Hand.R", "LowerArm.R", (-7.0, -1.6, 19.2), (-7.0, -2.23, 20.56))
+B("Fingers.R", "Hand.R", (-7.0, -2.23, 20.56), (-7.0, -2.6, 21.35))
+B("Tips.R", "Fingers.R", (-7.0, -2.6, 21.35), (-7.0, -2.95, 22.15))
+# cloth: the skirt hangs in eight panels off the hips, each two bones long (the hem swings on after the
+# panel above it and hangs plumb while she leans: one bone a side bent the whole skirt in a C like a tube),
+# and one bone for the hood's crown and back
+ROBE_DIRS = {"F": (0.0, -1.0), "FL": (0.71, -0.71), "L": (1.0, 0.0), "BL": (0.71, 0.71),
+             "B": (0.0, 1.0), "BR": (-0.71, 0.71), "R": (-1.0, 0.0), "FR": (-0.71, -0.71)}
+for _n, (_ax, _ay) in ROBE_DIRS.items():
+    _r0, _r1, _r2 = (3.7, 4.3, 5.0) if _ay <= 0.0 else (3.3, 4.1, 4.9)
+    B("Robe." + _n, "Hips", (0.8 + _ax * _r0, 1.5 + _ay * _r0, 12.5), (0.8 + _ax * _r1, 1.5 + _ay * _r1, 6.0))
+    B("Robe." + _n + "2", "Robe." + _n, (0.8 + _ax * _r1, 1.5 + _ay * _r1, 6.0), (0.8 + _ax * _r2, 1.5 + _ay * _r2, 0.8))
+ROBE_UP = ["Robe." + _n for _n in ROBE_DIRS]
+ROBE_LO = [_n + "2" for _n in ROBE_UP]
 B("Hood", "Head", (0.8, 0.6, 26.0), (0.9, 1.4, 31.0))
 # the cape over the shoulders and back (warped units already): a flap over each shoulder that rides up
 # with the arm (a stiff cape the raised arm came through), and the back panel that trails and swings
@@ -297,8 +308,8 @@ def weights(p, names, power=3.0):
 for n in BONES:
     body.vertex_groups.new(name=n)
 LEGS = ["UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R", "Foot.L", "Foot.R"]
-ARML = ["UpperArm.L", "LowerArm.L", "Hand.L", "Fingers.L"]
-ARMR = ["UpperArm.R", "LowerArm.R", "Hand.R"]
+ARML = ["UpperArm.L", "LowerArm.L", "Hand.L", "Fingers.L", "Tips.L"]
+ARMR = ["UpperArm.R", "LowerArm.R", "Hand.R", "Fingers.R", "Tips.R"]
 CORE = ["Hips", "Spine", "Chest", "Neck", "Head"]
 _kinds = body.data.attributes["kind"].data
 CAPE_V = {i for f in body.data.polygons if _kinds[f.index].value == CLOAK for i in f.vertices}
@@ -372,9 +383,7 @@ for i, g in G.items():
         if w / tot > 0.004:
             body.vertex_groups[n].add([i], w / tot, "REPLACE")
 
-CLOTH = ["Robe.F", "Robe.B", "Robe.L", "Robe.R", "Hood", "Cape.B", "Cape.L", "Cape.R"]
-for n in CLOTH:
-    body.vertex_groups.new(name=n)
+CLOTH = ROBE_UP + ROBE_LO + ["Hood", "Cape.B", "Cape.L", "Cape.R"]
 # the arms' skin never takes a cloth share: the hanging hand's inner edge lies inside the robe's
 # reach, and robe-weighted knuckles stay behind when the arm lifts (a sheet stretched to the wrist)
 ARM_SKIN = {i for f in body.data.polygons if _kinds[f.index].value == SKIN for i in f.vertices}
@@ -401,13 +410,25 @@ for v in body.data.vertices:
                 ws[n] *= smooth(abs(dx) / 2.0)
     elif abs(p.x - 0.8) > 5.6 or v.index in ARM_SKIN or v.index in LEG_V:   # limbs stay on their bones
         continue
-    if fz(5.0) < p.z < fz(14.0):
-        k = smooth((fz(14.0) - p.z) / (fz(14.0) - fz(7.0))) * 0.85
-        dx, dy = p.x - 0.8, p.y - 1.5
-        for n, (ax, ay) in (("Robe.F", (0, -1)), ("Robe.B", (0, 1)), ("Robe.L", (1, 0)), ("Robe.R", (-1, 0))):
-            c = max(0.0, (dx * ax + dy * ay) / max(math.hypot(dx, dy), 1e-6))
-            if c > 0.0 and math.hypot(dx, dy) > 1.0:
-                ws[n] = k * c * c
+    dx, dy = p.x - 0.8, p.y - 1.5
+    rr = math.hypot(dx, dy)
+    if p.z < fz(14.0) and rr > 1.0:
+        # the skirt down to the hem: shared over the eight panels around her (cos^4 lobes, so a panel owns
+        # its own strip and blends only with its neighbours), handed from the upper bones to the hem bones
+        # below the knee
+        k = smooth((fz(14.0) - p.z) / (fz(14.0) - fz(8.0))) * 0.9
+        low = smooth((fz(7.0) - p.z) / (fz(7.0) - fz(2.5)))
+        lobes = {}
+        for n, (ax, ay) in ROBE_DIRS.items():
+            c = max(0.0, (dx * ax + dy * ay) / rr)
+            if c > 0.0:
+                lobes[n] = c ** 4
+        ltot = sum(lobes.values())
+        for n, c in lobes.items():
+            if k * (1.0 - low) > 0.0:
+                ws["Robe." + n] = k * (1.0 - low) * c / ltot
+            if k * low > 0.0:
+                ws["Robe." + n + "2"] = k * low * c / ltot
     if p.z > fz(24.5) and abs(p.x - 0.8) < 4.6 and p.y < 4.5:
         ws["Hood"] = smooth((p.z - fz(24.5)) / 3.0) * 0.7 * smooth((p.y + 3.0) / 4.0)
     tot = sum(ws.values())
@@ -416,14 +437,11 @@ for v in body.data.vertices:
     if tot > 0.95:
         ws = {n: w * 0.95 / tot for n, w in ws.items()}
         tot = 0.95
-    for g in body.vertex_groups:      # take the cloth share from the existing weights
+    for ge in list(v.groups):         # take the cloth share from the existing weights
+        g = body.vertex_groups[ge.group]
         if g.name in CLOTH:
             continue
-        try:
-            w0 = g.weight(v.index)
-        except RuntimeError:
-            continue
-        g.add([v.index], w0 * (1.0 - tot), "REPLACE")
+        g.add([v.index], ge.weight * (1.0 - tot), "REPLACE")
     for n, w in ws.items():
         body.vertex_groups[n].add([v.index], w, "REPLACE")
 
@@ -460,7 +478,8 @@ pose(
     # hunched at the back, but the neck carries the head up and forward out of the mantle (bent over it
     # further, the head sank into the chest and from behind she had none)
     rots={"Spine": (d(10), 0, 0), "Chest": (d(8), 0, 0), "Neck": (d(-6), 0, 0), "Head": (d(-6), 0, 0),
-          "UpperArm.L": (d(3), 0, d(-5)), "UpperArm.R": (d(5), 0, d(6)), "Fingers.L": (d(-22), 0, 0)},
+          "UpperArm.L": (d(3), 0, d(-5)), "UpperArm.R": (d(5), 0, d(6)), "Fingers.L": (d(-22), 0, 0),
+          "Tips.L": (d(-16), 0, 0)},
     # long bony fingers, but a hand no bigger than her face (the source's left one was a shovel)
     scales={"Neck": (1, 1.35, 1), "UpperArm.L": (1, 1.15, 1), "LowerArm.L": (0.85, 1.12, 0.85), "Hand.L": (0.68, 0.72, 0.68),
             "Fingers.L": (0.7, 0.86, 0.7), "Hand.R": (0.78, 0.95, 0.78)},
@@ -506,10 +525,12 @@ from PIL import Image
 
 W0, H0 = base_img.size
 src = np.array(base_img.pixels[:], dtype=np.float32).reshape(H0, W0, 4)[..., :3]   # row 0 = v 0
-# Painted at twice the source's size: the procedural skin, weave and hand detail is what the
-# extra texels are for (the source's own paint is upsampled and only lends its local contrast).
-UP = 2
-src = np.repeat(np.repeat(src, UP, 0), UP, 1)
+# Painted at four times the source's size (4k): the procedural skin, weave and hand detail is what the
+# extra texels are for. The source's own paint is upsampled smoothly (repeated texels, blurred, left soft
+# square blotches all over her) and only lends its local contrast.
+UP = int(os.environ.get("WITCH_UP", "4"))
+src = np.stack([np.asarray(Image.fromarray(np.ascontiguousarray(src[..., c])).resize((W0 * UP, H0 * UP), Image.BICUBIC))
+                for c in range(3)], -1).astype(np.float32)
 H, W = src.shape[:2]
 src_lum = src @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
 
@@ -519,11 +540,43 @@ kind_attr = me.attributes["kind"]
 kinds_f = np.zeros(len(me.polygons), dtype=np.int32)
 kind_attr.data.foreach_get("value", kinds_f)
 uv_data = me.uv_layers.active.data
+# Ambient occlusion a vertex, from rays over its hemisphere against her own mesh (the folds' valleys, the
+# armpits, under the hood and between the fingers dark), smoothed once over its neighbours.
+from mathutils.bvhtree import BVHTree
+_bvh = BVHTree.FromPolygons([v.co.copy() for v in me.vertices], [tuple(f.vertices) for f in me.polygons], epsilon=0.0)
+_rng = np.random.default_rng(7)
+_dirs = []
+while len(_dirs) < 24:                     # cosine-weighted directions about +Z
+    a, b = _rng.random(2)
+    rr = math.sqrt(a)
+    _dirs.append(Vector((rr * math.cos(2 * math.pi * b), rr * math.sin(2 * math.pi * b), math.sqrt(1 - a))))
+VAO = np.ones(len(me.vertices), dtype=np.float32)
+for v in me.vertices:
+    n = v.normal
+    if n.length < 0.5:
+        continue
+    q = n.to_track_quat("Z", "Y")
+    o = v.co + n * 0.002
+    hit = 0.0
+    for dv in _dirs:
+        loc, _n, _i, dist = _bvh.ray_cast(o, q @ dv, 0.22)
+        if loc is not None:
+            hit += 1.0 - dist / 0.22 * 0.5
+    VAO[v.index] = 1.0 - hit / len(_dirs)
+_nbr = [[] for _ in me.vertices]
+for e in me.edges:
+    a, b = e.vertices
+    _nbr[a].append(b)
+    _nbr[b].append(a)
+VAO = np.array([0.5 * VAO[i] + 0.5 * (VAO[js].mean() if js else VAO[i]) for i, js in enumerate(_nbr)], dtype=np.float32)
+print("ao mean", float(VAO.mean()), "p5", float(np.percentile(VAO, 5)))
 POS = np.zeros((H, W, 3), dtype=np.float32)
 KINDS = np.zeros((H, W), dtype=np.int32)
+AOT = np.ones((H, W), dtype=np.float32)
 for tri in me.loop_triangles:
     uv = np.array([uv_data[li].uv[:] for li in tri.loops], dtype=np.float64) * (W, H)
     xyz = np.array([me.vertices[vi].co[:] for vi in tri.vertices], dtype=np.float64)
+    aov = VAO[list(tri.vertices)]
     x0, y0 = np.floor(uv.min(0)).astype(int) - 1
     x1, y1 = np.ceil(uv.max(0)).astype(int) + 1
     x0, y0, x1, y1 = max(x0, 0), max(y0, 0), min(x1, W - 1), min(y1, H - 1)
@@ -545,6 +598,7 @@ for tri in me.loop_triangles:
     sub_kind = KINDS[y0:y1 + 1, x0:x1 + 1]
     sub_pos[inside] = p3[inside]
     sub_kind[inside] = kinds_f[tri.polygon_index]
+    AOT[y0:y1 + 1, x0:x1 + 1][inside] = (l0 * aov[0] + l1 * aov[1] + l2 * aov[2])[inside]
 # Grow every island a few texels so mip levels and filtering never pull in the gaps between them.
 for _ in range(8 * UP):
     empty = KINDS == 0
@@ -556,6 +610,7 @@ for _ in range(8 * UP):
         take = empty & (sk != 0) & (KINDS == 0)
         KINDS[take] = sk[take]
         POS[take] = sp[take]
+        AOT[take] = np.roll(AOT, (dy, dx), (0, 1))[take]
 
 
 def box(a, r):
@@ -575,7 +630,10 @@ def hash3(i, j, k, seed):
 
 
 def noise(p, freq, seed=0):
-    """Smooth value noise in [0, 1] at points p (..., 3) metres."""
+    """Smooth value noise in [0, 1] at points p (..., 3) metres (a 4k atlas a band of rows at a time: its
+    int64 lattice over the whole atlas at once ran the box out of memory)."""
+    if p.ndim == 3 and p.shape[0] > 256:
+        return np.concatenate([noise(p[i:i + 256], freq, seed) for i in range(0, p.shape[0], 256)], 0)
     q = p * freq
     f = np.floor(q)
     t = q - f
@@ -588,7 +646,7 @@ def noise(p, freq, seed=0):
                 w = (t[..., 0] if dx else 1 - t[..., 0]) * (t[..., 1] if dy else 1 - t[..., 1]) * \
                     (t[..., 2] if dz else 1 - t[..., 2])
                 out = out + w * hash3(i[..., 0] + dx, i[..., 1] + dy, i[..., 2] + dz, seed)
-    return out
+    return np.asarray(out, dtype=np.float32)
 
 
 def fbm(p, freq, seed=0, octaves=4):
@@ -714,8 +772,8 @@ spots = np.clip((noise(P, 55.0, 25) - 0.72) * 6.0, 0, 1) * np.clip((noise(P, 9.0
 pores = noise(P, 150.0, 27)
 for kk, strength in ((SKIN, 0.7), (FACE, 0.65)):
     m = (k == kk)
-    col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1) * 0.45)
-    col = mix(col, C(0.5, 0.5, 0.43), np.clip(lo_n * 2 - 1.1, 0, 1) * 0.5)   # one pallid skin, not patches
+    col = mix(np.broadcast_to(C(0.36, 0.40, 0.33), (H, W, 3)).copy(), C(0.38, 0.30, 0.38), np.clip(mid_n * 2.2 - 0.7, 0, 1) * 0.45)
+    col = mix(col, C(0.40, 0.42, 0.35), np.clip(lo_n * 2 - 1.1, 0, 1) * 0.35)   # one corpse-grey skin, not patches
     vein = np.clip(1 - np.abs(fbm(P, 14.0, 6, 3) - 0.5) / 0.03, 0, 1)
     col = mix(col, C(0.30, 0.31, 0.46), vein * 0.6)
     col = mix(col, C(0.36, 0.29, 0.18), spots * 0.7)
@@ -726,14 +784,15 @@ for kk, strength in ((SKIN, 0.7), (FACE, 0.65)):
     # never pale: the source's light-painted palms read as a cream glove under the torch. Skin past a
     # dead-grey luminance is pulled back, so the whole hand is one sickly tone.
     lum = col @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
-    col *= np.minimum(1.0, 0.4 / np.maximum(lum, 1e-3))[..., None]
+    col *= np.minimum(1.0, 0.3 / np.maximum(lum, 1e-3))[..., None]
     if kk == FACE:
         # gaunt: the source's hollows (cheeks, temples, under the brow) sunk deeper and bruised
         hollow = np.clip((1.0 - box(detail, 2 * UP)) * 3.0, 0, 1)
         col = mix(col, C(0.16, 0.12, 0.17), hollow * 0.7)
     out[m] = col[m]
     hgt[m] = (0.25 * crepe + 0.12 * crepe2 + 0.5 * ridge + 0.05 * pores + 0.6 * (detail - 1.0) + 0.3 * vein)[m]
-    rough[m] = (0.42 + 0.14 * fine_n - 0.08 * vein + 0.12 * crepe)[m]   # clammy, waxy: the light slides on it
+    # dry and papery: a waxy 0.4 caught the first-person torch across the whole hand and read as cream
+    rough[m] = (0.66 + 0.12 * fine_n - 0.05 * vein + 0.1 * crepe)[m]
 # Nails and fingertips: the darkest skin texels are the source's nails: keep them dark and horn-yellow.
 m = (k == SKIN) & (lum_s < 0.18)
 out[m] = (C(0.2, 0.18, 0.1) * (0.8 + 0.4 * fine_n[..., None]))[m]
@@ -794,6 +853,17 @@ nrm[(k == SOCKET) | (k == 0)] = (0.0, 0.0, 1.0)
 # Cavity shading baked into the colour: texels below their neighbourhood (fold valleys, creases) darker.
 cav = np.clip((hgt - box(hgt, 4 * UP)) * 1.6, -0.35, 0.2)
 out *= (1.0 + cav)[..., None]
+# The ray-traced occlusion: half of it baked into the colour (the renderer's own AO map only darkens the
+# ambient light, and the web's renderer none at all), the whole of it shipped as witch_ao.png.
+AOT = np.clip(box(AOT, UP), 0.0, 1.0)
+AOT[(k == SOCKET) | (k == 0)] = 1.0
+out *= (0.5 + 0.5 * AOT)[..., None]
+# Where light comes through: her skin, most where it is thin (fingers, ears, the hollows of the face are
+# not: those are thick and occluded), as a mask for subsurface or backlight.
+SSS = np.zeros((H, W), dtype=np.float32)
+_skin = (k == SKIN) | (k == FACE)
+SSS[_skin] = (0.35 + 0.65 * AOT)[_skin]
+SSS = np.clip(box(SSS, 2 * UP), 0, 1)
 
 out = np.clip(out, 0, 1)
 ATLAS = os.path.join(os.path.dirname(os.path.abspath(DST)), "witch_atlas.png")
@@ -804,6 +874,14 @@ Image.fromarray(((nrm[::-1] * 0.5 + 0.5) * 255 + 0.5).astype(np.uint8), "RGB").s
 ROUGH = os.path.join(os.path.dirname(ATLAS), "witch_rough.png")
 Image.fromarray((np.clip(rough[::-1], 0, 1) * 255 + 0.5).astype(np.uint8), "L").save(ROUGH, optimize=True)
 print("normal bytes", os.path.getsize(NORMAL), "slope p99", float(np.percentile(np.hypot(nx, ny), 99)))
+AO_PNG = os.path.join(os.path.dirname(ATLAS), "witch_ao.png")
+Image.fromarray((AOT[::-1] * 255 + 0.5).astype(np.uint8), "L").save(AO_PNG, optimize=True)
+SSS_PNG = os.path.join(os.path.dirname(ATLAS), "witch_sss.png")
+Image.fromarray((SSS[::-1] * 255 + 0.5).astype(np.uint8), "L").save(SSS_PNG, optimize=True)
+# The web's copies at 2k (a 4k set is 4 x 64 MB of texture memory a tab cannot spare).
+for _png in (ATLAS, NORMAL, ROUGH, AO_PNG):
+    _im = Image.open(_png)
+    _im.resize((_im.width // 2, _im.height // 2), Image.LANCZOS).save(_png.replace("witch_", "witch_web_"), optimize=True)
 me.attributes.remove(me.attributes["kind"])
 img = bpy.data.images.load(ATLAS)
 img.name = "witch_atlas"
@@ -845,7 +923,45 @@ def _sample(rots, locs):
             "chest_x": chain(trunk, 0), "chest_z": chain(trunk, 2), "head_x": chain(head, 0), "head_z": chain(head, 2),
             "hips_y": rots.get("Hips", (0, 0, 0))[1], "hips_z": rots.get("Hips", (0, 0, 0))[2],
             # how far each upper arm is raised from hanging (radians), for the cape's shoulder flaps
-            "arm_l": _raise(pb["UpperArm.L"]), "arm_r": _raise(pb["UpperArm.R"])}
+            "arm_l": _raise(pb["UpperArm.L"]), "arm_r": _raise(pb["UpperArm.R"]),
+            "hips_x": rots.get("Hips", (0, 0, 0))[0], "legs": _legs()}
+
+
+def _legs():
+    """Points down both legs' bones (thigh, knee, shin, ankle), carried back into the hips' rest frame: where
+    the legs are from the skirt's point of view (its panels hang off the hips)."""
+    pb = arm.pose.bones
+    back = arm.data.bones["Hips"].matrix_local @ pb["Hips"].matrix.inverted()
+    out = []
+    for s in ("L", "R"):
+        up, lo = pb["UpperLeg." + s], pb["LowerLeg." + s]
+        for q in (up.head.lerp(up.tail, 0.6), up.tail, lo.head.lerp(lo.tail, 0.5), lo.tail):
+            out.append(back @ q)
+    return out
+
+
+LEG_CLEAR = 1.1      # the leg's half-width (and a little) out from its bone, in model units
+
+
+def _need(head, vec, ax, ay, legs):
+    """How far (radians, outward along (ax, ay)) a panel hanging from `head` along `vec` must flare so no leg
+    point within its width comes through it; 0 when they are all clear."""
+    depth = -vec.z
+    if depth <= 1e-3:
+        return 0.0
+    th0 = math.atan2(vec.x * ax + vec.y * ay, depth)
+    best = 0.0
+    for q in legs:
+        rel = q - head
+        dz = -rel.z
+        if dz < 0.3 or dz > depth + 0.8:
+            continue
+        w = smooth((3.0 - abs(rel.y * ax - rel.x * ay)) / 1.5)
+        if w <= 0.0:
+            continue
+        need = math.atan2(rel.x * ax + rel.y * ay + LEG_CLEAR, min(dz, depth)) - th0
+        best = max(best, w * need)
+    return best
 
 
 def _raise(pb):
@@ -913,23 +1029,67 @@ def _cloth_rows(name, rows, loop):
         cz = (cape_z[f] - r["chest_z"]) * fade
         # a shoulder flap rides up with its arm once the arm is raised past 40 degrees, out to her side
         # (the flaps ride the upper arms through their skin weights now; this only lifts their free edge)
-        al = 0.25 * max(0.0, r["arm_l"] - d(40))
-        ar = 0.25 * max(0.0, r["arm_r"] - d(40))
+        al = 0.6 * max(0.0, r["arm_l"] - d(35))
+        ar = 0.6 * max(0.0, r["arm_r"] - d(35))
         st = stride[f]
         ry = roll[f] - r["hips_y"]
         rz = yaw[f] - r["hips_z"]
-        out.append({
+        up = {
             # a little flare at rest: the back hem stood tucked under her
-            "Robe.F": (rb - 1.8 * kf, ry, rz),
-            "Robe.B": (d(6) + rb + 2.8 * kb, 2.0 * ry + 1.4 * st, 1.8 * rz),
-            "Robe.L": (rb - 1.8 * st, d(-4) + 1.8 * ry, 1.2 * rz),
-            "Robe.R": (rb + 1.8 * st, d(4) + 1.8 * ry, 1.2 * rz),
+            "F": (rb - 1.8 * kf, ry, rz),
+            "B": (d(6) + rb + 2.8 * kb, 2.0 * ry + 1.4 * st, 1.8 * rz),
+            "L": (rb - 1.8 * st, d(-4) + 1.8 * ry, 1.2 * rz),
+            "R": (rb + 1.8 * st, d(4) + 1.8 * ry, 1.2 * rz),
+        }
+        for n in ("FL", "BL", "BR", "FR"):        # the diagonals: halfway between their neighbours
+            a, b = up[n[0]], up[n[1]]
+            up[n] = tuple(0.5 * (x + y) for x, y in zip(a, b))
+        row = {"Robe." + n: e for n, e in up.items()}
+        row.update({
             "Hood": (hx, 0, hz),
             "Cape.B": (cx, 0, cz),
             "Cape.L": (0.8 * cx, -al, cz),
             "Cape.R": (0.8 * cx, ar, cz),
         })
+        out.append(row)
+    # The hem panels hang from the upper ones half by their own weight: they keep only part of the hips'
+    # and upper panels' swing (so a lunge tips the skirt's top, and the hem hangs on toward plumb instead of
+    # bending round in a C) and chase that through a slower spring, so they swing on a beat after it.
+    for n in ROBE_DIRS:
+        par = [(r["hips_x"] + o["Robe." + n][0], r["hips_y"] + o["Robe." + n][1]) for r, o in zip(rows, out)]
+        gx = _spring([0.45 * px + 0.5 * dg for (px, _), dg in zip(par, drag)], loop, w=2 * math.pi * 1.0, zeta=0.3)
+        gy = _spring([0.45 * py for _, py in par], loop, w=2 * math.pi * 1.0, zeta=0.3)
+        for f, o in enumerate(out):
+            o["Robe." + n + "2"] = (gx[f] - par[f][0], gy[f] - par[f][1], 0.5 * o["Robe." + n][2])
     return out
+
+
+ROBE_REST = {}
+
+
+def _clear(rots, legs):
+    """Flares any skirt panel a leg would come through just far enough out over it (after its swing and
+    sway, so neither can push it in), the upper panel first and the hem against where the upper put it."""
+    if not ROBE_REST:
+        for n in ROBE_UP + ROBE_LO:
+            b = arm.data.bones[n]
+            ROBE_REST[n] = (b.head_local.copy(), b.tail_local - b.head_local)
+    for n, (ax, ay) in ROBE_DIRS.items():
+        u, lo = "Robe." + n, "Robe." + n + "2"
+        hu, vu = ROBE_REST[u]
+        eu = rots.get(u, (0, 0, 0))
+        ru = Euler(eu, "XYZ").to_matrix()
+        add = _need(hu, ru @ vu, ax, ay, legs) - REST_NEED[u]
+        if add > 0.0:
+            eu = (eu[0] + add * ay, eu[1] - add * ax, eu[2])
+            rots[u] = eu
+            ru = Euler(eu, "XYZ").to_matrix()
+        hl, vl = ROBE_REST[lo]
+        el = rots.get(lo, (0, 0, 0))
+        add = _need(hu + ru @ (hl - hu), ru @ Euler(el, "XYZ").to_matrix() @ vl, ax, ay, legs) - REST_NEED[lo]
+        if add > 0.0:
+            rots[lo] = (el[0] + add * ay, el[1] - add * ax, el[2])
+    return rots
 
 
 def clip(name, frames, fn, loop=True):
@@ -941,6 +1101,7 @@ def clip(name, frames, fn, loop=True):
     for f in range(count):
         t = f / frames
         rots, locs = fn(t)
+        rots = _tips(dict(rots))
         poses.append((dict(rots), locs))
         rows.append(_sample(rots, locs))
     sec = _cloth_rows(name, rows, loop)
@@ -951,6 +1112,10 @@ def clip(name, frames, fn, loop=True):
         for n, e in cloth(f / frames, name).items():
             x0, y0, z0 = sec[i].get(n, (0, 0, 0))
             rots[n] = (x0 + e[0], y0 + e[1], z0 + e[2])
+        for n, e in sec[i].items():
+            if n not in rots:
+                rots[n] = e
+        rots = _clear(rots, rows[i]["legs"])
         pose(rots=rots, locs=locs)
         for pb in arm.pose.bones:
             pb.keyframe_insert("rotation_quaternion", frame=f)
@@ -978,6 +1143,12 @@ def cloth(t, name):
         "Robe.B": (d(-a * sw(u, 0.30)), 0, d(0.4 * a * sw(u, 0.6))),
         "Robe.L": (d(0.4 * a * sw(u, 0.2)), d(a * sw(u, 0.55)), 0),
         "Robe.R": (d(0.4 * a * sw(u, 0.7)), d(-a * sw(u, 0.55)), 0),
+        "Robe.FL": (d(0.7 * a * sw(u, 0.25)), d(0.7 * a * sw(u, 0.4)), 0),
+        "Robe.BL": (d(-0.7 * a * sw(u, 0.42)), d(0.7 * a * sw(u, 0.62)), 0),
+        "Robe.BR": (d(-0.7 * a * sw(u, 0.12)), d(-0.7 * a * sw(u, 0.5)), 0),
+        "Robe.FR": (d(0.7 * a * sw(u, 0.8)), d(-0.7 * a * sw(u, 0.33)), 0),
+        **{"Robe.%s2" % n: (d(0.6 * a * sw(u, 0.15 + 0.11 * i) * ay), d(-0.6 * a * sw(u, 0.15 + 0.11 * i) * ax), 0)
+           for i, (n, (ax, ay)) in enumerate(ROBE_DIRS.items())},
         "Hood": (d(0.5 * a * sw(u, 0.45)), d(0.3 * a * sw(u, 0.15)), d(0.4 * a * sw(u, 0.8))),
         "Cape.B": (d(0.6 * a * sw(u, 0.35)), d(0.4 * a * sw(u, 0.05)), 0),
         "Cape.L": (d(0.4 * a * sw(u, 0.65)), 0, d(0.3 * a * sw(u, 0.4))),
@@ -988,6 +1159,14 @@ def cloth(t, name):
 pose()
 KNEE_F0 = _sample({}, {})["knee_f"]      # the knees' rest spot, from which the robe is pushed
 KNEE_B0 = _sample({}, {})["knee_b"]
+REST_NEED = {n: 0.0 for n in ROBE_UP + ROBE_LO}
+_clear({}, _sample({}, {})["legs"])        # fills ROBE_REST
+for _n, (_ax, _ay) in ROBE_DIRS.items():   # what the standing legs already "need": the mesh is clear there
+    _hu, _vu = ROBE_REST["Robe." + _n]
+    _hl, _vl = ROBE_REST["Robe." + _n + "2"]
+    _lg = _sample({}, {})["legs"]
+    REST_NEED["Robe." + _n] = max(0.0, _need(_hu, _vu, _ax, _ay, _lg))
+    REST_NEED["Robe." + _n + "2"] = max(0.0, _need(_hl, _vl, _ax, _ay, _lg))
 
 
 def base_idle(t):
@@ -1001,6 +1180,7 @@ def base_idle(t):
         "LowerArm.R": (d(8 * sw(t, 0.15)), 0, d(6 * sw(t, 0.5))),
         "Hand.R": (d(18 * sw(t, 0.35)), d(14 * sw(t, 0.1)), d(16 * sw(t, 0.6))),
         "Fingers.L": (d(18 * sw(t, 0.5)), 0, d(8 * sw(t, 0.6))),
+        "Fingers.R": (d(20 + 16 * sw(t, 0.45)), 0, 0),
     }
 
 
@@ -1191,22 +1371,34 @@ def walk(t):
     hips = (0, 0, drop)        # the hips already bob: they sink as the legs open (moved more, the feet slide)
     # Both arms aimed hanging and swinging hard against the legs, the forearm and claws trailing a beat behind
     # the upper arm (the follow-through). Rotations on top of the rest pose kept her right forearm raised.
-    for s, sgn in (("L", 1.0), ("R", -1.0)):
-        a = sgn * 1.2 * sw(tc)                   # + swings the arm back
-        f = sgn * 1.45 * sw(tc, 0.1)             # the forearm trails the upper arm
-        g = sgn * 1.5 * sw(tc, 0.16)             # the claws trail the forearm
-        dirs = [(0.2, a, -0.9), (0.12, f - 0.45, -0.85), (0.05, g - 0.4, -0.9), (0.0, g - 0.2, -1.0)]
+    # The hands hang out from the robe's flare (in at her sides, the forearms sank into the skirt), and the
+    # two arms swing unevenly, the right a little later and shorter (a mirror pair read as a wind-up toy).
+    for s, sgn, amp, ph in (("L", 1.0, 1.1, 0.0), ("R", -1.0, 0.85, 0.04)):
+        a = sgn * amp * sw(tc, ph)                       # + swings the arm back
+        f = sgn * 1.3 * amp * sw(tc, ph + 0.1)           # the forearm trails the upper arm
+        g = sgn * 1.4 * amp * sw(tc, ph + 0.16)          # the claws trail the forearm
+        dirs = [(0.3, a, -0.9), (0.35, f - 0.45, -0.85), (0.2, g - 0.4, -0.9), (0.05, g - 0.2, -1.0)]
         dirs = [Vector(v).normalized()[:] for v in dirs]
-        if s == "R":
-            dirs = dirs[:3]
         _aim_arm(r, hips, s, dirs)
     return r, {"Hips": hips}
 
 
 SIDE = {"L": 1.0, "R": -1.0}       # +X is her left
-ARM = {"L": ("UpperArm.L", "LowerArm.L", "Hand.L", "Fingers.L"), "R": ("UpperArm.R", "LowerArm.R", "Hand.R")}
-ARM_TIP = {"L": "Fingers.L", "R": "Hand.R"}
-CURLED = ("Fingers.L",)
+ARM = {"L": ("UpperArm.L", "LowerArm.L", "Hand.L", "Fingers.L"), "R": ("UpperArm.R", "LowerArm.R", "Hand.R", "Fingers.R")}
+ARM_TIP = {"L": "Tips.L", "R": "Tips.R"}
+CURLED = ("Fingers.L", "Fingers.R")
+
+
+def _tips(r):
+    """The claws' last joints hook on after the knuckles: most of the knuckle's curl again plus a standing
+    hook (a straight finger past the knuckle read as a paddle, not a claw)."""
+    for s in ("L", "R"):
+        fn, tn = "Fingers." + s, "Tips." + s
+        ax, ang = Euler(r.get(fn, (0, 0, 0)), "XYZ").to_quaternion().to_axis_angle()
+        rx = rest3(fn).col[0].normalized()
+        curl = ang * (1.0 if ax.dot(rx) >= 0.0 else -1.0)
+        r[tn] = tuple(Quaternion(rest3(tn).col[0].normalized(), 0.7 * curl + d(18)).to_euler("XYZ"))
+    return r
 
 
 def _delta(name):
@@ -1392,11 +1584,13 @@ def idle(t):
 # fingers spread), clutch (held out at you, the fingers curling shut, trembling), recover (sunk back to rest).
 # The other claw counters: drawn back by her hip, its claws turned at you.
 REACH_REST = ((0.35, -0.2, -0.92), (0.3, -0.75, -0.2), (0.1, -0.9, -0.2), (0.0, -0.6, -0.8))
-REACH_WIND = ((0.75, 0.45, -0.5), (0.7, 0.05, 0.7), (0.35, -0.6, 0.72), (0.0, -0.7, -0.7))
+# the wind-up a claw raised high beside the hood, elbow out and up (drawn back behind her, the elbow pushed
+# out through the shawl's back)
+REACH_WIND = ((0.6, 0.15, 0.78), (0.35, -0.3, 0.88), (0.1, -0.7, 0.7), (0.0, -0.8, -0.6))
 REACH_STRIKE = ((0.3, -0.92, 0.25), (0.12, -0.97, 0.2), (0.05, -0.98, 0.18), (0.0, -0.98, -0.2))
 REACH_CLUTCH = ((0.29, -0.92, 0.24), (0.1, -0.97, 0.2), (0.03, -0.98, 0.17), (0.0, -0.3, -0.95))
 REACH_RECOVER = ((0.35, -0.55, -0.7), (0.3, -0.9, 0.1), (0.1, -0.9, -0.1), (0.0, -0.5, -0.85))
-OFF_COCK = ((0.35, 0.4, -0.85), (0.25, -0.65, -0.72), (0.1, -0.92, -0.3), (0.0, -0.7, -0.7))
+OFF_COCK = ((0.45, 0.1, -0.88), (0.25, -0.65, -0.72), (0.1, -0.92, -0.3), (0.0, -0.7, -0.7))
 REACH_KEYS = [(0.0, REACH_REST), (0.1, REACH_REST), (0.3, REACH_WIND), (0.4, REACH_STRIKE), (0.5, REACH_STRIKE),
               (0.58, REACH_CLUTCH), (0.66, REACH_CLUTCH), (0.82, REACH_RECOVER), (0.95, REACH_REST), (1.0, REACH_REST)]
 OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.3, REACH_REST), (0.42, OFF_COCK), (0.7, OFF_COCK),
@@ -1465,8 +1659,6 @@ def attack_idle(t):
         _REACH_LEGS[s] = (r["UpperLeg." + s], r["LowerLeg." + s])
     for s, keys in (("L", OFF_KEYS), ("R", REACH_KEYS)):
         dirs = _dirs(t, keys)
-        if s == "R":
-            dirs = dirs[:2] + [Vector(_lerp(dirs[2], dirs[3], 0.4)).normalized()[:]]  # her right hand is hand and claws in one
         _aim_arm(r, hips, s, dirs)
     return r, {"Hips": hips}
 
@@ -1541,8 +1733,6 @@ def attack(t):
     for s in ("L", "R"):
         side_t = t if s == "L" else max(0.0, t - 0.025)      # her right hand a beat behind the left
         dirs = _dirs(side_t, LUNGE_ARMS)
-        if s == "R":
-            dirs = dirs[:2] + [Vector(_lerp(dirs[2], dirs[3], 0.4)).normalized()[:]]
         _aim_arm(r, hips, s, dirs, wa)
     feet = _stand()
     for s, off, land, ahead, high in LUNGE_FEET:

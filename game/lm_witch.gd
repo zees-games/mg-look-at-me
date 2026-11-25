@@ -18,6 +18,8 @@ static var ATLAS := LmPaths.rebase("res://assets/witch/witch_atlas.png")
 ## Its relief (folds, weave, wrinkles) and sheen (matt wool, waxy skin, horn nails), painted with it.
 static var NORMALS := LmPaths.rebase("res://assets/witch/witch_normal.png")
 static var ROUGHNESS := LmPaths.rebase("res://assets/witch/witch_rough.png")
+## Her occlusion (folds' valleys, armpits, under the hood, between the fingers), ray-traced on her mesh.
+static var OCCLUSION := LmPaths.rebase("res://assets/witch/witch_ao.png")
 
 ## Her skin when the atlas is missing.
 const SKIN := Color("9aa293")
@@ -186,18 +188,23 @@ func _dress_eyes(mounts: Array[Node3D]) -> void:
 ## its cloth grain does not shimmer.
 static func _skin() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	m.albedo_texture = load(ATLAS) as Texture2D if ResourceLoader.exists(ATLAS) else null
+	m.albedo_texture = _tex(ATLAS)
 	m.albedo_color = Color.WHITE if m.albedo_texture != null else SKIN
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.roughness = 0.9
 	if ResourceLoader.exists(NORMALS):
 		m.normal_enabled = true
-		m.normal_texture = load(NORMALS) as Texture2D
+		m.normal_texture = _tex(NORMALS)
 		m.normal_scale = 1.0
 	if ResourceLoader.exists(ROUGHNESS):
 		m.roughness = 1.0
-		m.roughness_texture = load(ROUGHNESS) as Texture2D
+		m.roughness_texture = _tex(ROUGHNESS)
 		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	if ResourceLoader.exists(OCCLUSION):
+		m.ao_enabled = true
+		m.ao_texture = _tex(OCCLUSION)
+		m.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		m.ao_light_affect = 0.3
 	# both faces: the hood is a single sheet, and from in front its inside is what frames her face
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# a faint sheen on the silhouette, tinted by the cloth under it (a strong white rim lit the hood's frayed
@@ -206,6 +213,18 @@ static func _skin() -> StandardMaterial3D:
 	m.rim = 0.08
 	m.rim_tint = 0.9
 	return m
+
+
+## One of her maps: the 4k paint natively, its 2k copy (witch_web_*.png) on the web, where a 4k set is more
+## texture memory than a tab can spare.
+static func _tex(path: String) -> Texture2D:
+	if not ResourceLoader.exists(path):
+		return null
+	if OS.has_feature("web"):
+		var lod := path.replace("/witch_", "/witch_web_")
+		if ResourceLoader.exists(lod):
+			return load(lod) as Texture2D
+	return load(path) as Texture2D
 
 
 func _play(clip: StringName, rate: float) -> void:
