@@ -639,7 +639,8 @@ col *= (0.68 + 0.45 * folds ** 1.3)[..., None]
 back = np.clip((P[..., 1] - 0.0) / 0.08, 0, 1)
 pleat = np.clip(0.5 + 0.5 * np.sin(ang * 13.0 + fbm(P, 2.0, 31) * 4.0 + (1.0 - z) * 2.5), 0, 1)
 col *= (1.0 - back * (0.38 * (1.0 - pleat) ** 2 - 0.08 * pleat ** 4))[..., None]
-twill = 0.5 + 0.5 * np.sin((ang * 0.32 + z) * 420.0)
+# no regular weave: a 420-cycle sine beat against the texel grid and the mip chain into moire on the walk
+twill = fbm(P, 45.0, 41, 2)
 col *= (0.9 + 0.1 * twill + 0.16 * (fine_n - 0.5))[..., None]
 band = np.clip(1 - np.abs(z - 0.98 - 0.02 * mid_n) / 0.045, 0, 1) > 0.0
 zig = np.abs(((ang * 24.0) % 2.0) - 1.0)                      # a zigzag of faded ochre thread
@@ -657,7 +658,7 @@ for i, (pc, size, tint) in enumerate((((-0.12, -0.24, 0.85), 0.09, (0.26, 0.24, 
     edge = size + 0.012 * (noise(P, 40, 30 + i) - 0.5)
     inside = box_d < edge
     col[m & inside] = (C(*tint) * (0.85 + 0.3 * fine_n[m & inside])[:, None])
-    stitch = (np.abs(box_d - edge + 0.008) < 0.004) & (np.sin((P[..., 0] + P[..., 2]) * 300) > 0.2)
+    stitch = (np.abs(box_d - edge + 0.008) < 0.004) & (np.sin((P[..., 0] + P[..., 2]) * 120) > 0.2)
     col[m & stitch] = C(0.55, 0.5, 0.4)
 out[m] = col[m]
 hgt[m] = (0.9 * folds + 0.5 * back * pleat + 0.12 * twill + 0.25 * fine_n)[m]
@@ -679,7 +680,7 @@ col *= (0.95 + 0.1 * (mid_n - 0.5))[..., None]
 col *= np.clip(box(detail, 2 * UP), 0.8, 1.2)[..., None] ** 0.6          # the source's painted creases, blurred
 wear = np.clip((box(detail, 3 * UP) - 1.12) * 2.0, 0, 1) * 0.2
 col = mix(col, C(0.4, 0.4, 0.3), wear)
-twill = 0.5 + 0.5 * np.sin((P[..., 0] + P[..., 1] + z) * 380.0)
+twill = fbm(P, 45.0, 42, 2)
 border = np.clip((1.58 + 0.03 * mid_n - z) / 0.06, 0, 1)
 col *= 1.35
 col = mix(col, C(0.14, 0.13, 0.08), border * 0.7)
@@ -701,11 +702,12 @@ rough[m] = 0.97
 # Skin (arms, hands, face): pallid grey-green, bruised purple, veined, crêpe-wrinkled across the limb,
 # liver-spotted and pored; the face keeps its painted features.
 crepe_w = fbm(P, 7.0, 22, 3) * 7.0
-crepe = 0.5 + 0.5 * np.sin(z * 260.0 + crepe_w) * (0.4 + 0.6 * fbm(P, 11.0, 23, 2))   # fine creases around the limb
-crepe2 = 0.5 + 0.5 * np.sin((P[..., 0] * 0.6 + P[..., 1] * 0.8 + z * 0.3) * 520.0 + crepe_w * 1.5)
+# irregular creases, pores and blotches (no sine stripes: they read as one tile repeated down the limb)
+crepe = np.clip(1.0 - np.abs(2.0 * fbm(P, 38.0, 23, 3) - 1.0) * 1.6, 0, 1) * (0.4 + 0.6 * fbm(P, 11.0, 23, 2))
+crepe2 = fbm(P, 70.0, 28, 2)
 ridge = 1.0 - np.abs(2.0 * fbm(P, 22.0, 24, 3) - 1.0)                               # tendons and knobbly knuckles
 spots = np.clip((noise(P, 55.0, 25) - 0.72) * 6.0, 0, 1) * np.clip((noise(P, 9.0, 26) - 0.35) * 3.0, 0, 1)
-pores = noise(P, 260.0, 27)
+pores = noise(P, 150.0, 27)
 for kk, strength in ((SKIN, 0.7), (FACE, 0.65)):
     m = (k == kk)
     col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1) * 0.45)
@@ -1184,9 +1186,9 @@ def walk(t):
     # Both arms aimed hanging and swinging hard against the legs, the forearm and claws trailing a beat behind
     # the upper arm (the follow-through). Rotations on top of the rest pose kept her right forearm raised.
     for s, sgn in (("L", 1.0), ("R", -1.0)):
-        a = sgn * 0.85 * sw(tc)                  # + swings the arm back
-        f = sgn * 1.1 * sw(tc, 0.1)              # the forearm trails the upper arm
-        g = sgn * 1.2 * sw(tc, 0.16)             # the claws trail the forearm
+        a = sgn * 1.2 * sw(tc)                   # + swings the arm back
+        f = sgn * 1.45 * sw(tc, 0.1)             # the forearm trails the upper arm
+        g = sgn * 1.5 * sw(tc, 0.16)             # the claws trail the forearm
         dirs = [(0.2, a, -0.9), (0.12, f - 0.45, -0.85), (0.05, g - 0.4, -0.9), (0.0, g - 0.2, -1.0)]
         dirs = [Vector(v).normalized()[:] for v in dirs]
         if s == "R":
@@ -1355,8 +1357,10 @@ def idle(t):
     br = sw(t * 2, 0.1)
     # two deep breaths a clip (the chest heaves, the shoulders rise with it) and a slow look round
     r["Chest"] = (r["Chest"][0] + d(5.0 * br), r["Chest"][1], r["Chest"][2])
-    r["Neck"] = (d(-3.0 * br), 0, d(9.0 * sw(t, 0.15)))
-    r["Head"] = (r["Head"][0] + d(3.0 * br), r["Head"][1], r["Head"][2] + d(10.0 * sw(t, 0.1)))
+    # the look round kept small: the hood's lower rim rides the neck, and a wide head turn slid her face
+    # out past the brim
+    r["Neck"] = (d(-3.0 * br), 0, d(5.0 * sw(t, 0.15)))
+    r["Head"] = (r["Head"][0] + d(3.0 * br), r["Head"][1], r["Head"][2] + d(5.0 * sw(t, 0.1)))
     r["UpperArm.L"] = (r["UpperArm.L"][0] - d(3 * br), r["UpperArm.L"][1], r["UpperArm.L"][2] - d(3 * sw(t, 0.6)))
     r["UpperArm.R"] = (r["UpperArm.R"][0] - d(3 * br), r["UpperArm.R"][1], r["UpperArm.R"][2] + d(3 * sw(t, 0.1)))
     r["Fingers.L"] = (r["Fingers.L"][0] + d(10 * sw(t * 2, 0.2)), 0, r["Fingers.L"][2])
@@ -1375,18 +1379,29 @@ def idle(t):
 # trunk coiled back), strike (thrown straight at your face, close together, fingers spread), clutch (the
 # claws close on you, the hands meeting, trembling), recover (the arms sink to her hips), drawn again. The
 # upper arm stays below her shoulder (a raised arm tears through the hood brim).
-REACH_DRAWN = ((0.4, 0.35, -0.55), (0.35, -0.55, 0.75), (0.1, -0.85, 0.5), (0.0, -0.6, -0.8))
-REACH_COIL = ((0.45, 0.45, -0.35), (0.3, -0.35, 0.88), (0.1, -0.55, 0.83), (0.0, -0.7, -0.7))
-REACH_STRIKE = ((0.14, -0.97, 0.12), (0.04, -0.99, 0.12), (0.0, -0.99, 0.05), (0.0, -0.85, -0.5))
-REACH_CLUTCH = ((0.16, -0.95, 0.06), (-0.15, -0.95, 0.12), (-0.28, -0.9, 0.0), (-0.15, -0.25, -0.95))
-REACH_RECOVER = ((0.25, -0.3, -0.92), (0.25, -0.85, -0.3), (0.1, -0.9, -0.4), (0.0, -0.4, -0.9))
-REACH_KEYS = [(0.0, REACH_DRAWN), (0.18, REACH_COIL), (0.32, REACH_STRIKE), (0.42, REACH_STRIKE), (0.54, REACH_CLUTCH),
-              (0.7, REACH_CLUTCH), (0.84, REACH_RECOVER), (1.0, REACH_DRAWN)]
+# The lead claw (her right, the side the behind camera sees) does the grab: rest (both claws low and
+# ready by her hips, the clip's first and last pose, so the loop never ends mid-move), wind-up (the lead
+# arm drawn far back past her hip, elbow bent, the trunk coiled away), strike (thrown out at your face:
+# elbow straight, the arm raised at your face (its rise reads from in front, where forward is foreshortened),
+# fingers spread), clutch (held out at you, the fingers curling shut, trembling), recover (sunk back to rest).
+# The other claw counters: drawn back by her hip, its claws turned at you.
+REACH_REST = ((0.35, -0.2, -0.92), (0.3, -0.75, -0.2), (0.1, -0.9, -0.2), (0.0, -0.6, -0.8))
+REACH_WIND = ((0.45, 0.6, -0.55), (0.35, 0.1, 0.92), (0.15, -0.45, 0.88), (0.0, -0.7, -0.7))
+REACH_STRIKE = ((0.16, -0.88, 0.45), (0.12, -0.9, 0.42), (0.1, -0.93, 0.36), (0.08, -0.97, 0.1))
+REACH_CLUTCH = ((0.15, -0.89, 0.43), (0.1, -0.91, 0.4), (0.06, -0.94, 0.34), (0.0, -0.3, -0.95))
+REACH_RECOVER = ((0.35, -0.55, -0.7), (0.3, -0.9, 0.1), (0.1, -0.9, -0.1), (0.0, -0.5, -0.85))
+OFF_COCK = ((0.35, 0.4, -0.85), (0.25, -0.65, -0.72), (0.1, -0.92, -0.3), (0.0, -0.7, -0.7))
+REACH_KEYS = [(0.0, REACH_REST), (0.1, REACH_REST), (0.3, REACH_WIND), (0.4, REACH_STRIKE), (0.5, REACH_STRIKE),
+              (0.58, REACH_CLUTCH), (0.7, REACH_CLUTCH), (0.84, REACH_RECOVER), (0.94, REACH_REST), (1.0, REACH_REST)]
+OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.3, REACH_REST), (0.42, OFF_COCK), (0.7, OFF_COCK),
+            (0.86, REACH_RECOVER), (0.96, REACH_REST), (1.0, REACH_REST)]
 # her trunk through it (deg, + leans forward): Spine, Chest, Neck, Head pitch and the hips forward (m, - is
-# forward): reared back as she draws, thrown after her claws at the strike, hunched over the clutch
-REACH_TRUNK = [(0.0, (2, 0, -4, -8, 0.04)), (0.18, (-4, -6, 2, -2, 0.08)), (0.32, (24, 16, -18, -30, -0.24)),
-               (0.42, (24, 16, -18, -30, -0.24)), (0.54, (20, 14, -16, -28, -0.18)), (0.7, (18, 12, -14, -26, -0.16)),
-               (0.84, (8, 4, -6, -12, -0.02)), (1.0, (2, 0, -4, -8, 0.04))]
+# forward): coiled back on the wind-up, thrown after her claw at the strike, hunched over the clutch
+REACH_TRUNK = [(0.0, (4, 2, -6, -10, 0.0)), (0.1, (4, 2, -6, -10, 0.0)), (0.3, (-6, -8, 4, 0, 0.08)),
+               (0.4, (22, 14, -16, -26, -0.22)), (0.5, (22, 14, -16, -26, -0.22)), (0.7, (18, 12, -14, -24, -0.16)),
+               (0.84, (10, 6, -8, -14, -0.04)), (0.94, (4, 2, -6, -10, 0.0)), (1.0, (4, 2, -6, -10, 0.0))]
+# the shoulders turn into the strike (deg about the spine, + turns her right shoulder forward)
+REACH_TWIST = [(0.0, (0,)), (0.1, (0,)), (0.3, (-14,)), (0.4, (16,)), (0.7, (12,)), (0.9, (0,)), (1.0, (0,))]
 STALK_CYCLES = 4          # foot cycles a 48-frame clip: short quick steps, not the walk's long stride
 STALK_SWING = 0.35        # of a cycle, the foot in the air
 STALK_LIFT = 0.08
@@ -1420,9 +1435,10 @@ def attack_idle(t):
     r["Hips"] = (d(6), d(4 * sw(tc)), d(3 * sw(tc, 0.25)))
     tw = 0.3 * sw(t)
     tr = _track(t, REACH_TRUNK)
-    shake = 2.0 * sw(t * 12) * _env(t, 0.5, 0.56) * (1.0 - _env(t, 0.7, 0.78))   # the clutch trembles
-    r["Spine"] = (d(tr[0] + 2 * sw(tc * 2)), d(-3 * tw), d(-4 * tw))
-    r["Chest"] = (d(tr[1] + shake), 0, d(-5 * tw))
+    shake = 2.0 * sw(t * 12) * _env(t, 0.52, 0.58) * (1.0 - _env(t, 0.7, 0.78))   # the clutch trembles
+    tz = _track(t, REACH_TWIST)[0]
+    r["Spine"] = (d(tr[0] + 2 * sw(tc * 2)), d(-3 * tw), d(-4 * tw + 0.5 * tz))
+    r["Chest"] = (d(tr[1] + shake), 0, d(-5 * tw + 0.5 * tz))
     r["Neck"] = (d(tr[2]), 0, d(4 * tw))
     r["Head"] = (d(tr[3] + 3 * sw(tc * 2, 0.3)), 0, d(4 * tw))
     hips = (hips[0], tr[4], hips[2] - 0.3 * max(0.0, -tr[4]))
@@ -1430,7 +1446,7 @@ def attack_idle(t):
     for s, ph in (("L", 0.0), ("R", 0.5)):
         back, lift = _stalk_foot((tc + ph) % 1.0)
         tgt = feet[s].copy()
-        tgt.x *= 0.95
+        tgt.x *= 1.12                               # a wide crouched stance: the knees never cross
         tgt.y += back
         tgt.z += lift
         # seeded from last frame's leg (a bent knee on the first), so the thigh's roll never hops from one
@@ -1439,10 +1455,10 @@ def attack_idle(t):
         r["UpperLeg." + s], r["LowerLeg." + s] = _REACH_LEGS.get(s, ((d(-8), 0, 0), (d(20), 0, 0)))
         # the roll held small: where the crouched stance foot passed under her it took the whole roll to the
         # cap one frame and the other way the next (the knee thrown across); a 2 cm short plant reads as nothing
-        _plant(r, hips, s, tgt, roll=d(14))
+        _plant(r, hips, s, tgt, roll=d(18))
         _REACH_LEGS[s] = (r["UpperLeg." + s], r["LowerLeg." + s])
-    for s, lag in (("L", 0.0), ("R", 0.015)):
-        dirs = _dirs(max(0.0, t - lag), REACH_KEYS)
+    for s, keys in (("L", OFF_KEYS), ("R", REACH_KEYS)):
+        dirs = _dirs(t, keys)
         if s == "R":
             dirs = dirs[:2] + [Vector(_lerp(dirs[2], dirs[3], 0.4)).normalized()[:]]  # her right hand is hand and claws in one
         _aim_arm(r, hips, s, dirs)

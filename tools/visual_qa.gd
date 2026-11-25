@@ -35,6 +35,7 @@ const WITCH_LOOK := 1.15
 ## lunges from a node that stays put, so this view follows her hips across the floor (see _place) or she leaps out of it.
 const LUNGE_BEHIND := Vector3(2.6, 1.45, 1.4)
 const LUNGE_LOOK := 1.0
+const REACH_BEHIND := Vector3(2.8, 1.7, 0.6)
 ## The witch's stage light: a filmic curve and a dimmer, cooler fill than the shared stage's flat grey (which cast
 ## her in milky grey), and a depth haze in the sky's colour so the floor fades out instead of ending in an edge.
 const WITCH_AMBIENT := Color(0.36, 0.37, 0.43)
@@ -80,6 +81,9 @@ func _warmup_frames(_item: String, _clip: String) -> int:
 
 func _build() -> void:
 	build_stage()
+	# anti-aliased like a player's settings: 4x MSAA on the geometry edges plus FXAA on the alpha-cut fringe
+	root.msaa_3d = Viewport.MSAA_4X
+	root.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
 	first_person.cull_mask = ALL_LAYERS & ~BODY_LAYER
 	# the victim's torch, held low by their right hand
 	_torch.position = Vector3(0.25, -0.3, 0.0)
@@ -131,10 +135,19 @@ func _stage(item: String, clip: String) -> GSResult:
 			views.behind_look_height = LUNGE_LOOK
 			_witch.lunge()
 		elif clip == "walk" or clip == "reach":
+			if clip == "reach":
+				# three-quarter side on, like the lunge: from straight behind or in front her arm thrown
+				# at you is foreshortened to nothing
+				views.behind_offset = REACH_BEHIND
+				views.behind_look_height = LUNGE_LOOK
 			# Already walking when the clip starts: the first 0.25 s of a walk is the blend out of the
 			# idle, and a foot mid-blend is no foot to judge.
 			_witch.set_seeing(clip == "reach", 1.0)
-			_witch.place(Vector3(0.0, 0.0, WITCH_WALK * float(SECONDS.get(clip, 2.0)) * 0.5), 0.0, 0.0, 0.4, WITCH_WALK)
+			# the reach is set one whole 2 s loop in (at 1.3 m/s it plays at rate 1): past the 0.25 s blend out
+			# of the idle, which drags the planted feet, and back at its first frame, so the 2 s capture is
+			# exactly one loop (rest, wind-up, strike, clutch, recover) and never ends mid-move
+			_witch.place(Vector3(0.0, 0.0, WITCH_WALK * float(SECONDS.get(clip, 2.0)) * 0.5), 0.0, 0.0,
+					float(SECONDS.get(clip, 2.0)) if clip == "reach" else 0.4, WITCH_WALK)
 	elif item == "clown":
 		_kind = "clown"
 		views.behind_offset = Vector3(1.8, 1.0, 3.4)

@@ -188,7 +188,7 @@ static func _skin() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = load(ATLAS) as Texture2D if ResourceLoader.exists(ATLAS) else null
 	m.albedo_color = Color.WHITE if m.albedo_texture != null else SKIN
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.roughness = 0.9
 	if ResourceLoader.exists(NORMALS):
 		m.normal_enabled = true
