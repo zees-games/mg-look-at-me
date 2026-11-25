@@ -672,11 +672,11 @@ func _scare_at(delta: float) -> void:
 
 	_scare_left -= delta
 	_scare.visible = true
-	# Close enough to fill the view from the chest up, facing the lens, lit by her own eyes.
+	# At her reach (1.6 m): the lunge carries her claws to the lens, she fills the view from the waist up, lit by her own eyes.
 	var forward := -camera.global_basis.z
 	forward.y = 0.0
 	forward = forward.normalized() if forward.length_squared() > 0.001 else Vector3.FORWARD
-	var feet := camera.global_position + forward * 1.15 - Vector3(0, 1.85, 0)
+	var feet := camera.global_position + forward * 1.6 - Vector3(0, 1.85, 0)
 	var _moved: float = _scare.call(&"place", feet, atan2(forward.x, forward.z), 0.0, delta)
 	_scare.call(&"set_seeing", true, delta)
 

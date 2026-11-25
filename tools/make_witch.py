@@ -317,6 +317,8 @@ ARMR = ["UpperArm.R", "LowerArm.R", "Hand.R"]
 CORE = ["Hips", "Spine", "Chest", "Neck", "Head"]
 _kinds = body.data.attributes["kind"].data
 CAPE_V = {i for f in body.data.polygons if _kinds[f.index].value == CLOAK for i in f.vertices}
+CAPE_TOP_W = fz(23.2) + 0.6
+G = {}
 for v in body.data.vertices:
     p = v.co
     if v.index in CAPE_V and p.z < fz(23.2) + 0.6:
@@ -342,9 +344,32 @@ for v in body.data.vertices:
         if a > 0.0:
             ga = weights(p, side + ["Chest"])
             g = {n: g.get(n, 0.0) * (1 - a) + ga.get(n, 0.0) * a for n in set(g) | set(ga)}
-    for n, w in g.items():
-        if w > 0.004:
-            body.vertex_groups[n].add([v.index], w, "REPLACE")
+    G[v.index] = g
+# The cape's shoulder edge is sewn to the arm: a cape vertex on the chest beside a sleeve vertex on the arm
+# stretched that edge five times its length when the arm rose (a strip of cloak dragged up to the elbow).
+# Diffuse the weights over the mesh around the shoulders so the arm's share fades out over several rings.
+_nb = {i: [] for i in range(len(body.data.vertices))}
+for e in body.data.edges:
+    i, j = e.vertices
+    _nb[i].append(j)
+    _nb[j].append(i)
+SHOULDER = [v.index for v in body.data.vertices if abs(v.co.x) > 2.2 and 15.0 < v.co.z < CAPE_TOP_W]
+for _ in range(12):
+    new = {}
+    for i in SHOULDER:
+        acc = {n: 0.5 * w for n, w in G[i].items()}
+        ns = _nb[i]
+        for j in ns:
+            for n, w in G[j].items():
+                acc[n] = acc.get(n, 0.0) + 0.5 * w / len(ns)
+        new[i] = acc
+    G.update(new)
+for i, g in G.items():
+    top = sorted(g.items(), key=lambda kv: -kv[1])[:4]
+    tot = sum(w for _, w in top)
+    for n, w in top:
+        if w / tot > 0.004:
+            body.vertex_groups[n].add([i], w / tot, "REPLACE")
 
 CLOTH = ["Robe.F", "Robe.B", "Robe.L", "Robe.R", "Hood", "Cape.B", "Cape.L", "Cape.R"]
 for n in CLOTH:
@@ -368,6 +393,11 @@ for v in body.data.vertices:
         front = max(0.0, -dy / r)          # the front edges, over the chest: the shoulder flaps
         if front > 0.0:
             ws["Cape.L" if dx > 0 else "Cape.R"] = ws.get("Cape.L" if dx > 0 else "Cape.R", 0.0) + 0.5 * k * front * front
+        # the flaps fade out toward her throat: Cape.L and Cape.R swing apart there as the arms rise, and an
+        # edge weighted to both tore open down the front
+        for n in ("Cape.L", "Cape.R"):
+            if n in ws:
+                ws[n] *= smooth(abs(dx) / 2.0)
     elif abs(p.x - 0.8) > 5.6 or v.index in ARM_SKIN:      # sleeves and hands stay on the arms
         continue
     if fz(5.0) < p.z < fz(14.0):
@@ -471,8 +501,13 @@ stop(3)
 import numpy as np
 from PIL import Image
 
-W, H = base_img.size
-src = np.array(base_img.pixels[:], dtype=np.float32).reshape(H, W, 4)[..., :3]   # row 0 = v 0
+W0, H0 = base_img.size
+src = np.array(base_img.pixels[:], dtype=np.float32).reshape(H0, W0, 4)[..., :3]   # row 0 = v 0
+# Painted at twice the source's size: the procedural skin, weave and hand detail is what the
+# extra texels are for (the source's own paint is upsampled and only lends its local contrast).
+UP = 2
+src = np.repeat(np.repeat(src, UP, 0), UP, 1)
+H, W = src.shape[:2]
 src_lum = src @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
 
 me = body.data
@@ -508,7 +543,7 @@ for tri in me.loop_triangles:
     sub_pos[inside] = p3[inside]
     sub_kind[inside] = kinds_f[tri.polygon_index]
 # Grow every island a few texels so mip levels and filtering never pull in the gaps between them.
-for _ in range(8):
+for _ in range(8 * UP):
     empty = KINDS == 0
     if not empty.any():
         break
@@ -576,8 +611,8 @@ lo_n = fbm(P, 1.6, 1)         # big hue patches
 mid_n = fbm(P, 6.0, 2)        # cloth mottling
 fine_n = fbm(P, 30.0, 3, 3)   # weave and grain
 # The source's painted detail (wrinkles, wrap stripes, the face): its local contrast only.
-lum_s = box(src_lum, 1)
-detail = np.clip(lum_s / np.maximum(box(src_lum, 18), 0.02), 0.55, 1.6)
+lum_s = box(src_lum, UP)
+detail = np.clip(lum_s / np.maximum(box(src_lum, 18 * UP), 0.02), 0.55, 1.6)
 ang = np.arctan2(P[..., 1] - 0.05, P[..., 0] - 0.07)   # around her body axis, for folds
 
 out = np.full((H, W, 3), 0.3, dtype=np.float32)
@@ -593,6 +628,10 @@ folds = (0.5 * np.sin(ang * 7.0 + warp + z * 1.5) + 0.3 * np.sin(ang * 17.0 + wa
          + 0.2 * np.sin(ang * 31.0 + fbm(P, 9.0, 8) * 9.0))
 folds = np.clip(0.5 + 0.5 * folds * (0.6 + 0.8 * fbm(P, 4.0, 9)), 0, 1)   # some folds fade out, some deepen
 col *= (0.68 + 0.45 * folds ** 1.3)[..., None]
+# the back hangs in long deep pleats from the belt, flaring toward the hem (seen from behind, not a tube)
+back = np.clip((P[..., 1] - 0.0) / 0.08, 0, 1)
+pleat = np.clip(0.5 + 0.5 * np.sin(ang * 13.0 + fbm(P, 2.0, 31) * 4.0 + (1.0 - z) * 2.5), 0, 1)
+col *= (1.0 - back * (0.38 * (1.0 - pleat) ** 2 - 0.08 * pleat ** 4))[..., None]
 twill = 0.5 + 0.5 * np.sin((ang * 0.32 + z) * 420.0)
 col *= (0.9 + 0.1 * twill + 0.16 * (fine_n - 0.5))[..., None]
 band = np.clip(1 - np.abs(z - 0.98 - 0.02 * mid_n) / 0.045, 0, 1) > 0.0
@@ -636,17 +675,33 @@ col *= 1.35
 col = mix(col, C(0.14, 0.13, 0.08), border * 0.7)
 out[m] = col[m]
 
+# Hood lining: the same wool turned inward and in shadow, still folded and woven (never a black hole
+# beside her face); the deeper toward the crown, the darker.
 m = (k == HOODIN)
-out[m] = (C(0.07, 0.06, 0.07) * (0.8 + 0.4 * fine_n[..., None]))[m]
+col = mix(np.broadcast_to(C(0.20, 0.21, 0.11), (H, W, 3)).copy(), C(0.21, 0.15, 0.09), np.clip(lo_n * 2 - 0.5, 0, 1))
+lfold = np.clip(0.5 + 0.5 * np.sin(ang * 11.0 + fbm(P, 3.0, 21) * 5.0 + z * 9.0), 0, 1)
+col *= (0.7 + 0.45 * lfold)[..., None] * (0.85 + 0.12 * twill + 0.25 * (fine_n - 0.5))[..., None]
+col *= (1.0 - 0.35 * np.clip((z - 1.62) / 0.15, 0, 1))[..., None]
+out[m] = col[m]
 
-# Skin (arms, hands, face): pallid grey-green, bruised purple, veined; the face keeps its painted features.
-for kk, strength in ((SKIN, 0.4), (FACE, 0.65)):
+# Skin (arms, hands, face): pallid grey-green, bruised purple, veined, crêpe-wrinkled across the limb,
+# liver-spotted and pored; the face keeps its painted features.
+crepe_w = fbm(P, 7.0, 22, 3) * 7.0
+crepe = 0.5 + 0.5 * np.sin(z * 260.0 + crepe_w) * (0.4 + 0.6 * fbm(P, 11.0, 23, 2))   # fine creases around the limb
+crepe2 = 0.5 + 0.5 * np.sin((P[..., 0] * 0.6 + P[..., 1] * 0.8 + z * 0.3) * 520.0 + crepe_w * 1.5)
+ridge = 1.0 - np.abs(2.0 * fbm(P, 22.0, 24, 3) - 1.0)                               # tendons and knobbly knuckles
+spots = np.clip((noise(P, 55.0, 25) - 0.72) * 6.0, 0, 1) * np.clip((noise(P, 9.0, 26) - 0.35) * 3.0, 0, 1)
+pores = noise(P, 260.0, 27)
+for kk, strength in ((SKIN, 0.7), (FACE, 0.65)):
     m = (k == kk)
-    col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1) * 0.4)
+    col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1) * 0.45)
     col = mix(col, C(0.5, 0.5, 0.43), np.clip(lo_n * 2 - 1.1, 0, 1) * 0.5)   # one pallid skin, not patches
-    vein = np.clip(1 - np.abs(fbm(P, 14.0, 6, 3) - 0.5) / 0.025, 0, 1)
-    col = mix(col, C(0.33, 0.33, 0.46), vein * 0.55)
-    col *= (1.0 + strength * (detail - 1.0))[..., None] * (0.92 + 0.16 * fine_n)[..., None]
+    vein = np.clip(1 - np.abs(fbm(P, 14.0, 6, 3) - 0.5) / 0.03, 0, 1)
+    col = mix(col, C(0.30, 0.31, 0.46), vein * 0.6)
+    col = mix(col, C(0.36, 0.29, 0.18), spots * 0.7)
+    col *= (0.8 + 0.2 * crepe ** 2 + 0.1 * crepe2 - 0.05)[..., None]
+    col *= (0.86 + 0.24 * ridge ** 2)[..., None] * (0.92 + 0.12 * pores)[..., None]
+    col *= (1.0 + strength * (detail - 1.0))[..., None] * (0.9 + 0.2 * fine_n)[..., None]
     out[m] = col[m]
 # Nails and fingertips: the darkest skin texels are the source's nails: keep them dark and horn-yellow.
 m = (k == SKIN) & (lum_s < 0.18)
@@ -684,7 +739,7 @@ root = np.clip((vv - hv0) / (hv1 - hv0), 0, 1)           # v up: the top of the 
 g = (0.22 + 0.38 * streak) * (1.0 - 0.45 * root)
 out[hv0:hv1, hu0:hu1] = np.stack([g * 0.97, g, g * 0.92], -1)
 su, sv = int(SOCKET_UV[0] * W), int(SOCKET_UV[1] * H)
-out[sv - 6:sv + 6, su - 6:su + 6] = 0.02
+out[sv - 6 * UP:sv + 6 * UP, su - 6 * UP:su + 6 * UP] = 0.02
 
 out = np.clip(out, 0, 1)
 ATLAS = os.path.join(os.path.dirname(os.path.abspath(DST)), "witch_atlas.png")
@@ -726,6 +781,8 @@ def _sample(rots, locs):
     trunk = ["Hips", "Spine", "Chest"]
     head = trunk + ["Neck", "Head"]
     return {"hy": hips.y, "knee_f": hips.y - min(knees), "knee_b": max(knees) - hips.y,
+            "knee_d": knees[1] - knees[0],           # how far the left knee is ahead of the right
+
             "chest_x": chain(trunk, 0), "chest_z": chain(trunk, 2), "head_x": chain(head, 0), "head_z": chain(head, 2),
             "hips_y": rots.get("Hips", (0, 0, 0))[1], "hips_z": rots.get("Hips", (0, 0, 0))[2],
             # how far each upper arm is raised from hanging (radians), for the cape's shoulder flaps
@@ -770,7 +827,7 @@ def _cloth_rows(name, rows, loop):
     for f in range(n):
         g, h = (f + 1) % n if loop else min(f + 1, n - 1), (f - 1) % n if loop else max(f - 1, 0)
         fwd.append(speed - (rows[g]["hy"] - rows[h]["hy"]) / ((g - h) % n * dt if loop else max(g - h, 1) * dt))
-    drag = [d(5.5) * v for v in fwd]                       # radians the hem trails per m/s
+    drag = [d(8.0) * v for v in fwd]                       # radians the hem trails per m/s
     robe = _spring(drag, loop)
     hood_x = _spring([r["head_x"] + 0.6 * dg for r, dg in zip(rows, drag)], loop, w=2 * math.pi * 1.8)
     hood_z = _spring([r["head_z"] for r in rows], loop, w=2 * math.pi * 1.8)
@@ -780,6 +837,9 @@ def _cloth_rows(name, rows, loop):
     # the skirt swings on after the hips' roll and turn
     roll = _spring([r["hips_y"] for r in rows], loop, w=2 * math.pi * 1.3, zeta=0.25)
     yaw = _spring([r["hips_z"] for r in rows], loop, w=2 * math.pi * 1.3, zeta=0.25)
+    # the stride: the side panels follow their knees fore and aft and the back panel swings toward the
+    # leg behind, a beat late (from behind, the hem splits and sways with each step instead of one tube)
+    stride = _spring([math.atan2(r["knee_d"], 0.5) for r in rows], loop, w=2 * math.pi * 1.6, zeta=0.35)
     out = []
     for f, r in enumerate(rows):
         fade = 1.0         # the lunge ends standing over you, still swinging: no fade to a rest pose
@@ -791,16 +851,17 @@ def _cloth_rows(name, rows, loop):
         cx = (cape_x[f] - r["chest_x"]) * fade
         cz = (cape_z[f] - r["chest_z"]) * fade
         # a shoulder flap rides up with its arm once the arm is raised past 40 degrees, out to her side
-        al = 0.45 * max(0.0, r["arm_l"] - d(40))
-        ar = 0.45 * max(0.0, r["arm_r"] - d(40))
+        al = 0.7 * max(0.0, r["arm_l"] - d(30))
+        ar = 0.7 * max(0.0, r["arm_r"] - d(30))
+        st = stride[f]
         ry = roll[f] - r["hips_y"]
         rz = yaw[f] - r["hips_z"]
         out.append({
             # a little flare at rest: the back hem stood tucked under her
             "Robe.F": (rb - 1.8 * kf, ry, rz),
-            "Robe.B": (d(6) + rb + 1.8 * kb, ry, rz),
-            "Robe.L": (rb, d(-4) + 1.4 * ry, rz),
-            "Robe.R": (rb, d(4) + 1.4 * ry, rz),
+            "Robe.B": (d(6) + rb + 2.4 * kb, 1.6 * ry + 0.8 * st, 1.4 * rz),
+            "Robe.L": (rb - 1.4 * st, d(-4) + 1.6 * ry, rz),
+            "Robe.R": (rb + 1.4 * st, d(4) + 1.6 * ry, rz),
             "Hood": (hx, 0, hz),
             "Cape.B": (cx, 0, cz),
             "Cape.L": (0.8 * cx, -al, cz),
@@ -844,7 +905,7 @@ def sw(t, ph=0.0):
 
 
 # The cloth's own small sway on top (breath, a draught): (degrees, cycles a clip).
-CLOTH_AMP = {"idle": (4.5, 1), "walk": (5.5, 2), "attack_idle": (5.0, 1), "attack": (4.5, 2)}
+CLOTH_AMP = {"idle": (4.5, 1), "walk": (7.0, 2), "attack_idle": (6.5, 4), "attack": (4.5, 2)}
 
 
 def cloth(t, name):
@@ -1110,37 +1171,6 @@ def _arm_diag(r, hips, side):
     return mw @ arm.pose.bones[ARM_TIP[side]].tail - mw @ arm.pose.bones[ARM[side][0]].head
 
 
-# attack_idle's reach, a bone at a time (upper arm, forearm, hand, fingers): x out, y back, z up
-REACH_FULL = ((0.2, -1.0, 0.25), (0.05, -1.0, 0.3), (0.0, -1.0, 0.1), (0.0, -0.6, -0.8))
-REACH_DRAWN = ((0.45, -0.45, -0.75), (0.15, -0.75, 0.65), (0.05, -0.5, 0.85), (0.0, -0.9, 0.2))
-
-
-def reach(t):
-    """attack_idle, the walk while she sees you: both claws out at your face, one thrusting to full stretch
-    while the other draws half back and clutches, the shoulders twisting into each reach."""
-    r = base_idle(t)
-    rl = 0.5 + 0.5 * sw(t)            # 1 = her left arm at full reach
-    rr = 1.0 - rl
-    r["Spine"] = (d(8 + 2 * sw(t * 2)), d(-3 * sw(t)), d(-7 * sw(t)))
-    r["Chest"] = (d(8 + 2 * sw(t * 2, 0.1)), 0, d(-9 * sw(t)))
-    r["Neck"] = (d(-4), 0, 0)
-    r["Head"] = (d(-12 + 3 * sw(t * 2, 0.3)), 0, d(10 * sw(t)))
-    return r, {"L": rl, "R": rr}
-
-
-def attack_idle(t):
-    r, k = reach(t)
-    drop = legs(r, t)
-    for s in ("L", "R"):
-        ext = 0.15 + 0.85 * smooth(k[s])          # never fully drawn: both claws stay out at you
-        dirs = [_lerp(a, b, ext) for a, b in zip(REACH_DRAWN, REACH_FULL)]
-        if s == "R":
-            dirs = dirs[:2] + [_lerp(dirs[2], dirs[3], 0.4)]      # her right hand is hand and claws in one
-        dirs = [Vector(v).normalized()[:] for v in dirs]
-        _aim_arm(r, (0, 0, drop), s, dirs)
-    return r, {"Hips": (0, 0, drop)}
-
-
 def _foot_at(r, hips, side):
     pose(rots=r, locs={"Hips": hips})
     return arm.matrix_world @ arm.pose.bones["Foot." + side].head
@@ -1228,51 +1258,118 @@ def idle(t):
     return r, {"Hips": hips}
 
 
+# attack_idle's reach, a bone at a time (upper arm, forearm, hand, fingers): x out, y back, z up.
+# Drawn: the elbow out wide at shoulder height, the claw cocked up beside her head; full: thrust out wide,
+# forward and up at your face (wide so the stretch reads from in front, not only from the side); clutch:
+# still out, the fingers curling shut.
+REACH_DRAWN = ((0.75, 0.05, 0.3), (0.1, -0.4, 0.9), (0.0, -0.5, 0.85), (0.0, -0.9, 0.3))
+REACH_FULL = ((0.55, -0.8, 0.2), (0.45, -0.85, 0.25), (0.3, -0.9, 0.1), (0.2, -0.6, -0.7))
+REACH_CLUTCH = ((0.5, -0.82, 0.25), (0.2, -0.9, 0.35), (0.1, -0.8, 0.1), (0.0, -0.2, -0.95))
+REACH_HALF = ((0.65, -0.4, 0.3), (0.25, -0.7, 0.65), (0.1, -0.7, 0.6), (0.0, -0.8, -0.3))
+# one arm's thrust, by its own phase (a thrust a second): a fast strike, a clutch, a slow draw back
+REACH_KEYS = [(0.0, REACH_DRAWN), (0.16, REACH_FULL), (0.34, REACH_CLUTCH), (0.6, REACH_HALF), (1.0, REACH_DRAWN)]
+STALK_CYCLES = 4          # foot cycles a 48-frame clip: short quick steps, not the walk's long stride
+STALK_SWING = 0.35        # of a cycle, the foot in the air
+STALK_LIFT = 0.08
+STALK_DROP = 0.09         # m the hips sink into her crouch
+
+
+def _stalk_foot(tau):
+    """(back offset, lift) of a stalking foot by its cycle phase tau (0 = lift-off). In stance it sweeps
+    back at the ground speed (no slide); the swing is a cubic that leaves and lands at that speed."""
+    cyc = 2.0 / STALK_CYCLES                       # s a cycle (the clip is 2 s at rate 1)
+    sweep = WALK_SPEED * cyc * (1.0 - STALK_SWING)
+    half = 0.5 * sweep
+    rate = sweep / (1.0 - STALK_SWING)
+    if tau >= STALK_SWING:
+        return -half + rate * (tau - STALK_SWING), 0.0
+    k = tau / STALK_SWING
+    tan = rate * STALK_SWING
+    h00, h10 = 2 * k ** 3 - 3 * k ** 2 + 1, k ** 3 - 2 * k ** 2 + k
+    h01, h11 = -2 * k ** 3 + 3 * k ** 2, k ** 3 - k ** 2
+    u = smooth(min(1.0, k / 0.2, (1.0 - k) / 0.3))
+    return h00 * half + h10 * tan - h01 * half + h11 * tan, STALK_LIFT * u
+
+
+def attack_idle(t):
+    """The reach, her stalk while she sees you: sunk in a wide crouch, leaning in at you, short quick
+    planted steps, the claws thrusting at your face in turn (one strikes out wide while the other clutches
+    and draws back), the shoulders twisting into each strike."""
+    r = base_idle(t)
+    tc = t * STALK_CYCLES
+    # the hips sink, bob down onto each planted foot and sway over it
+    hips = (0.02 * sw(tc), 0.0, -STALK_DROP - 0.015 * sw(tc * 2, 0.25))
+    r["Hips"] = (d(6), d(4 * sw(tc)), d(3 * sw(tc, 0.25)))
+    tw = sw(t * 2)                       # + = her left arm striking
+    r["Spine"] = (d(14 + 2 * sw(tc * 2)), d(-3 * tw), d(-8 * tw))
+    r["Chest"] = (d(14 + 2 * sw(tc * 2, 0.1)), 0, d(-10 * tw))
+    r["Neck"] = (d(-6), 0, d(4 * tw))
+    r["Head"] = (d(-18 + 3 * sw(tc * 2, 0.3)), 0, d(8 * tw))
+    feet = _stand()
+    for s, ph in (("L", 0.0), ("R", 0.5)):
+        back, lift = _stalk_foot((tc + ph) % 1.0)
+        tgt = feet[s].copy()
+        tgt.x *= 1.35
+        tgt.y += back
+        tgt.z += lift
+        # seeded from a bent knee every frame, so every frame lands on the same branch
+        r["UpperLeg." + s], r["LowerLeg." + s] = (d(-8), 0, 0), (d(20), 0, 0)
+        _plant(r, hips, s, tgt)
+    for s, ph in (("L", 0.0), ("R", 0.5)):
+        dirs = _dirs((t * 2 + ph) % 1.0, REACH_KEYS)
+        if s == "R":
+            dirs = dirs[:2] + [Vector(_lerp(dirs[2], dirs[3], 0.4)).normalized()[:]]  # her right hand is hand and claws in one
+        _aim_arm(r, hips, s, dirs)
+    return r, {"Hips": hips}
+
+
 LUNGE_IDLE = None
 _LUNGE_LEGS = {}
 
-# The lunge's keys, by clip time (36 frames, 1.5 s): gather 0-0.28 (back and down, rearing, claws cocked
-# up beside her head), strike 0.28-0.46 (driving off the back foot a long step at you, both claws thrust at
-# your face), follow-through 0.46-0.7 (the trunk overshoots, the back foot comes through, the claws clutch),
-# then she stands over you, still swaying and clawing: no hold, and no step back.
-LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.12, (0, 0.04, -0.04)), (0.24, (0, 0.08, -0.09)), (0.32, (0, -0.06, -0.12)),
-              (0.42, (0, -0.38, -0.15)), (0.52, (0, -0.56, -0.13)), (0.66, (0, -0.66, -0.09)),
-              (0.8, (0, -0.62, -0.06)), (1.0, (0, -0.63, -0.07))]
+# The lunge's keys, by clip time (36 frames, 1.5 s): gather 0-0.22 (back and down, rearing, claws cocked
+# up beside her head), strike 0.22-0.43 (driving off the back foot a long step at you, both claws thrust at
+# your face), follow-through 0.43-0.6 (the trunk overshoots, the back foot comes through, the claws clutch),
+# then the recovery 0.6-1.0: she draws herself up over you, the claws sink to her sides still clawing.
+LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.1, (0, 0.04, -0.05)), (0.2, (0, 0.08, -0.11)), (0.27, (0, -0.06, -0.13)),
+              (0.35, (0, -0.5, -0.16)), (0.43, (0, -0.8, -0.14)), (0.52, (0, -0.95, -0.11)),
+              (0.62, (0, -1.02, -0.07)), (0.75, (0, -1.06, -0.03)), (0.88, (0, -1.07, -0.025)),
+              (1.0, (0, -1.07, -0.03))]
 # Spine, Chest, Neck, Head pitch (deg, + leans forward) and the chest's twist
-LUNGE_TRUNK = [(0.0, (0, 0, 0, 0, 0)), (0.14, (-5, -7, 2, 6, 4)), (0.26, (-11, -14, 4, 12, 8)),
-               (0.36, (2, 0, 0, -4, 3)), (0.46, (8, 9, -6, -20, -4)), (0.56, (12, 12, -8, -26, -6)),
-               (0.7, (6, 7, -5, -20, 0)), (0.85, (8, 6, -4, -22, 3)), (1.0, (6, 7, -5, -20, -1))]
+LUNGE_TRUNK = [(0.0, (0, 0, 0, 0, 0)), (0.12, (-5, -7, 2, 6, 4)), (0.22, (-11, -14, 4, 12, 8)),
+               (0.3, (2, 0, 0, -4, 3)), (0.38, (8, 9, -6, -20, -4)), (0.47, (12, 12, -8, -26, -6)),
+               (0.56, (8, 8, -5, -20, 0)), (0.68, (2, 1, -1, -8, 2)), (0.8, (-2, -2, 1, 2, -1)),
+               (0.9, (0, 0, 0, 0, 0)), (1.0, (0, 0, 0, 0, 0))]
 COCKED = ((0.45, -0.1, 0.85), (0.2, -0.3, 0.95), (0.0, -0.3, 0.95), (0.0, -0.6, 0.8))
 STRIKE = ((0.15, -1.0, 0.2), (0.05, -1.0, 0.15), (0.0, -1.0, 0.0), (0.0, -0.8, -0.5))
 GRAB = ((0.25, -0.9, 0.2), (-0.25, -0.9, 0.35), (-0.3, -0.85, 0.15), (-0.2, -0.25, -0.95))
 HOLD = ((0.3, -0.9, 0.25), (-0.15, -0.9, 0.4), (-0.2, -0.9, 0.25), (-0.1, -0.4, -0.9))
-HOLD2 = ((0.35, -0.85, 0.3), (-0.1, -0.9, 0.45), (-0.15, -0.9, 0.3), (-0.15, -0.5, -0.85))
-LUNGE_ARMS = [(0.0, COCKED), (0.26, COCKED), (0.44, STRIKE), (0.6, GRAB), (0.8, HOLD), (1.0, HOLD2)]
+LUNGE_ARMS = [(0.0, COCKED), (0.2, COCKED), (0.37, STRIKE), (0.5, GRAB), (0.6, HOLD)]
 
 
 def attack(t):
-    """The lunge, played once (the game then blends to idle where she stands)."""
-    global LUNGE_IDLE
-    if LUNGE_IDLE is None:
-        LUNGE_IDLE = base_idle(0.0)
-    r = dict(LUNGE_IDLE)
+    """The lunge, played once, ending stood up in her idle pose a long step on (the game then blends to
+    idle where she stands)."""
+    r = base_idle(0.6 * t)
     feet = _stand()
     hips = _track(t, LUNGE_HIPS)
-    hips = (hips[0], hips[1], hips[2] + 0.008 * sw(t * 2.5) * _env(t, 0.7, 0.85))
+    hips = (hips[0], hips[1], hips[2] + 0.008 * sw(t * 2.5) * _env(t, 0.62, 0.8))
     tr = _track(t, LUNGE_TRUNK)
     for n, v in zip(("Spine", "Chest", "Neck", "Head"), tr[:4]):
         x, y, z = r.get(n, (0, 0, 0))
         r[n] = (x + d(v), y, z + (d(tr[4]) if n == "Chest" else 0.0))
-    r["Hips"] = (0, d(3 * _env(t, 0.3, 0.45) - 2 * _env(t, 0.5, 0.7)), d(-4 * _env(t, 0.2, 0.4) + 4 * _env(t, 0.45, 0.65)))
-    wa = _env(t, 0.0, 0.2)
+    r["Hips"] = (0, d(3 * _env(t, 0.25, 0.4) - 3 * _env(t, 0.45, 0.75)),
+                 d(-4 * _env(t, 0.15, 0.33) + 4 * _env(t, 0.4, 0.7)))
+    # the claws ride the strike out, then sink back to her idle as she recovers
+    wa = _env(t, 0.0, 0.2) * (1.0 - 0.85 * _env(t, 0.62, 0.92))
     for s in ("L", "R"):
         side_t = t if s == "L" else max(0.0, t - 0.025)      # her right hand a beat behind the left
         dirs = _dirs(side_t, LUNGE_ARMS)
         if s == "R":
             dirs = dirs[:2] + [Vector(_lerp(dirs[2], dirs[3], 0.4)).normalized()[:]]
         _aim_arm(r, hips, s, dirs, wa)
-    # the legs: the lead (left) foot strides at you as the strike lands, the back foot comes through after
-    for s, a, b, dist, lift in (("L", 0.28, 0.46, 0.78, 0.13), ("R", 0.44, 0.66, 0.44, 0.08)):
+    # the legs: the lead (left) foot strides at you as the strike lands, the back foot comes through to
+    # stand beside it (both end a hips' travel on, square under her)
+    for s, a, b, dist, lift in (("L", 0.22, 0.40, 1.0, 0.13), ("R", 0.38, 0.60, 1.15, 0.08)):
         k = _env(t, a, b)
         u = min(1.0, max(0.0, (t - a) / (b - a)))
         tgt = feet[s].copy()
@@ -1300,13 +1397,13 @@ def _diag(name, frames, fn):
                   name, f, *hips, *cl, *cr, fl.y, fl.z, fr.y, fr.z, max(PLANT_ERR or [0])))
 
 
-_diag("attack_idle", 30, attack_idle)
+_diag("attack_idle", 48, attack_idle)
 _diag("attack", 36, attack)
 _LUNGE_LEGS.clear()
 _IDLE_LEGS.clear()
 clip("idle", 48, idle)
 clip("walk", 30, walk)
-clip("attack_idle", 30, attack_idle)
+clip("attack_idle", 48, attack_idle)
 clip("attack", 36, attack, loop=False)
 arm.animation_data.action = None
 pose()

@@ -4,7 +4,7 @@ extends GSGameVisualQaCapture
 ## at --fps in three views (f first person, t behind-right, o in front):
 ##   person_<letter>  one of the six people (LmFigure) idling, walking, running, crouching and jumping; f is another player's eye a few metres in front.
 
-##   witch            the witch (LmWitch) idling, walking, reaching for you with the fan flared, and lunging.
+##   witch            the witch (LmWitch) idling, walking, reaching for you with the fan flared, and lunging; f is her victim's eye.
 ##   clown            the clown hallucination (LmClown) watching you with its mouth shut and talking.
 ## This game has no weapons, so no weapon items. The outside views and frame saving are gs-game's GSGameVisualQaViews.
 
@@ -24,6 +24,13 @@ const SPEED := {"idle": 0.0, "walk": 2.9, "run": 6.5, "crouch": 2.9, "jump": 2.9
 const SECONDS := {"idle": 2.0, "walk": 2.4, "run": 2.0, "crouch": 2.0, "jump": 1.6, "reach": 2.0, "lunge": 1.4, "watch": 2.0, "talk": 3.0}
 ## The witch walks at her own slower loop speed, not a player's.
 const WITCH_WALK := 1.3
+## The witch's victim (the first-person view): where they stand per clip, 1.6 m (her reach, the scare distance) past
+## where her clip ends, so the lunge ends in their face; their eye height and torch.
+const VICTIM_Z := {"idle": -2.2, "walk": -3.2, "reach": -2.9, "lunge": -2.6}
+const VICTIM_EYE := 1.65
+const VICTIM_SIDE := -0.12
+const VICTIM_FOV := 70.0
+const WITCH_FACE := 1.65
 ## How high the floating clown bust hangs (metres), its bust being 0.9 m.
 const CLOWN_HEIGHT := 1.6
 
@@ -32,6 +39,8 @@ var _figure: LmFigure = null
 var _witch: LmWitch = null
 var _clown: LmClown = null
 var _kind := ""
+var _staged := ""
+var _torch := SpotLight3D.new()
 
 
 func _items() -> PackedStringArray:
@@ -62,11 +71,20 @@ func _warmup_frames(_item: String, _clip: String) -> int:
 func _build() -> void:
 	build_stage()
 	first_person.cull_mask = ALL_LAYERS & ~BODY_LAYER
+	# the victim's torch, held low by their right hand
+	_torch.position = Vector3(0.25, -0.3, 0.0)
+	_torch.light_color = Color(1.0, 0.9, 0.75)
+	_torch.light_energy = 2.5
+	_torch.spot_range = 9.0
+	_torch.spot_angle = 28.0
+	_torch.visible = false
+	first_person.add_child(_torch)
 	root.add_child(_holder)
 
 
 func _stage(item: String, clip: String) -> GSResult:
 	_clear()
+	_staged = clip
 	views.behind_offset = Vector3(1.6, 1.6, 3.2)
 	views.behind_look_height = 1.0
 	views.opponent_offset = Vector3(0.4, 1.6, -4.0)
@@ -170,9 +188,19 @@ func _before_draw(_item: String, _clip: String, _frame: int) -> void:
 		var _tagged := GSGameVisualQaViews.tag_layers(_figure, BODY_LAYER)
 
 
-## A rival's eye in front, looking at the subject (the clown and witch are looked at the same way).
+## A rival's eye in front, looking at the subject (the clown the same way). The witch's is her victim's eye instead: standing
+## still where she is heading, at a person's eye height, torch in hand, so she comes at the lens and the lunge ends at her
+## reach (the opponent view follows her at a fixed offset, this one does not move).
 func _place_first_person(_item: String) -> void:
 	var at := _subject(_item).global_position
+	if _kind == "witch":
+		_torch.visible = true
+		first_person.fov = VICTIM_FOV
+		first_person.global_position = Vector3(VICTIM_SIDE, VICTIM_EYE, float(VICTIM_Z.get(_staged, -2.4)))
+		first_person.look_at(at + Vector3(0.0, WITCH_FACE, 0.0))
+		return
+	_torch.visible = false
+	first_person.fov = 75.0
 	var mid := 0.75 if _kind == "clown" else BODY_HEIGHT * 0.5
 	var dist := 3.0 if _kind == "clown" else 2.5
 	first_person.global_position = at + Vector3(0.0, 0.85 if _kind == "clown" else 1.6, -dist)

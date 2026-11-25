@@ -186,6 +186,8 @@ static func _skin() -> StandardMaterial3D:
 	m.albedo_color = Color.WHITE if m.albedo_texture != null else SKIN
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	m.roughness = 0.9
+	# both faces: the hood is a single sheet, and from in front its inside is what frames her face
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# a soft sheen on the silhouette, so the folds and the arms read against the dark front
 	m.rim_enabled = true
 	m.rim = 0.3
