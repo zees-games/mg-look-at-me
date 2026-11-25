@@ -188,10 +188,11 @@ static func _skin() -> StandardMaterial3D:
 	m.roughness = 0.9
 	# both faces: the hood is a single sheet, and from in front its inside is what frames her face
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	# a soft sheen on the silhouette, so the folds and the arms read against the dark front
+	# a faint sheen on the silhouette, tinted by the cloth under it (a strong white rim lit the hood's frayed
+	# edge into a bright jagged fringe)
 	m.rim_enabled = true
-	m.rim = 0.3
-	m.rim_tint = 0.5
+	m.rim = 0.08
+	m.rim_tint = 0.9
 	return m
 
 

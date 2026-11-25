@@ -24,13 +24,13 @@ const SPEED := {"idle": 0.0, "walk": 2.9, "run": 6.5, "crouch": 2.9, "jump": 2.9
 const SECONDS := {"idle": 2.0, "walk": 2.4, "run": 2.0, "crouch": 2.0, "jump": 1.6, "reach": 2.0, "lunge": 1.4, "watch": 2.0, "talk": 3.0}
 ## The witch walks at her own slower loop speed, not a player's.
 const WITCH_WALK := 1.3
-## The witch's victim (the first-person view): where they stand per clip, 1.6 m (her reach, the scare distance) past
-## where her clip ends, so the lunge ends in their face; their eye height and torch.
-const VICTIM_Z := {"idle": -2.2, "walk": -3.2, "reach": -2.9, "lunge": -2.6}
+## The witch's victim (the first-person view): where they stand per clip, far enough back that her boots stay in frame
+## (the lunge ends 1.6 m short of them, her reach, the scare distance); their eye height and torch.
+const VICTIM_Z := {"idle": -3.4, "walk": -4.4, "reach": -3.3, "lunge": -2.3}
 const VICTIM_EYE := 1.65
 const VICTIM_SIDE := -0.12
 const VICTIM_FOV := 70.0
-const WITCH_FACE := 1.65
+const WITCH_LOOK := 1.15
 ## How high the floating clown bust hangs (metres), its bust being 0.9 m.
 const CLOWN_HEIGHT := 1.6
 
@@ -197,7 +197,8 @@ func _place_first_person(_item: String) -> void:
 		_torch.visible = true
 		first_person.fov = VICTIM_FOV
 		first_person.global_position = Vector3(VICTIM_SIDE, VICTIM_EYE, float(VICTIM_Z.get(_staged, -2.4)))
-		first_person.look_at(at + Vector3(0.0, WITCH_FACE, 0.0))
+		# aimed below her face, so her boots stay in frame as she closes in
+		first_person.look_at(at + Vector3(0.0, WITCH_LOOK, 0.0))
 		return
 	_torch.visible = false
 	first_person.fov = 75.0
