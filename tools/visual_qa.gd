@@ -31,6 +31,14 @@ const VICTIM_EYE := 1.65
 const VICTIM_SIDE := -0.12
 const VICTIM_FOV := 70.0
 const WITCH_LOOK := 1.15
+## The lunge's behind-right view: lower, nearer and more side-on than her walk's, so the strike fills the frame. She
+## lunges from a node that stays put, so this view follows her hips across the floor (see _place) or she leaps out of it.
+const LUNGE_BEHIND := Vector3(2.6, 1.45, 1.4)
+const LUNGE_LOOK := 1.0
+## The witch's stage light: a filmic curve and a dimmer, cooler fill than the shared stage's flat grey (which cast
+## her in milky grey), and a depth haze in the sky's colour so the floor fades out instead of ending in an edge.
+const WITCH_AMBIENT := Color(0.36, 0.37, 0.43)
+const WITCH_HAZE := Vector2(9.0, 18.0)
 ## How high the floating clown bust hangs (metres), its bust being 0.9 m.
 const CLOWN_HEIGHT := 1.6
 
@@ -41,6 +49,8 @@ var _clown: LmClown = null
 var _kind := ""
 var _staged := ""
 var _torch := SpotLight3D.new()
+var _env: Environment = null
+var _ambient := Color.WHITE
 
 
 func _items() -> PackedStringArray:
@@ -80,6 +90,23 @@ func _build() -> void:
 	_torch.visible = false
 	first_person.add_child(_torch)
 	root.add_child(_holder)
+	for found in stage.find_children("*", "WorldEnvironment", true, false):
+		_env = (found as WorldEnvironment).environment
+	if _env != null:
+		_ambient = _env.ambient_light_color
+		_env.fog_mode = Environment.FOG_MODE_DEPTH
+		_env.fog_light_color = _env.background_color
+		_env.fog_depth_begin = WITCH_HAZE.x
+		_env.fog_depth_end = WITCH_HAZE.y
+
+
+## The witch's light (see WITCH_AMBIENT) on for her clips, the shared stage's for everyone else.
+func _witch_light(on: bool) -> void:
+	if _env == null:
+		return
+	_env.ambient_light_color = WITCH_AMBIENT if on else _ambient
+	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if on else Environment.TONE_MAPPER_LINEAR
+	_env.fog_enabled = on
 
 
 func _stage(item: String, clip: String) -> GSResult:
@@ -89,6 +116,7 @@ func _stage(item: String, clip: String) -> GSResult:
 	views.behind_look_height = 1.0
 	views.opponent_offset = Vector3(0.4, 1.6, -4.0)
 	views.opponent_look_height = 1.3
+	_witch_light(item == "witch")
 	if item == "witch":
 		_kind = "witch"
 		views.behind_offset = Vector3(2.0, 2.0, 4.0)
@@ -99,6 +127,8 @@ func _stage(item: String, clip: String) -> GSResult:
 		_witch.build(0.0, 60.0)
 		_witch.global_position = Vector3.ZERO
 		if clip == "lunge":
+			views.behind_offset = LUNGE_BEHIND
+			views.behind_look_height = LUNGE_LOOK
 			_witch.lunge()
 		elif clip == "walk" or clip == "reach":
 			# Already walking when the clip starts: the first 0.25 s of a walk is the blend out of the
@@ -177,6 +207,21 @@ func _drive(_item: String, clip: String, t: float, _frame: int) -> void:
 	_figure.set_motion({"on_floor": not airborne, "vertical": vertical, "crouched": clip == "crouch",
 		"sprinting": clip == "run", "aim": 0.0, "velocity": Vector3(0.0, 0.0, -speed)})
 	_figure.pose(Vector3(0.0, lift, start - speed * t), 0.0, speed)
+
+
+## The shared placement, then the lunge's behind view carried along with her leap: her hips' ground offset from the node.
+func _place(item: String, clip: String, frame: int) -> void:
+	super(item, clip, frame)
+	if _kind != "witch" or _staged != "lunge" or views.behind_camera == null:
+		return
+	var skeleton := _skeleton(item)
+	var hips := skeleton.find_bone("Hips") if skeleton != null else -1
+	if hips < 0:
+		return
+	var shift := skeleton.to_global(skeleton.get_bone_global_pose(hips).origin) - _witch.global_position
+	shift.y = 0.0
+	views.behind_camera.global_position += shift
+	views.behind_camera.look_at(_witch.global_position + shift + Vector3(0.0, LUNGE_LOOK, 0.0))
 
 
 func _grounded(_item: String, clip: String, t: float) -> bool:

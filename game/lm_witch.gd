@@ -15,6 +15,9 @@ const HEIGHT := 2.2
 ## clawed, with its painted atlas. tools/make_witch.py makes both from the Sketchfab file.
 static var BODY := LmPaths.rebase("res://assets/witch/witch.glb")
 static var ATLAS := LmPaths.rebase("res://assets/witch/witch_atlas.png")
+## Its relief (folds, weave, wrinkles) and sheen (matt wool, waxy skin, horn nails), painted with it.
+static var NORMALS := LmPaths.rebase("res://assets/witch/witch_normal.png")
+static var ROUGHNESS := LmPaths.rebase("res://assets/witch/witch_rough.png")
 
 ## Her skin when the atlas is missing.
 const SKIN := Color("9aa293")
@@ -179,13 +182,22 @@ func _dress_eyes(mounts: Array[Node3D]) -> void:
 	mounts[0].add_child(_glow)
 
 
-## Her skin and rags: the painted atlas (tools/make_witch.py), mipmapped so its cloth grain does not shimmer.
+## Her skin and rags: the painted atlas with its normal and roughness maps (tools/make_witch.py), mipmapped so
+## its cloth grain does not shimmer.
 static func _skin() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = load(ATLAS) as Texture2D if ResourceLoader.exists(ATLAS) else null
 	m.albedo_color = Color.WHITE if m.albedo_texture != null else SKIN
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	m.roughness = 0.9
+	if ResourceLoader.exists(NORMALS):
+		m.normal_enabled = true
+		m.normal_texture = load(NORMALS) as Texture2D
+		m.normal_scale = 1.0
+	if ResourceLoader.exists(ROUGHNESS):
+		m.roughness = 1.0
+		m.roughness_texture = load(ROUGHNESS) as Texture2D
+		m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	# both faces: the hood is a single sheet, and from in front its inside is what frames her face
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	# a faint sheen on the silhouette, tinted by the cloth under it (a strong white rim lit the hood's frayed
