@@ -36,7 +36,7 @@ const FAN_SEEING := 0.26
 const EYES_IDLE := 1.6
 const EYES_SEEING := 2.2
 const GLOW_IDLE := 0.02
-const GLOW_SEEING := 0.08
+const GLOW_SEEING := 0.04     # brighter smeared red over her cheeks
 
 ## The body's clip playing now, for the suite and describe().
 var clip: StringName = &"":
@@ -174,7 +174,7 @@ func _dress_eyes(mounts: Array[Node3D]) -> void:
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.18, 0.1)
 	_glow.light_energy = GLOW_IDLE
-	_glow.omni_range = 0.35
+	_glow.omni_range = 0.2         # the sockets only, not the whole face
 	_glow.position = Vector3(0.0, 0.08, 0.0)
 	mounts[0].add_child(_glow)
 
@@ -185,7 +185,11 @@ static func _skin() -> StandardMaterial3D:
 	m.albedo_texture = load(ATLAS) as Texture2D if ResourceLoader.exists(ATLAS) else null
 	m.albedo_color = Color.WHITE if m.albedo_texture != null else SKIN
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	m.roughness = 0.95
+	m.roughness = 0.9
+	# a soft sheen on the silhouette, so the folds and the arms read against the dark front
+	m.rim_enabled = true
+	m.rim = 0.3
+	m.rim_tint = 0.5
 	return m
 
 

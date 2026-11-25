@@ -429,8 +429,8 @@ pose(
     rots={"Spine": (d(10), 0, 0), "Chest": (d(14), 0, 0), "Neck": (d(12), 0, 0), "Head": (d(-14), 0, 0),
           "UpperArm.L": (d(3), 0, d(-5)), "UpperArm.R": (d(5), 0, d(6)), "Fingers.L": (d(-22), 0, 0)},
     # long bony fingers, but a hand no bigger than her face (the source's left one was a shovel)
-    scales={"UpperArm.L": (1, 1.15, 1), "LowerArm.L": (1.0, 1.25, 1.0), "Hand.L": (0.92, 0.95, 0.92),
-            "Fingers.L": (1.0, 0.9, 1.0), "Hand.R": (0.86, 1.05, 0.86)},
+    scales={"UpperArm.L": (1, 1.15, 1), "LowerArm.L": (1.0, 1.25, 1.0), "Hand.L": (0.8, 0.85, 0.8),
+            "Fingers.L": (0.82, 1.0, 0.82), "Hand.R": (0.78, 0.95, 0.78)},
 )
 bpy.ops.object.select_all(action="DESELECT")
 bpy.context.view_layer.objects.active = body
@@ -601,6 +601,7 @@ stitchrow = (np.abs((z - 0.98) / 0.03 - (zig - 0.5)) < 0.22) | (np.abs(np.abs(z 
 emb = band & stitchrow & (noise(P, 25, 12) > 0.3)              # worn through in places
 col[m & emb] = (C(0.52, 0.4, 0.2) * (0.75 + 0.4 * fine_n[m & emb])[:, None])
 hem = np.clip((0.55 + 0.25 * mid_n - z) / 0.35, 0, 1)
+col *= 1.2                     # lifted out of the mud: the front read as one dark mass under the capture's light
 col = mix(col, C(0.17, 0.13, 0.10), hem * 0.85)
 for i, (pc, size, tint) in enumerate((((-0.12, -0.24, 0.85), 0.09, (0.26, 0.24, 0.17)),
                                       ((0.17, 0.25, 0.65), 0.11, (0.2, 0.14, 0.2)),
@@ -631,6 +632,7 @@ col = mix(col, C(0.5, 0.48, 0.36), wear)
 darn = (noise(P, 9, 14) > 0.82) & ((np.sin(P[..., 0] * 600) > 0.4) | (np.sin(z * 600) > 0.4))
 col[m & darn] = (C(0.4, 0.33, 0.22) * (0.8 + 0.3 * fine_n[m & darn])[:, None])
 border = np.clip((1.58 + 0.03 * mid_n - z) / 0.06, 0, 1)
+col *= 1.35
 col = mix(col, C(0.14, 0.13, 0.08), border * 0.7)
 out[m] = col[m]
 
@@ -640,8 +642,8 @@ out[m] = (C(0.07, 0.06, 0.07) * (0.8 + 0.4 * fine_n[..., None]))[m]
 # Skin (arms, hands, face): pallid grey-green, bruised purple, veined; the face keeps its painted features.
 for kk, strength in ((SKIN, 0.4), (FACE, 0.65)):
     m = (k == kk)
-    col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1))
-    col = mix(col, C(0.58, 0.55, 0.48), np.clip(lo_n * 2 - 1.1, 0, 1) * 0.5)
+    col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1) * 0.4)
+    col = mix(col, C(0.5, 0.5, 0.43), np.clip(lo_n * 2 - 1.1, 0, 1) * 0.5)   # one pallid skin, not patches
     vein = np.clip(1 - np.abs(fbm(P, 14.0, 6, 3) - 0.5) / 0.025, 0, 1)
     col = mix(col, C(0.33, 0.33, 0.46), vein * 0.55)
     col *= (1.0 + strength * (detail - 1.0))[..., None] * (0.92 + 0.16 * fine_n)[..., None]
@@ -657,7 +659,7 @@ out[m] = (C(0.32, 0.07, 0.08) * np.clip(detail, 0.5, 1.3)[..., None])[m]
 m = (k == WRAPS)
 col = mix(np.broadcast_to(C(0.36, 0.31, 0.24), (H, W, 3)).copy(), C(0.22, 0.18, 0.13), np.clip(mid_n * 2 - 0.6, 0, 1))
 col = mix(col, C(0.16, 0.13, 0.1), np.clip((0.35 - z) / 0.3, 0, 1) * 0.7)
-col *= (detail ** 0.7)[..., None] * (0.9 + 0.2 * fine_n)[..., None]
+col *= (detail ** 0.7)[..., None] * (0.9 + 0.2 * fine_n)[..., None] * 1.3
 out[m] = col[m]
 
 m = (k == FEET)
@@ -725,7 +727,14 @@ def _sample(rots, locs):
     head = trunk + ["Neck", "Head"]
     return {"hy": hips.y, "knee_f": hips.y - min(knees), "knee_b": max(knees) - hips.y,
             "chest_x": chain(trunk, 0), "chest_z": chain(trunk, 2), "head_x": chain(head, 0), "head_z": chain(head, 2),
-            "arm_l": rots.get("UpperArm.L", (0, 0, 0)), "arm_r": rots.get("UpperArm.R", (0, 0, 0))}
+            "hips_y": rots.get("Hips", (0, 0, 0))[1], "hips_z": rots.get("Hips", (0, 0, 0))[2],
+            # how far each upper arm is raised from hanging (radians), for the cape's shoulder flaps
+            "arm_l": _raise(pb["UpperArm.L"]), "arm_r": _raise(pb["UpperArm.R"])}
+
+
+def _raise(pb):
+    v = (pb.tail - pb.head).normalized()
+    return math.acos(max(-1.0, min(1.0, -v.z)))
 
 
 def _spring(target, loop, w=2 * math.pi * 1.4, zeta=0.32, fps=24.0):
@@ -768,28 +777,34 @@ def _cloth_rows(name, rows, loop):
     # the cape hangs half by the chest and half by its own weight
     cape_x = _spring([0.5 * r["chest_x"] + 1.1 * dg for r, dg in zip(rows, drag)], loop, w=2 * math.pi * 1.2)
     cape_z = _spring([r["chest_z"] for r in rows], loop, w=2 * math.pi * 1.2)
+    # the skirt swings on after the hips' roll and turn
+    roll = _spring([r["hips_y"] for r in rows], loop, w=2 * math.pi * 1.3, zeta=0.25)
+    yaw = _spring([r["hips_z"] for r in rows], loop, w=2 * math.pi * 1.3, zeta=0.25)
     out = []
     for f, r in enumerate(rows):
-        fade = 1.0
-        if not loop:       # the lunge ends on idle's first frame: the swing has settled by then
-            fade = 1.0 - smooth((f / (n - 1) - 0.86) / 0.14)
-        rb = robe[f] * fade
+        fade = 1.0         # the lunge ends standing over you, still swinging: no fade to a rest pose
+        rb = robe[f]
         kf = math.atan2(max(0.0, r["knee_f"] - KNEE_F0 - 0.02), 0.5)
         kb = math.atan2(max(0.0, r["knee_b"] - KNEE_B0 - 0.02), 0.5)
         hx = (hood_x[f] - r["head_x"]) * fade
         hz = (hood_z[f] - r["head_z"]) * fade
         cx = (cape_x[f] - r["chest_x"]) * fade
         cz = (cape_z[f] - r["chest_z"]) * fade
-        al, ar = r["arm_l"], r["arm_r"]
+        # a shoulder flap rides up with its arm once the arm is raised past 40 degrees, out to her side
+        al = 0.45 * max(0.0, r["arm_l"] - d(40))
+        ar = 0.45 * max(0.0, r["arm_r"] - d(40))
+        ry = roll[f] - r["hips_y"]
+        rz = yaw[f] - r["hips_z"]
         out.append({
-            "Robe.F": (rb - 1.15 * kf, 0, 0),
-            "Robe.B": (rb + 1.15 * kb, 0, 0),
-            "Robe.L": (rb, 0, 0),
-            "Robe.R": (rb, 0, 0),
+            # a little flare at rest: the back hem stood tucked under her
+            "Robe.F": (rb - 1.8 * kf, ry, rz),
+            "Robe.B": (d(6) + rb + 1.8 * kb, ry, rz),
+            "Robe.L": (rb, d(-4) + 1.4 * ry, rz),
+            "Robe.R": (rb, d(4) + 1.4 * ry, rz),
             "Hood": (hx, 0, hz),
             "Cape.B": (cx, 0, cz),
-            "Cape.L": (0.8 * cx, 0, cz),
-            "Cape.R": (0.8 * cx, 0, cz),
+            "Cape.L": (0.8 * cx, -al, cz),
+            "Cape.R": (0.8 * cx, ar, cz),
         })
     return out
 
@@ -829,7 +844,7 @@ def sw(t, ph=0.0):
 
 
 # The cloth's own small sway on top (breath, a draught): (degrees, cycles a clip).
-CLOTH_AMP = {"idle": (3.0, 1), "walk": (4.0, 2), "attack_idle": (3.5, 1), "attack": (3.0, 1)}
+CLOTH_AMP = {"idle": (4.5, 1), "walk": (5.5, 2), "attack_idle": (5.0, 1), "attack": (4.5, 2)}
 
 
 def cloth(t, name):
@@ -864,10 +879,6 @@ def base_idle(t):
         "Hand.R": (d(18 * sw(t, 0.35)), d(14 * sw(t, 0.1)), d(16 * sw(t, 0.6))),
         "Fingers.L": (d(18 * sw(t, 0.5)), 0, d(8 * sw(t, 0.6))),
     }
-
-
-def idle(t):
-    return base_idle(t), {"Hips": (0, 0, 0.012 * sw(t * 2))}
 
 
 STRIDE = 35
@@ -1033,93 +1044,80 @@ def walk(t):
     return r, {"Hips": (0, 0, drop)}
 
 
-ARM_TIP = {"L": ("Fingers.L", "UpperArm.L", "LowerArm.L"), "R": ("Hand.R", "UpperArm.R", "LowerArm.R")}
-_ARM_LAST = {}
+SIDE = {"L": 1.0, "R": -1.0}       # +X is her left
+ARM = {"L": ("UpperArm.L", "LowerArm.L", "Hand.L", "Fingers.L"), "R": ("UpperArm.R", "LowerArm.R", "Hand.R")}
+ARM_TIP = {"L": "Fingers.L", "R": "Hand.R"}
 
 
-def _arm_tip(r, hips, side):
+def _delta(name):
+    """A bone's posed armature-space rotation from its rest (the pose must be current)."""
+    pb = arm.pose.bones[name]
+    return (pb.matrix.to_3x3().normalized() @ rest3(name).inverted()).to_quaternion()
+
+
+def _aim(r, hips, name, v, side):
+    """Turns one bone (keyed FK, no solver) so it points along v, in her frame: x out to `side`, y back, z
+    up. The turn is the shortest one from the bone's rest direction, inside its posed parent, so a chain
+    aimed root first lands each bone exactly where its direction says, with no branch to flip to."""
     pose(rots=r, locs={"Hips": hips})
-    tip, up, low = ARM_TIP[side]
-    pb = arm.pose.bones
+    w = arm.matrix_world.to_3x3().inverted() @ Vector((v[0] * SIDE[side], v[1], v[2]))
+    local = _delta(arm.pose.bones[name].parent.name).inverted() @ w.normalized()
+    q = rest3(name).col[1].normalized().rotation_difference(local)
+    r[name] = tuple(q.to_euler("XYZ"))
+
+
+def _aim_arm(r, hips, side, dirs, w=1.0):
+    """Aims a whole arm (dirs: one direction a bone, shoulder out), blended from the pose r already holds by
+    `w` (a slerp a bone, each child against its blended parent)."""
+    for name, v in zip(ARM[side], dirs):
+        before = Euler(r.get(name, (0, 0, 0)), "XYZ").to_quaternion()
+        _aim(r, hips, name, v, side)
+        if w < 1.0:
+            r[name] = tuple(before.slerp(Euler(r[name], "XYZ").to_quaternion(), w).to_euler("XYZ"))
+
+
+def _lerp(a, b, k):
+    return tuple(x + (y - x) * k for x, y in zip(a, b))
+
+
+def _track(t, keys):
+    """Catmull-Rom through keyed values [(time, tuple)], so the motion passes its keys without stopping
+    (a smoothstep between keys halts at every one of them, which read as freezes). Holds past the ends."""
+    if t <= keys[0][0]:
+        return keys[0][1]
+    if t >= keys[-1][0]:
+        return keys[-1][1]
+    i = max(n for n in range(len(keys) - 1) if keys[n][0] <= t)
+    (t1, p1), (t2, p2) = keys[i], keys[i + 1]
+    p0 = keys[i - 1][1] if i > 0 else p1
+    p3 = keys[i + 2][1] if i + 2 < len(keys) else p2
+    u = (t - t1) / (t2 - t1)
+    u2, u3 = u * u, u * u * u
+    return tuple(0.5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - e) * u2 + (-a + 3 * b - 3 * c + e) * u3)
+                 for a, b, c, e in zip(p0, p1, p2, p3))
+
+
+def _dirs(t, keys):
+    """Keyed arm directions (one tuple a bone): each bone's direction through its keys, renormalised."""
+    flat = [(k, sum(v, ())) for k, v in keys]
+    f = _track(t, flat)
+    return [Vector(f[i:i + 3]).normalized()[:] for i in range(0, len(f), 3)]
+
+
+def _arm_diag(r, hips, side):
+    pose(rots=r, locs={"Hips": hips})
     mw = arm.matrix_world
-    return mw @ pb[tip].tail, mw @ pb[up].head, mw @ pb[low].head
+    return mw @ arm.pose.bones[ARM_TIP[side]].tail - mw @ arm.pose.bones[ARM[side][0]].head
 
 
-def _arm_len(side):
-    tip, up, _low = ARM_TIP[side]
-    return (arm.data.bones[tip].tail_local - arm.data.bones[up].head_local).length * 0.985
-
-
-def _arm_to(r, hips, side, vec):
-    """Shoulder swing (forward and out) and elbow bend that put the claw tip at shoulder + vec (world, m);
-    of the solutions that reach, the one nearest the last frame's, else the one whose elbow hangs lowest."""
-    _tip, up, low = ARM_TIP[side]
-    y0 = r.get(up, (0, 0, 0))[1]
-
-    def f(q):
-        r[up] = (q[0], q[3], q[1])
-        r[low] = (q[2], 0, 0)
-        tip, sh, _el = _arm_tip(r, hips, side)
-        return tip - (sh + vec)
-
-    def solve(q):
-        for _ in range(40):
-            e = f(q)
-            if e.length < 2e-3:
-                break
-            h = d(0.4)
-            cols = []
-            for i in range(4):
-                qq = list(q)
-                qq[i] += h
-                cols.append((f(qq) - e) / h)
-            jm = np.array([tuple(c) for c in cols]).T          # 3x4: the upper arm's twist is free too
-            # damped least squares: a straight arm is singular for "shorten", and a plain inverse stalled
-            # there (the claw left 13-50 cm short, so the solver hopped to another branch)
-            dq = jm.T @ np.linalg.solve(jm @ jm.T + np.eye(3) * 1e-3, np.array(tuple(e)))
-            q = [q[i] - max(-0.25, min(0.25, dq[i])) for i in range(4)]
-            q[0] = math.remainder(q[0], 2 * math.pi)
-            q[1] = math.remainder(q[1], 2 * math.pi)
-            q[2] = min(d(150), max(d(-150), q[2]))
-            q[3] = min(y0 + d(70), max(y0 - d(70), q[3]))
-        err = f(q).length
-        tip, sh, el = _arm_tip(r, hips, side)
-        mid = (tip + sh) * 0.5
-        return round(err, 2), round(el.z - mid.z, 2), abs(q[2]), q
-
-    starts = [[r.get(up, (0, 0, 0))[0], r.get(up, (0, 0, 0))[2], r.get(low, (0, 0, 0))[0], y0]]
-    starts += [list(_ARM_LAST[side])] if side in _ARM_LAST else []
-    starts += [[d(a), d(b), d(k), y0] for a in (-90, -40) for b in (0,) for k in (-50, 50)]
-    starts += [[d(a), d(b), d(k), y0] for a in (-150, 0, 60) for b in (-60, 60) for k in (-90, 90)]
-    sols = [solve(list(q0)) for q0 in starts]
-    best = min(sols)
-    last = _ARM_LAST.get(side)
-    if last is not None:
-        # frame to frame the arm keeps the branch it was on: two solutions that reach equally well can be
-        # the upper arm turned half round, and switching between them swung it 170 degrees in a frame
-        # each radian away from last frame's pose costs like 6 cm of miss: a claw a little short beats a flip
-        best = min(sols, key=lambda sl: sl[0] + 0.06 * sum(abs(math.remainder(a - b, 2 * math.pi))
-                                                          for a, b in zip(sl[3], last)))
-    q = best[3]
-    _ARM_LAST[side] = q
-    r[up] = (q[0], q[3], q[1])
-    r[low] = (q[2], 0, 0)
-
-
-def _shoulder_x(side):
-    return arm.data.bones[ARM_TIP[side][1]].head_local.x
-
-
-def _toward(side, x, y, z, frac):
-    """A world vector from her shoulder: (x out to that side, y back, z up), `frac` of the arm's length."""
-    v = Vector((x * (1.0 if _shoulder_x(side) > 0 else -1.0), y, z)).normalized()
-    return v * (frac * _arm_len(side))
+# attack_idle's reach, a bone at a time (upper arm, forearm, hand, fingers): x out, y back, z up
+REACH_FULL = ((0.2, -1.0, 0.25), (0.05, -1.0, 0.3), (0.0, -1.0, 0.1), (0.0, -0.6, -0.8))
+REACH_DRAWN = ((0.45, -0.45, -0.75), (0.15, -0.75, 0.65), (0.05, -0.5, 0.85), (0.0, -0.9, 0.2))
 
 
 def reach(t):
-    """attack_idle, the walk while she sees you: both claws out at your face, one thrusting at full stretch
-    while the other draws back to her chest and clutches, the shoulders twisting into each reach. One reach per
-    hand per cycle; the arms are aimed (IK), not posed, so the claw arrives where she is looking."""
+    """attack_idle, the walk while she sees you: both claws out at your face, one thrusting to full stretch
+    while the other draws half back and clutches, the shoulders twisting into each reach."""
     r = base_idle(t)
     rl = 0.5 + 0.5 * sw(t)            # 1 = her left arm at full reach
     rr = 1.0 - rl
@@ -1127,23 +1125,19 @@ def reach(t):
     r["Chest"] = (d(8 + 2 * sw(t * 2, 0.1)), 0, d(-9 * sw(t)))
     r["Neck"] = (d(-4), 0, 0)
     r["Head"] = (d(-12 + 3 * sw(t * 2, 0.3)), 0, d(10 * sw(t)))
-    r["Hand.L"] = (d(12 * rl - 10 * rr), 0, 0)
-    r["Fingers.L"] = (d(25 * rl - 60 * rr), 0, 0)
-    r["Hand.R"] = (d(-15 * rl + 20 * rr), d(10 * rl), 0)
     return r, {"L": rl, "R": rr}
-
-
-def _reach_vec(side, k):
-    out = _toward(side, 0.35, -1.0, -0.15, 0.55)       # drawn back to the chest, claw curled
-    full = _toward(side, 0.3, -1.0, 0.18, 0.95)       # at full stretch, up at your face
-    return out.lerp(full, smooth(k))
 
 
 def attack_idle(t):
     r, k = reach(t)
     drop = legs(r, t)
     for s in ("L", "R"):
-        _arm_to(r, (0, 0, drop), s, _reach_vec(s, k[s]))
+        ext = 0.15 + 0.85 * smooth(k[s])          # never fully drawn: both claws stay out at you
+        dirs = [_lerp(a, b, ext) for a, b in zip(REACH_DRAWN, REACH_FULL)]
+        if s == "R":
+            dirs = dirs[:2] + [_lerp(dirs[2], dirs[3], 0.4)]      # her right hand is hand and claws in one
+        dirs = [Vector(v).normalized()[:] for v in dirs]
+        _aim_arm(r, (0, 0, drop), s, dirs)
     return r, {"Hips": (0, 0, drop)}
 
 
@@ -1152,9 +1146,12 @@ def _foot_at(r, hips, side):
     return arm.matrix_world @ arm.pose.bones["Foot." + side].head
 
 
-def _plant(r, hips, side, target):
-    """Thigh swing and knee bend (a two-bone leg in her sagittal plane) that put the ankle at target's
-    forward and height coordinates; the foot is kept level."""
+PLANT_ERR = []
+
+
+def _plant(r, hips, side, target, quick=False):
+    """Thigh swing and roll and knee bend (a three-angle leg) that put the ankle at `target`; the foot is
+    kept level. `quick` starts only from the pose r holds (last frame's), for small frame-to-frame moves."""
     def f(q):
         r["UpperLeg." + side] = (q[0], 0, q[1])
         r["LowerLeg." + side] = (q[2], 0, 0)
@@ -1172,19 +1169,26 @@ def _plant(r, hips, side, target):
                 qq[i] += h
                 cols.append((f(qq) - e) / h)
             jm = Matrix((cols[0], cols[1], cols[2])).transposed()
-            if abs(jm.determinant()) < 1e-10:
-                break
-            dq = jm.inverted() @ e
+            # damped least squares: a near-straight knee makes the plain inverse blow up
+            jt = jm.transposed()
+            dq = (jt @ jm + Matrix.Identity(3) * 1e-4).inverted() @ (jt @ e)
             q = [q[i] - max(-0.2, min(0.2, dq[i])) for i in range(3)]
+            # a hip swings, rolls a little and never turns over: a thigh rolled half round with the swing
+            # turned past the vertical puts the ankle in the same spot, and the foot flipped 180 degrees
+            q[0] = min(d(100), max(d(-100), q[0]))
+            q[1] = min(d(40), max(d(-40), q[1]))
             q[2] = min(d(120), max(0.0, q[2]))
-        return f(q).length, q[2], q
+        return f(q).length, sum(abs(a - b) for a, b in zip(q, seed)), q
 
-    # several starts (a knee that folds the shin up behind her is a solution too, so the bent-least
-    # of the ones that reach is kept)
-    starts = [[r["UpperLeg." + side][0], r["UpperLeg." + side][2], max(r["LowerLeg." + side][0], d(5))]]
-    starts += [[d(a), 0.0, d(k)] for a in (-30, -10, 10, 30) for k in (10, 35)]
+    starts = [[r.get("UpperLeg." + side, (0, 0, 0))[0], r.get("UpperLeg." + side, (0, 0, 0))[2],
+               max(r.get("LowerLeg." + side, (0, 0, 0))[0], d(5))]]
+    seed = starts[0]
+    if not quick:
+        starts += [[d(a), 0.0, d(k)] for a in (-30, -10, 10, 30) for k in (10, 35)]
+    # of the ones that reach, the nearest last frame's (no branch hop)
     best = min((solve(list(q0)) for q0 in starts), key=lambda s: (round(s[0], 2), s[1]))
     q = best[2]
+    PLANT_ERR.append(best[0])
     r["UpperLeg." + side] = (q[0], 0, q[1])
     r["LowerLeg." + side] = (q[2], 0, 0)
     r["Foot." + side] = (-(q[0] + q[2]), 0, -q[1])
@@ -1194,72 +1198,116 @@ def _env(t, a, b):
     return smooth((t - a) / (b - a))
 
 
-LUNGE_IDLE = None
+STAND = {}
+_IDLE_LEGS = {}
 
 
-def attack(t):
-    """The lunge, played once (the game plays it whole, then blends to idle): she gathers (sinks, rears
-    back, claws cocked behind her), drives off the back foot a long step at you with both claws, grabs,
-    holds, and steps back to her idle stance (the last frame is idle's first, so the blend is seamless)."""
-    global LUNGE_IDLE
-    if LUNGE_IDLE is None:
-        LUNGE_IDLE = base_idle(0.0)
-        pose()
-        hang = {}
+def _stand():
+    if not STAND:
         for s in ("L", "R"):
-            tip, sh, _el = _arm_tip(dict(LUNGE_IDLE), (0, 0, 0), s)
-            hang[s] = tip - sh
-        pose()
-        LUNGE_IDLE = (LUNGE_IDLE, {s: _foot_at({}, (0, 0, 0), s) for s in ("L", "R")}, hang)
-    r = dict(LUNGE_IDLE[0])
-    feet = LUNGE_IDLE[1]
-    gather = _env(t, 0.0, 0.26) * (1 - _env(t, 0.26, 0.4))
-    strike = _env(t, 0.24, 0.4) * (1 - _env(t, 0.64, 0.96))
-    grab = _env(t, 0.36, 0.46) * (1 - _env(t, 0.62, 0.86))
-    step = _env(t, 0.24, 0.42) * (1 - _env(t, 0.62, 0.92))
+            STAND[s] = _foot_at({}, (0, 0, 0), s)
+    return STAND
 
-    def add(n, dx=0.0, dy=0.0, dz=0.0):
-        x, y, z = r.get(n, (0, 0, 0))
-        r[n] = (x + d(dx), y + d(dy), z + d(dz))
 
-    add("Spine", -9 * gather + 14 * strike)
-    add("Chest", -12 * gather + 16 * strike, 0, 6 * gather)
-    add("Neck", 6 * gather - 6 * strike)
-    add("Head", 10 * gather - 22 * strike)
-    add("Hand.L", 20 * gather - 15 * strike)
-    add("Fingers.L", 28 * gather + 18 * strike * (1 - grab) - 70 * grab)
-    add("Hand.R", 25 * gather - 30 * grab)
-    hips = (0.0, -0.38 * strike + 0.05 * gather, -0.07 * gather - 0.1 * strike)
-    # the claws: cocked up and back beside her head, driven straight out at you, then clawing in
-    # always aimed, from the hang her idle holds (so the first and last frames are the idle pose and the
-    # solver never jumps branch where the aim switches on or off); cocked wide
-    # and forward, not behind her (no reachable branch there)
+def idle(t):
+    """Breathing, a slow shift of her weight from foot to foot (the hips sway and roll over the planted
+    feet), the claws never still."""
+    r = base_idle(t)
+    br = sw(t * 2, 0.1)
+    r["Chest"] = (r["Chest"][0] + d(2.5 * br), r["Chest"][1], r["Chest"][2])
+    r["UpperArm.L"] = (r["UpperArm.L"][0] - d(3 * br), r["UpperArm.L"][1], r["UpperArm.L"][2] - d(3 * sw(t, 0.6)))
+    r["UpperArm.R"] = (r["UpperArm.R"][0] - d(3 * br), r["UpperArm.R"][1], r["UpperArm.R"][2] + d(3 * sw(t, 0.1)))
+    r["Fingers.L"] = (r["Fingers.L"][0] + d(10 * sw(t * 2, 0.2)), 0, r["Fingers.L"][2])
+    r["Hips"] = (0, d(2.5 * sw(t)), d(1.5 * sw(t, 0.3)))
+    hips = (0.025 * sw(t), 0, 0.012 * sw(t * 2) - 0.03)
     for s in ("L", "R"):
-        if t <= 1e-6:
-            _ARM_LAST[s] = [r.get(ARM_TIP[s][1], (0, 0, 0))[0], r.get(ARM_TIP[s][1], (0, 0, 0))[2],
-                            r.get(ARM_TIP[s][2], (0, 0, 0))[0], r.get(ARM_TIP[s][1], (0, 0, 0))[1]]
-        v = LUNGE_IDLE[2][s]
-        v = v.lerp(_toward(s, 0.5, -0.5, 0.25, 0.75), gather)
-        v = v.lerp(_toward(s, 0.1, -1.0, 0.12, 0.97), strike)
-        v = v.lerp(_toward(s, 0.04, -1.0, 0.0, 0.72), grab)
-        _arm_to(r, hips, s, v)
-    for s in ("L", "R"):
-        r["UpperLeg." + s] = (0, 0, 0)
-        r["LowerLeg." + s] = (d(5), 0, 0)
-    lead = feet["L"].copy()
-    lead.y -= 0.6 * step
-    lead.z += 0.36 * step * (1 - step)            # the lifted arc of the stride, 9 cm at its height
-    _plant(r, hips, "L", lead)
-    _plant(r, hips, "R", feet["R"])
+        # seeded from a soft-kneed stand every frame (not from the last frame, which may be any frame:
+        # the cloth springs sample out of order), so every frame lands on the same branch
+        r["UpperLeg." + s], r["LowerLeg." + s] = (d(-4), 0, 0), (d(8), 0, 0)
+        _plant(r, hips, s, _stand()[s])
     return r, {"Hips": hips}
 
 
+LUNGE_IDLE = None
+_LUNGE_LEGS = {}
+
+# The lunge's keys, by clip time (36 frames, 1.5 s): gather 0-0.28 (back and down, rearing, claws cocked
+# up beside her head), strike 0.28-0.46 (driving off the back foot a long step at you, both claws thrust at
+# your face), follow-through 0.46-0.7 (the trunk overshoots, the back foot comes through, the claws clutch),
+# then she stands over you, still swaying and clawing: no hold, and no step back.
+LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.12, (0, 0.04, -0.04)), (0.24, (0, 0.08, -0.09)), (0.32, (0, -0.06, -0.12)),
+              (0.42, (0, -0.38, -0.15)), (0.52, (0, -0.56, -0.13)), (0.66, (0, -0.66, -0.09)),
+              (0.8, (0, -0.62, -0.06)), (1.0, (0, -0.63, -0.07))]
+# Spine, Chest, Neck, Head pitch (deg, + leans forward) and the chest's twist
+LUNGE_TRUNK = [(0.0, (0, 0, 0, 0, 0)), (0.14, (-5, -7, 2, 6, 4)), (0.26, (-11, -14, 4, 12, 8)),
+               (0.36, (2, 0, 0, -4, 3)), (0.46, (8, 9, -6, -20, -4)), (0.56, (12, 12, -8, -26, -6)),
+               (0.7, (6, 7, -5, -20, 0)), (0.85, (8, 6, -4, -22, 3)), (1.0, (6, 7, -5, -20, -1))]
+COCKED = ((0.45, -0.1, 0.85), (0.2, -0.3, 0.95), (0.0, -0.3, 0.95), (0.0, -0.6, 0.8))
+STRIKE = ((0.15, -1.0, 0.2), (0.05, -1.0, 0.15), (0.0, -1.0, 0.0), (0.0, -0.8, -0.5))
+GRAB = ((0.25, -0.9, 0.2), (-0.25, -0.9, 0.35), (-0.3, -0.85, 0.15), (-0.2, -0.25, -0.95))
+HOLD = ((0.3, -0.9, 0.25), (-0.15, -0.9, 0.4), (-0.2, -0.9, 0.25), (-0.1, -0.4, -0.9))
+HOLD2 = ((0.35, -0.85, 0.3), (-0.1, -0.9, 0.45), (-0.15, -0.9, 0.3), (-0.15, -0.5, -0.85))
+LUNGE_ARMS = [(0.0, COCKED), (0.26, COCKED), (0.44, STRIKE), (0.6, GRAB), (0.8, HOLD), (1.0, HOLD2)]
+
+
+def attack(t):
+    """The lunge, played once (the game then blends to idle where she stands)."""
+    global LUNGE_IDLE
+    if LUNGE_IDLE is None:
+        LUNGE_IDLE = base_idle(0.0)
+    r = dict(LUNGE_IDLE)
+    feet = _stand()
+    hips = _track(t, LUNGE_HIPS)
+    hips = (hips[0], hips[1], hips[2] + 0.008 * sw(t * 2.5) * _env(t, 0.7, 0.85))
+    tr = _track(t, LUNGE_TRUNK)
+    for n, v in zip(("Spine", "Chest", "Neck", "Head"), tr[:4]):
+        x, y, z = r.get(n, (0, 0, 0))
+        r[n] = (x + d(v), y, z + (d(tr[4]) if n == "Chest" else 0.0))
+    r["Hips"] = (0, d(3 * _env(t, 0.3, 0.45) - 2 * _env(t, 0.5, 0.7)), d(-4 * _env(t, 0.2, 0.4) + 4 * _env(t, 0.45, 0.65)))
+    wa = _env(t, 0.0, 0.2)
+    for s in ("L", "R"):
+        side_t = t if s == "L" else max(0.0, t - 0.025)      # her right hand a beat behind the left
+        dirs = _dirs(side_t, LUNGE_ARMS)
+        if s == "R":
+            dirs = dirs[:2] + [Vector(_lerp(dirs[2], dirs[3], 0.4)).normalized()[:]]
+        _aim_arm(r, hips, s, dirs, wa)
+    # the legs: the lead (left) foot strides at you as the strike lands, the back foot comes through after
+    for s, a, b, dist, lift in (("L", 0.28, 0.46, 0.78, 0.13), ("R", 0.44, 0.66, 0.44, 0.08)):
+        k = _env(t, a, b)
+        u = min(1.0, max(0.0, (t - a) / (b - a)))
+        tgt = feet[s].copy()
+        tgt.y -= dist * k
+        tgt.z += lift * 4 * u * (1 - u)
+        if s in _LUNGE_LEGS:
+            r["UpperLeg." + s], r["LowerLeg." + s] = _LUNGE_LEGS[s]
+        _plant(r, hips, s, tgt)
+        _LUNGE_LEGS[s] = (r["UpperLeg." + s], r["LowerLeg." + s])
+    return r, {"Hips": hips}
+
+
+def _diag(name, frames, fn):
+    """WITCH_DIAG=1: a line a frame of where the hips, claws (from the shoulder) and ankles are."""
+    if not os.environ.get("WITCH_DIAG"):
+        return
+    for f in range(0, frames + 1, 2):
+        PLANT_ERR.clear()
+        r, locs = fn(f / frames)
+        hips = locs.get("Hips", (0, 0, 0))
+        cl, cr = _arm_diag(r, hips, "L"), _arm_diag(r, hips, "R")
+        fl, fr = _foot_at(r, hips, "L"), _foot_at(r, hips, "R")
+        print("DIAG %s f%02d hips %+.2f %+.2f %+.2f clawL %+.2f %+.2f %+.2f clawR %+.2f %+.2f %+.2f "
+              "footL y%+.2f z%+.3f footR y%+.2f z%+.3f plant %.3f" % (
+                  name, f, *hips, *cl, *cr, fl.y, fl.z, fr.y, fr.z, max(PLANT_ERR or [0])))
+
+
+_diag("attack_idle", 30, attack_idle)
+_diag("attack", 36, attack)
+_LUNGE_LEGS.clear()
+_IDLE_LEGS.clear()
 clip("idle", 48, idle)
 clip("walk", 30, walk)
-_ARM_LAST.clear()
 clip("attack_idle", 30, attack_idle)
-_ARM_LAST.clear()
-clip("attack", 32, attack, loop=False)
+clip("attack", 36, attack, loop=False)
 arm.animation_data.action = None
 pose()
 stop(5)
