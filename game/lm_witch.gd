@@ -31,11 +31,12 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"run_arms", &"att
 const FAN_IDLE := 0.07
 const FAN_SEEING := 0.26
 
-## Her eyes and the lamp in her face, at rest and seeing you.
-const EYES_IDLE := 3.0
-const EYES_SEEING := 4.0
-const GLOW_IDLE := 0.05
-const GLOW_SEEING := 0.25
+## Her eyes and the lamp in her face, at rest and seeing you: embers in the hood, not floodlights (brighter
+## blew the face out to red).
+const EYES_IDLE := 1.6
+const EYES_SEEING := 2.2
+const GLOW_IDLE := 0.02
+const GLOW_SEEING := 0.08
 
 ## The body's clip playing now, for the suite and describe().
 var clip: StringName = &"":
@@ -144,7 +145,7 @@ func _dress_eyes(mounts: Array[Node3D]) -> void:
 	_eyes_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
 	_halo_material = StandardMaterial3D.new()
-	_halo_material.albedo_color = Color(1.0, 0.1, 0.04, 0.22)
+	_halo_material.albedo_color = Color(1.0, 0.1, 0.04, 0.12)
 	_halo_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -173,7 +174,7 @@ func _dress_eyes(mounts: Array[Node3D]) -> void:
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.18, 0.1)
 	_glow.light_energy = GLOW_IDLE
-	_glow.omni_range = 0.7
+	_glow.omni_range = 0.35
 	_glow.position = Vector3(0.0, 0.08, 0.0)
 	mounts[0].add_child(_glow)
 

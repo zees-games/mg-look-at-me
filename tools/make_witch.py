@@ -112,8 +112,8 @@ def inflate(vs, by):
 
 bm.normal_update()
 # Fingers and hands: the left hand hangs at the hip, the right is raised by the face.
-inflate([v for k in (5, 6) for v in comps[k] if v.co.z < 12.4], 0.07)
-inflate([v for k in (30, 31) for v in comps[k] if (v.co - Vector((-7.1, -1.9, 20.6))).length < 2.0], 0.07)
+inflate([v for k in (5, 6) for v in comps[k] if v.co.z < 12.4], 0.045)
+inflate([v for k in (30, 31) for v in comps[k] if (v.co - Vector((-7.1, -1.9, 20.6))).length < 2.0], 0.045)
 bmesh.ops.delete(bm, geom=[v for k in DROP for v in comps[k]], context="VERTS")
 bm.verts.ensure_lookup_table()
 uvl = bm.loops.layers.uv.active
@@ -274,6 +274,11 @@ B("Robe.B", "Hips", (0.8, 4.8, 12.5), (0.8, 5.6, 6.0))
 B("Robe.L", "Hips", (4.6, 1.5, 12.5), (5.2, 1.5, 6.0))
 B("Robe.R", "Hips", (-3.0, 1.5, 12.5), (-3.6, 1.5, 6.0))
 B("Hood", "Head", (0.8, 0.6, 26.0), (0.9, 1.4, 31.0))
+# the cape over the shoulders and back (warped units already): a flap over each shoulder that rides up
+# with the arm (a stiff cape the raised arm came through), and the back panel that trails and swings
+BONES["Cape.B"] = ("Chest", Vector((0.0, 2.6, 26.0)), Vector((0.0, 6.0, 20.6)))
+BONES["Cape.L"] = ("Chest", Vector((3.0, 1.2, 26.0)), Vector((6.0, 1.8, 21.0)))
+BONES["Cape.R"] = ("Chest", Vector((-3.0, 1.2, 26.0)), Vector((-6.0, 1.8, 21.0)))
 # the eyes: at the sockets' centres (EYES is already warped), pointing out of the face; never weighted
 for name, c in (("Eye.L", EYES[0]), ("Eye.R", EYES[1])):
     BONES[name] = ("Head", c.copy(), c + Vector((0.0, -1.0, 0.0)))
@@ -310,38 +315,61 @@ LEGS = ["UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R", "Foot.L", "Foot.
 ARML = ["UpperArm.L", "LowerArm.L", "Hand.L", "Fingers.L"]
 ARMR = ["UpperArm.R", "LowerArm.R", "Hand.R"]
 CORE = ["Hips", "Spine", "Chest", "Neck", "Head"]
+_kinds = body.data.attributes["kind"].data
+CAPE_V = {i for f in body.data.polygons if _kinds[f.index].value == CLOAK for i in f.vertices}
 for v in body.data.vertices:
     p = v.co
-    if p.z > fz(23.2) and abs(p.x - 0.8) < 4.2 and p.y < 3.5 and p.z > fz(23.2):
+    if v.index in CAPE_V and p.z < fz(23.2) + 0.6:
+        # the cape hangs off the chest (its shoulder flaps then ride up with the arms through Cape.L/R): an arm
+        # weight here, cut off where the arm's weights end, tore a plate out of it when the arm rose
+        g = weights(p, ["Chest", "Neck", "Spine"])
+    elif p.z > fz(23.2) and abs(p.x - 0.8) < 4.2 and p.y < 3.5 and p.z > fz(23.2):
         # hood, head, hair roots: the head, blended into the neck at the bottom
         w = smooth((p.z - fz(22.2)) / 1.8)
         g = {"Head": w, "Neck": 1 - w}
     else:
-        if p.x > 5.0 and p.z > fz(8.5):
-            names = ARML + ["Chest"]
-        elif p.x < -5.0 and p.z > fz(8.5):
-            names = ARMR + ["Chest"]
-        elif p.z < fz(9.5) and abs(p.x) > 1.2:
-            names = LEGS + ["Hips"]
+        if p.z < fz(9.5) and abs(p.x) > 1.2:
+            g = weights(p, LEGS + ["Hips"])
         else:
-            names = CORE[:3] + ["Neck"] + LEGS
-        g = weights(p, names)
+            g = weights(p, CORE[:3] + ["Neck"] + LEGS)
+        # the shoulder: blended from the body onto the arm over 1.6 units, not switched at a line (a hard
+        # switch tore the seam six times its length open when the arm rose to strike)
+        side = ARML if p.x > 0 else ARMR
+        if p.z > 16.0:          # from the armpit up (the wrist hangs below it)
+            a = smooth((abs(p.x) - 3.2) / 2.8)
+        else:                   # down the side the hanging hand lies against the robe: switched, as it hangs apart
+            a = 1.0 if abs(p.x) > 5.0 and p.z > fz(8.5) else 0.0
+        if a > 0.0:
+            ga = weights(p, side + ["Chest"])
+            g = {n: g.get(n, 0.0) * (1 - a) + ga.get(n, 0.0) * a for n in set(g) | set(ga)}
     for n, w in g.items():
         if w > 0.004:
             body.vertex_groups[n].add([v.index], w, "REPLACE")
 
-CLOTH = ["Robe.F", "Robe.B", "Robe.L", "Robe.R", "Hood"]
+CLOTH = ["Robe.F", "Robe.B", "Robe.L", "Robe.R", "Hood", "Cape.B", "Cape.L", "Cape.R"]
 for n in CLOTH:
     body.vertex_groups.new(name=n)
 # the arms' skin never takes a cloth share: the hanging hand's inner edge lies inside the robe's
 # reach, and robe-weighted knuckles stay behind when the arm lifts (a sheet stretched to the wrist)
-_kinds = body.data.attributes["kind"].data
 ARM_SKIN = {i for f in body.data.polygons if _kinds[f.index].value == SKIN for i in f.vertices}
+CAPE_TOP = fz(23.2) + 0.6
 for v in body.data.vertices:
     p = v.co
-    if abs(p.x - 0.8) > 5.6 or v.index in ARM_SKIN:      # sleeves and hands stay on the arms
-        continue
     ws = {}
+    if v.index in CAPE_V and p.z < CAPE_TOP:
+        # the cape below the hood: free toward its edge, by which side of her it hangs on
+        k = 0.9 * smooth((CAPE_TOP - p.z) / 3.2)
+        dx, dy = p.x, p.y - 1.5
+        r = max(math.hypot(dx, dy), 1e-6)
+        for n, (ax, ay) in (("Cape.B", (0, 1)), ("Cape.L", (1, 0)), ("Cape.R", (-1, 0))):
+            c = max(0.0, (dx * ax + dy * ay) / r)
+            if c > 0.0:
+                ws[n] = k * c * c
+        front = max(0.0, -dy / r)          # the front edges, over the chest: the shoulder flaps
+        if front > 0.0:
+            ws["Cape.L" if dx > 0 else "Cape.R"] = ws.get("Cape.L" if dx > 0 else "Cape.R", 0.0) + 0.5 * k * front * front
+    elif abs(p.x - 0.8) > 5.6 or v.index in ARM_SKIN:      # sleeves and hands stay on the arms
+        continue
     if fz(5.0) < p.z < fz(14.0):
         k = smooth((fz(14.0) - p.z) / (fz(14.0) - fz(7.0))) * 0.85
         dx, dy = p.x - 0.8, p.y - 1.5
@@ -400,8 +428,9 @@ for n in ("LowerArm.L", "Hand.L", "Fingers.L", "Hand.R", "UpperArm.L"):
 pose(
     rots={"Spine": (d(10), 0, 0), "Chest": (d(14), 0, 0), "Neck": (d(12), 0, 0), "Head": (d(-14), 0, 0),
           "UpperArm.L": (d(3), 0, d(-5)), "UpperArm.R": (d(5), 0, d(6)), "Fingers.L": (d(-22), 0, 0)},
-    scales={"UpperArm.L": (1, 1.15, 1), "LowerArm.L": (1.0, 1.25, 1.0), "Hand.L": (1.25, 1.0, 1.25),
-            "Fingers.L": (1.45, 0.8, 1.45), "Hand.R": (1.1, 1.2, 1.1)},
+    # long bony fingers, but a hand no bigger than her face (the source's left one was a shovel)
+    scales={"UpperArm.L": (1, 1.15, 1), "LowerArm.L": (1.0, 1.25, 1.0), "Hand.L": (0.92, 0.95, 0.92),
+            "Fingers.L": (1.0, 0.9, 1.0), "Hand.R": (0.86, 1.05, 0.86)},
 )
 bpy.ops.object.select_all(action="DESELECT")
 bpy.context.view_layer.objects.active = body
@@ -554,13 +583,23 @@ ang = np.arctan2(P[..., 1] - 0.05, P[..., 0] - 0.07)   # around her body axis, f
 out = np.full((H, W, 3), 0.3, dtype=np.float32)
 k = KINDS
 
-# Robe: oxblood shading to aubergine, vertical folds that wander, a mud-dark ragged hem, patches.
+# Robe: oxblood shading to aubergine, folds of three sizes that wander and break (not one even stripe),
+# a twill weave, a mud-dark ragged hem under a faded embroidered band, patches.
 m = (k == ROBE)
 col = mix(np.broadcast_to(C(0.42, 0.2, 0.17), (H, W, 3)).copy(), C(0.30, 0.2, 0.28), np.clip(lo_n * 1.8 - 0.4, 0, 1))
 col = mix(col, C(0.33, 0.24, 0.19), np.clip((mid_n - 0.55) * 3.0, 0, 1) * 0.6)        # faded brown blotches
-folds = 0.5 + 0.5 * np.sin(ang * 13.0 + fbm(P, 2.5, 4) * 6.0 + z * 1.5)
-col *= (0.78 + 0.3 * folds ** 1.5)[..., None]
-col *= (0.88 + 0.24 * fine_n)[..., None]
+warp = fbm(P, 2.5, 4) * 6.0
+folds = (0.5 * np.sin(ang * 7.0 + warp + z * 1.5) + 0.3 * np.sin(ang * 17.0 + warp * 1.7 - z * 3.0)
+         + 0.2 * np.sin(ang * 31.0 + fbm(P, 9.0, 8) * 9.0))
+folds = np.clip(0.5 + 0.5 * folds * (0.6 + 0.8 * fbm(P, 4.0, 9)), 0, 1)   # some folds fade out, some deepen
+col *= (0.68 + 0.45 * folds ** 1.3)[..., None]
+twill = 0.5 + 0.5 * np.sin((ang * 0.32 + z) * 420.0)
+col *= (0.9 + 0.1 * twill + 0.16 * (fine_n - 0.5))[..., None]
+band = np.clip(1 - np.abs(z - 0.98 - 0.02 * mid_n) / 0.045, 0, 1) > 0.0
+zig = np.abs(((ang * 24.0) % 2.0) - 1.0)                      # a zigzag of faded ochre thread
+stitchrow = (np.abs((z - 0.98) / 0.03 - (zig - 0.5)) < 0.22) | (np.abs(np.abs(z - 0.98) - 0.04) < 0.005)
+emb = band & stitchrow & (noise(P, 25, 12) > 0.3)              # worn through in places
+col[m & emb] = (C(0.52, 0.4, 0.2) * (0.75 + 0.4 * fine_n[m & emb])[:, None])
 hem = np.clip((0.55 + 0.25 * mid_n - z) / 0.35, 0, 1)
 col = mix(col, C(0.17, 0.13, 0.10), hem * 0.85)
 for i, (pc, size, tint) in enumerate((((-0.12, -0.24, 0.85), 0.09, (0.26, 0.24, 0.17)),
@@ -575,12 +614,24 @@ for i, (pc, size, tint) in enumerate((((-0.12, -0.24, 0.85), 0.09, (0.26, 0.24, 
     col[m & stitch] = C(0.55, 0.5, 0.4)
 out[m] = col[m]
 
-# Cloak and hood: worn moss wool to charcoal, folds, lighter wear on the high spots.
+# Cloak and hood: moss-green wool fading to peat brown, deep folds, a twill weave, darned holes,
+# a darker felted border at the hem and the bleached wear of the source's high spots.
 m = (k == CLOAK)
-col = mix(np.broadcast_to(C(0.44, 0.47, 0.35), (H, W, 3)).copy(), C(0.38, 0.38, 0.41), np.clip(lo_n * 2 - 0.5, 0, 1))
-col = mix(col, C(0.55, 0.5, 0.38), np.clip((mid_n - 0.6) * 4.0, 0, 1) * 0.5)
-folds = 0.5 + 0.5 * np.sin(ang * 9.0 + fbm(P, 3.0, 5) * 5.0)
-col *= (0.8 + 0.28 * folds)[..., None] * (0.88 + 0.24 * fine_n)[..., None]
+col = mix(np.broadcast_to(C(0.30, 0.36, 0.16), (H, W, 3)).copy(), C(0.36, 0.25, 0.14), np.clip(lo_n * 2 - 0.5, 0, 1))
+col = mix(col, C(0.22, 0.27, 0.13), np.clip((mid_n - 0.55) * 4.0, 0, 1) * 0.6)
+warp = fbm(P, 3.0, 5) * 5.0
+folds = 0.6 * np.sin(ang * 9.0 + warp) + 0.4 * np.sin(ang * 22.0 + warp * 1.5 + z * 4.0)
+folds = np.clip(0.5 + 0.5 * folds, 0, 1)
+col *= (0.62 + 0.5 * folds ** 1.2)[..., None]
+twill = 0.5 + 0.5 * np.sin((P[..., 0] + P[..., 1] + z) * 380.0)
+col *= (0.86 + 0.14 * twill + 0.2 * (fine_n - 0.5))[..., None]
+col *= np.clip(detail, 0.7, 1.3)[..., None] ** 0.8          # the source's painted creases
+wear = np.clip((detail - 1.08) * 3.0, 0, 1) * 0.45
+col = mix(col, C(0.5, 0.48, 0.36), wear)
+darn = (noise(P, 9, 14) > 0.82) & ((np.sin(P[..., 0] * 600) > 0.4) | (np.sin(z * 600) > 0.4))
+col[m & darn] = (C(0.4, 0.33, 0.22) * (0.8 + 0.3 * fine_n[m & darn])[:, None])
+border = np.clip((1.58 + 0.03 * mid_n - z) / 0.06, 0, 1)
+col = mix(col, C(0.14, 0.13, 0.08), border * 0.7)
 out[m] = col[m]
 
 m = (k == HOODIN)
@@ -589,7 +640,7 @@ out[m] = (C(0.07, 0.06, 0.07) * (0.8 + 0.4 * fine_n[..., None]))[m]
 # Skin (arms, hands, face): pallid grey-green, bruised purple, veined; the face keeps its painted features.
 for kk, strength in ((SKIN, 0.4), (FACE, 0.65)):
     m = (k == kk)
-    col = mix(np.broadcast_to(C(0.5, 0.53, 0.44), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1))
+    col = mix(np.broadcast_to(C(0.43, 0.46, 0.38), (H, W, 3)).copy(), C(0.44, 0.36, 0.44), np.clip(mid_n * 2.2 - 0.7, 0, 1))
     col = mix(col, C(0.58, 0.55, 0.48), np.clip(lo_n * 2 - 1.1, 0, 1) * 0.5)
     vein = np.clip(1 - np.abs(fbm(P, 14.0, 6, 3) - 0.5) / 0.025, 0, 1)
     col = mix(col, C(0.33, 0.33, 0.46), vein * 0.55)
@@ -604,9 +655,9 @@ out[m] = (C(0.32, 0.07, 0.08) * np.clip(detail, 0.5, 1.3)[..., None])[m]
 
 # Leg wraps: dirty linen over the source's stripes, browner and filthier toward the feet.
 m = (k == WRAPS)
-col = mix(np.broadcast_to(C(0.56, 0.5, 0.39), (H, W, 3)).copy(), C(0.4, 0.33, 0.25), np.clip(mid_n * 2 - 0.6, 0, 1))
-col = mix(col, C(0.24, 0.19, 0.14), np.clip((0.35 - z) / 0.3, 0, 1) * 0.7)
-col *= (detail ** 1.3)[..., None] * (0.9 + 0.2 * fine_n)[..., None]
+col = mix(np.broadcast_to(C(0.36, 0.31, 0.24), (H, W, 3)).copy(), C(0.22, 0.18, 0.13), np.clip(mid_n * 2 - 0.6, 0, 1))
+col = mix(col, C(0.16, 0.13, 0.1), np.clip((0.35 - z) / 0.3, 0, 1) * 0.7)
+col *= (detail ** 0.7)[..., None] * (0.9 + 0.2 * fine_n)[..., None]
 out[m] = col[m]
 
 m = (k == FEET)
@@ -635,8 +686,7 @@ out[sv - 6:sv + 6, su - 6:su + 6] = 0.02
 
 out = np.clip(out, 0, 1)
 ATLAS = os.path.join(os.path.dirname(os.path.abspath(DST)), "witch_atlas.png")
-Image.fromarray((out[::-1] * 255 + 0.5).astype(np.uint8), "RGB").quantize(
-    256, method=Image.MEDIANCUT, dither=Image.NONE).save(ATLAS, optimize=True)
+Image.fromarray((out[::-1] * 255 + 0.5).astype(np.uint8), "RGB").save(ATLAS, optimize=True)
 print("atlas bytes", os.path.getsize(ATLAS))
 me.attributes.remove(me.attributes["kind"])
 img = bpy.data.images.load(ATLAS)
@@ -657,14 +707,112 @@ bpy.context.scene.render.fps = 24     # the game's clip lengths and the walk spe
 arm.animation_data_create()
 
 
+# How fast each clip carries her forward (m/s, the game's root motion), for the cloth's drag.
+CLIP_SPEED = {"idle": 0.0, "walk": 1.3, "attack_idle": 1.3, "attack": 0.0}
+
+
+def _sample(rots, locs):
+    """What the cloth needs from a posed frame: the knees' and hips' forward positions, and the body's pitch
+    and yaw down to the chest and to the head (the sum of the world-axis Eulers up the chain)."""
+    pose(rots=rots, locs=locs)
+    pb = arm.pose.bones
+    hips = arm.matrix_world @ pb["Hips"].head
+    knees = [(arm.matrix_world @ pb["LowerLeg." + s].head).y for s in ("L", "R")]
+
+    def chain(names, i):
+        return sum(rots.get(n, (0, 0, 0))[i] for n in names)
+    trunk = ["Hips", "Spine", "Chest"]
+    head = trunk + ["Neck", "Head"]
+    return {"hy": hips.y, "knee_f": hips.y - min(knees), "knee_b": max(knees) - hips.y,
+            "chest_x": chain(trunk, 0), "chest_z": chain(trunk, 2), "head_x": chain(head, 0), "head_z": chain(head, 2),
+            "arm_l": rots.get("UpperArm.L", (0, 0, 0)), "arm_r": rots.get("UpperArm.R", (0, 0, 0))}
+
+
+def _spring(target, loop, w=2 * math.pi * 1.4, zeta=0.32, fps=24.0):
+    """A damped spring's angle chasing `target` (one value a frame): the lag and overshoot of cloth. A loop is
+    run three times over and the last kept, so it starts where it ends."""
+    n = len(target)
+    reps = 3 if loop else 1
+    x, v = target[0], 0.0
+    out = []
+    sub = 8
+    h = 1.0 / fps / sub
+    for rep in range(reps):
+        for f in range(n):
+            for _ in range(sub):
+                a = w * w * (target[f] - x) - 2 * zeta * w * v
+                v += a * h
+                x += v * h
+            if rep == reps - 1:
+                out.append(x)
+    return out
+
+
+def _cloth_rows(name, rows, loop):
+    """Secondary motion for the robe's panels, the hood and the cape, from the posed frames: the robe's front
+    rides out over whichever knee is forward (and its back over the one behind); everything trails behind
+    her by her speed and swings on, through a spring, when she stops or lurches; the hood and cape lag the
+    head's and chest's turns; the shoulder flaps ride up with the arms (so a raised arm never comes through
+    the cape)."""
+    n = len(rows)
+    dt = 1.0 / 24.0
+    speed = CLIP_SPEED[name]
+    fwd = []
+    for f in range(n):
+        g, h = (f + 1) % n if loop else min(f + 1, n - 1), (f - 1) % n if loop else max(f - 1, 0)
+        fwd.append(speed - (rows[g]["hy"] - rows[h]["hy"]) / ((g - h) % n * dt if loop else max(g - h, 1) * dt))
+    drag = [d(5.5) * v for v in fwd]                       # radians the hem trails per m/s
+    robe = _spring(drag, loop)
+    hood_x = _spring([r["head_x"] + 0.6 * dg for r, dg in zip(rows, drag)], loop, w=2 * math.pi * 1.8)
+    hood_z = _spring([r["head_z"] for r in rows], loop, w=2 * math.pi * 1.8)
+    # the cape hangs half by the chest and half by its own weight
+    cape_x = _spring([0.5 * r["chest_x"] + 1.1 * dg for r, dg in zip(rows, drag)], loop, w=2 * math.pi * 1.2)
+    cape_z = _spring([r["chest_z"] for r in rows], loop, w=2 * math.pi * 1.2)
+    out = []
+    for f, r in enumerate(rows):
+        fade = 1.0
+        if not loop:       # the lunge ends on idle's first frame: the swing has settled by then
+            fade = 1.0 - smooth((f / (n - 1) - 0.86) / 0.14)
+        rb = robe[f] * fade
+        kf = math.atan2(max(0.0, r["knee_f"] - KNEE_F0 - 0.02), 0.5)
+        kb = math.atan2(max(0.0, r["knee_b"] - KNEE_B0 - 0.02), 0.5)
+        hx = (hood_x[f] - r["head_x"]) * fade
+        hz = (hood_z[f] - r["head_z"]) * fade
+        cx = (cape_x[f] - r["chest_x"]) * fade
+        cz = (cape_z[f] - r["chest_z"]) * fade
+        al, ar = r["arm_l"], r["arm_r"]
+        out.append({
+            "Robe.F": (rb - 1.15 * kf, 0, 0),
+            "Robe.B": (rb + 1.15 * kb, 0, 0),
+            "Robe.L": (rb, 0, 0),
+            "Robe.R": (rb, 0, 0),
+            "Hood": (hx, 0, hz),
+            "Cape.B": (cx, 0, cz),
+            "Cape.L": (0.8 * cx, 0, cz),
+            "Cape.R": (0.8 * cx, 0, cz),
+        })
+    return out
+
+
 def clip(name, frames, fn, loop=True):
     act = bpy.data.actions.new(name)
     arm.animation_data.action = act
-    for f in range(frames + 1):
-        t = (f % frames) / frames if loop else f / frames
+    count = frames if loop else frames + 1
+    poses = []
+    rows = []
+    for f in range(count):
+        t = f / frames
         rots, locs = fn(t)
+        poses.append((dict(rots), locs))
+        rows.append(_sample(rots, locs))
+    sec = _cloth_rows(name, rows, loop)
+    for f in range(frames + 1):
+        i = f % count
+        rots, locs = poses[i]
         rots = dict(rots)
-        rots.update(cloth(t, name))
+        for n, e in cloth(f / frames, name).items():
+            x0, y0, z0 = sec[i].get(n, (0, 0, 0))
+            rots[n] = (x0 + e[0], y0 + e[1], z0 + e[2])
         pose(rots=rots, locs=locs)
         for pb in arm.pose.bones:
             pb.keyframe_insert("rotation_quaternion", frame=f)
@@ -680,21 +828,28 @@ def sw(t, ph=0.0):
     return math.sin(2 * math.pi * (t + ph))
 
 
-CLOTH_AMP = {"idle": (5.0, 1), "walk": (14.0, 2), "attack_idle": (7.0, 1), "attack": (22.0, 1)}
+# The cloth's own small sway on top (breath, a draught): (degrees, cycles a clip).
+CLOTH_AMP = {"idle": (3.0, 1), "walk": (4.0, 2), "attack_idle": (3.5, 1), "attack": (3.0, 1)}
 
 
 def cloth(t, name):
     a, f = CLOTH_AMP[name]
-    if name == "attack":   # idle's sway at both ends (the lunge starts and ends on idle's first frame)
-        a = CLOTH_AMP["idle"][0] + (a - CLOTH_AMP["idle"][0]) * math.sin(math.pi * t)
     u = t * f
     return {
         "Robe.F": (d(a * sw(u, 0.30)), 0, d(0.4 * a * sw(u, 0.1))),
         "Robe.B": (d(-a * sw(u, 0.30)), 0, d(0.4 * a * sw(u, 0.6))),
         "Robe.L": (d(0.4 * a * sw(u, 0.2)), d(a * sw(u, 0.55)), 0),
         "Robe.R": (d(0.4 * a * sw(u, 0.7)), d(-a * sw(u, 0.55)), 0),
-        "Hood": (d(0.7 * a * sw(u, 0.45)), d(0.4 * a * sw(u, 0.15)), d(0.5 * a * sw(u, 0.8))),
+        "Hood": (d(0.5 * a * sw(u, 0.45)), d(0.3 * a * sw(u, 0.15)), d(0.4 * a * sw(u, 0.8))),
+        "Cape.B": (d(0.6 * a * sw(u, 0.35)), d(0.4 * a * sw(u, 0.05)), 0),
+        "Cape.L": (d(0.4 * a * sw(u, 0.65)), 0, d(0.3 * a * sw(u, 0.4))),
+        "Cape.R": (d(0.4 * a * sw(u, 0.15)), 0, d(0.3 * a * sw(u, 0.9))),
     }
+
+
+pose()
+KNEE_F0 = _sample({}, {})["knee_f"]      # the knees' rest spot, from which the robe is pushed
+KNEE_B0 = _sample({}, {})["knee_b"]
 
 
 def base_idle(t):
@@ -878,28 +1033,117 @@ def walk(t):
     return r, {"Hips": (0, 0, drop)}
 
 
+ARM_TIP = {"L": ("Fingers.L", "UpperArm.L", "LowerArm.L"), "R": ("Hand.R", "UpperArm.R", "LowerArm.R")}
+_ARM_LAST = {}
+
+
+def _arm_tip(r, hips, side):
+    pose(rots=r, locs={"Hips": hips})
+    tip, up, low = ARM_TIP[side]
+    pb = arm.pose.bones
+    mw = arm.matrix_world
+    return mw @ pb[tip].tail, mw @ pb[up].head, mw @ pb[low].head
+
+
+def _arm_len(side):
+    tip, up, _low = ARM_TIP[side]
+    return (arm.data.bones[tip].tail_local - arm.data.bones[up].head_local).length * 0.985
+
+
+def _arm_to(r, hips, side, vec):
+    """Shoulder swing (forward and out) and elbow bend that put the claw tip at shoulder + vec (world, m);
+    of the solutions that reach, the one nearest the last frame's, else the one whose elbow hangs lowest."""
+    _tip, up, low = ARM_TIP[side]
+    y0 = r.get(up, (0, 0, 0))[1]
+
+    def f(q):
+        r[up] = (q[0], q[3], q[1])
+        r[low] = (q[2], 0, 0)
+        tip, sh, _el = _arm_tip(r, hips, side)
+        return tip - (sh + vec)
+
+    def solve(q):
+        for _ in range(40):
+            e = f(q)
+            if e.length < 2e-3:
+                break
+            h = d(0.4)
+            cols = []
+            for i in range(4):
+                qq = list(q)
+                qq[i] += h
+                cols.append((f(qq) - e) / h)
+            jm = np.array([tuple(c) for c in cols]).T          # 3x4: the upper arm's twist is free too
+            # damped least squares: a straight arm is singular for "shorten", and a plain inverse stalled
+            # there (the claw left 13-50 cm short, so the solver hopped to another branch)
+            dq = jm.T @ np.linalg.solve(jm @ jm.T + np.eye(3) * 1e-3, np.array(tuple(e)))
+            q = [q[i] - max(-0.25, min(0.25, dq[i])) for i in range(4)]
+            q[0] = math.remainder(q[0], 2 * math.pi)
+            q[1] = math.remainder(q[1], 2 * math.pi)
+            q[2] = min(d(150), max(d(-150), q[2]))
+            q[3] = min(y0 + d(70), max(y0 - d(70), q[3]))
+        err = f(q).length
+        tip, sh, el = _arm_tip(r, hips, side)
+        mid = (tip + sh) * 0.5
+        return round(err, 2), round(el.z - mid.z, 2), abs(q[2]), q
+
+    starts = [[r.get(up, (0, 0, 0))[0], r.get(up, (0, 0, 0))[2], r.get(low, (0, 0, 0))[0], y0]]
+    starts += [list(_ARM_LAST[side])] if side in _ARM_LAST else []
+    starts += [[d(a), d(b), d(k), y0] for a in (-90, -40) for b in (0,) for k in (-50, 50)]
+    starts += [[d(a), d(b), d(k), y0] for a in (-150, 0, 60) for b in (-60, 60) for k in (-90, 90)]
+    sols = [solve(list(q0)) for q0 in starts]
+    best = min(sols)
+    last = _ARM_LAST.get(side)
+    if last is not None:
+        # frame to frame the arm keeps the branch it was on: two solutions that reach equally well can be
+        # the upper arm turned half round, and switching between them swung it 170 degrees in a frame
+        # each radian away from last frame's pose costs like 6 cm of miss: a claw a little short beats a flip
+        best = min(sols, key=lambda sl: sl[0] + 0.06 * sum(abs(math.remainder(a - b, 2 * math.pi))
+                                                          for a, b in zip(sl[3], last)))
+    q = best[3]
+    _ARM_LAST[side] = q
+    r[up] = (q[0], q[3], q[1])
+    r[low] = (q[2], 0, 0)
+
+
+def _shoulder_x(side):
+    return arm.data.bones[ARM_TIP[side][1]].head_local.x
+
+
+def _toward(side, x, y, z, frac):
+    """A world vector from her shoulder: (x out to that side, y back, z up), `frac` of the arm's length."""
+    v = Vector((x * (1.0 if _shoulder_x(side) > 0 else -1.0), y, z)).normalized()
+    return v * (frac * _arm_len(side))
+
+
 def reach(t):
-    """attack_idle, the walk while she sees you: both claws out at your face, one thrusting while the other
-    pulls back and clutches, the shoulders twisting into each reach. One reach per hand per cycle."""
+    """attack_idle, the walk while she sees you: both claws out at your face, one thrusting at full stretch
+    while the other draws back to her chest and clutches, the shoulders twisting into each reach. One reach per
+    hand per cycle; the arms are aimed (IK), not posed, so the claw arrives where she is looking."""
     r = base_idle(t)
     rl = 0.5 + 0.5 * sw(t)            # 1 = her left arm at full reach
     rr = 1.0 - rl
-    r["Spine"] = (d(6 + 2 * sw(t * 2)), d(-3 * sw(t)), d(-7 * sw(t)))
-    r["Chest"] = (d(6 + 2 * sw(t * 2, 0.1)), 0, d(-9 * sw(t)))
-    r["Head"] = (d(-10 + 3 * sw(t * 2, 0.3)), 0, d(10 * sw(t)))
-    r["UpperArm.L"] = (d(-62 - 34 * rl), 0, d(-14 + 6 * rl))
-    r["LowerArm.L"] = (d(-48 * rr), 0, 0)
-    r["Hand.L"] = (d(-10 * rr), 0, 0)
-    r["Fingers.L"] = (d(22 * rl - 55 * rr), 0, 0)
-    r["UpperArm.R"] = (d(-50 - 30 * rr), 0, d(18 - 6 * rr))
-    r["LowerArm.R"] = (d(70 + 40 * rr), 0, d(-8 * rr))
-    r["Hand.R"] = (d(-20 + 35 * rl), d(10 * rl), 0)
-    return r
+    r["Spine"] = (d(8 + 2 * sw(t * 2)), d(-3 * sw(t)), d(-7 * sw(t)))
+    r["Chest"] = (d(8 + 2 * sw(t * 2, 0.1)), 0, d(-9 * sw(t)))
+    r["Neck"] = (d(-4), 0, 0)
+    r["Head"] = (d(-12 + 3 * sw(t * 2, 0.3)), 0, d(10 * sw(t)))
+    r["Hand.L"] = (d(12 * rl - 10 * rr), 0, 0)
+    r["Fingers.L"] = (d(25 * rl - 60 * rr), 0, 0)
+    r["Hand.R"] = (d(-15 * rl + 20 * rr), d(10 * rl), 0)
+    return r, {"L": rl, "R": rr}
+
+
+def _reach_vec(side, k):
+    out = _toward(side, 0.35, -1.0, -0.15, 0.55)       # drawn back to the chest, claw curled
+    full = _toward(side, 0.3, -1.0, 0.18, 0.95)       # at full stretch, up at your face
+    return out.lerp(full, smooth(k))
 
 
 def attack_idle(t):
-    r = reach(t)
+    r, k = reach(t)
     drop = legs(r, t)
+    for s in ("L", "R"):
+        _arm_to(r, (0, 0, drop), s, _reach_vec(s, k[s]))
     return r, {"Hips": (0, 0, drop)}
 
 
@@ -961,7 +1205,12 @@ def attack(t):
     if LUNGE_IDLE is None:
         LUNGE_IDLE = base_idle(0.0)
         pose()
-        LUNGE_IDLE = (LUNGE_IDLE, {s: _foot_at({}, (0, 0, 0), s) for s in ("L", "R")})
+        hang = {}
+        for s in ("L", "R"):
+            tip, sh, _el = _arm_tip(dict(LUNGE_IDLE), (0, 0, 0), s)
+            hang[s] = tip - sh
+        pose()
+        LUNGE_IDLE = (LUNGE_IDLE, {s: _foot_at({}, (0, 0, 0), s) for s in ("L", "R")}, hang)
     r = dict(LUNGE_IDLE[0])
     feet = LUNGE_IDLE[1]
     gather = _env(t, 0.0, 0.26) * (1 - _env(t, 0.26, 0.4))
@@ -977,14 +1226,23 @@ def attack(t):
     add("Chest", -12 * gather + 16 * strike, 0, 6 * gather)
     add("Neck", 6 * gather - 6 * strike)
     add("Head", 10 * gather - 22 * strike)
-    add("UpperArm.L", 32 * gather - 108 * strike, 0, -6 * gather + 8 * strike)
-    add("LowerArm.L", -55 * gather + 20 * strike * (1 - grab) - 25 * grab)
     add("Hand.L", 20 * gather - 15 * strike)
     add("Fingers.L", 28 * gather + 18 * strike * (1 - grab) - 70 * grab)
-    add("UpperArm.R", 30 * gather - 82 * strike, 0, 8 * gather - 6 * strike)
-    add("LowerArm.R", 20 * gather + 70 * strike)
     add("Hand.R", 25 * gather - 30 * grab)
     hips = (0.0, -0.38 * strike + 0.05 * gather, -0.07 * gather - 0.1 * strike)
+    # the claws: cocked up and back beside her head, driven straight out at you, then clawing in
+    # always aimed, from the hang her idle holds (so the first and last frames are the idle pose and the
+    # solver never jumps branch where the aim switches on or off); cocked wide
+    # and forward, not behind her (no reachable branch there)
+    for s in ("L", "R"):
+        if t <= 1e-6:
+            _ARM_LAST[s] = [r.get(ARM_TIP[s][1], (0, 0, 0))[0], r.get(ARM_TIP[s][1], (0, 0, 0))[2],
+                            r.get(ARM_TIP[s][2], (0, 0, 0))[0], r.get(ARM_TIP[s][1], (0, 0, 0))[1]]
+        v = LUNGE_IDLE[2][s]
+        v = v.lerp(_toward(s, 0.5, -0.5, 0.25, 0.75), gather)
+        v = v.lerp(_toward(s, 0.1, -1.0, 0.12, 0.97), strike)
+        v = v.lerp(_toward(s, 0.04, -1.0, 0.0, 0.72), grab)
+        _arm_to(r, hips, s, v)
     for s in ("L", "R"):
         r["UpperLeg." + s] = (0, 0, 0)
         r["LowerLeg." + s] = (d(5), 0, 0)
@@ -998,7 +1256,9 @@ def attack(t):
 
 clip("idle", 48, idle)
 clip("walk", 30, walk)
+_ARM_LAST.clear()
 clip("attack_idle", 30, attack_idle)
+_ARM_LAST.clear()
 clip("attack", 32, attack, loop=False)
 arm.animation_data.action = None
 pose()
