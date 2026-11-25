@@ -184,11 +184,15 @@ for e in bm.edges:
         a, b = e.verts
         mz = (a.co.z + b.co.z) / 2
         if hem_z - 0.1 < mz < hem_z + 0.9 and abs(a.co.x) < 6 and a.co.y * 0 == 0:
-            shred_edges.append((a, b, 2.2, e.link_faces[0][kind_l]))
+            shred_edges.append((a, b, 2.2, e.link_faces[0]))
         elif fz(18.5) < mz < fz(22.6) and abs(a.co.x) < 6.5 and a.co.z > fz(17):
-            shred_edges.append((a, b, 1.6, e.link_faces[0][kind_l]))
+            shred_edges.append((a, b, 1.6, e.link_faces[0]))
 n_shred = 0
-for a, b, depth, e_kind in shred_edges:
+for a, b, depth, e_face in shred_edges:
+    # the shred's texels come from the face it hangs off (a vertex's first loop can sit on another UV island:
+    # the fringe rendered as flat pink sheets)
+    e_kind = e_face[kind_l]
+    e_uv = {lp.vert: lp[uvl].uv.copy() for lp in e_face.loops}
     if rng.random() < 0.18:
         continue
     pa, pb = a.co.copy(), b.co.copy()
@@ -204,7 +208,7 @@ for a, b, depth, e_kind in shred_edges:
     f[kind_l] = e_kind
     for lp in f.loops:
         src = a if lp.vert in (a, t) else b
-        lp[uvl].uv = src.link_loops[0][uvl].uv
+        lp[uvl].uv = e_uv[src]
     n_shred += 1
 print("shreds", n_shred)
 
@@ -487,7 +491,7 @@ pose(
           "Tips.L": (d(-16), 0, 0)},
     # long bony fingers, but a hand no bigger than her face (the source's left one was a shovel)
     # bony upper arms: the source's were as thick as her thighs, twice her forearm
-    scales={"Neck": (1, 1.35, 1), "UpperArm.L": (0.74, 1.15, 0.74), "UpperArm.R": (0.74, 1, 0.74), "LowerArm.L": (0.85, 1.12, 0.85), "Hand.L": (0.68, 0.72, 0.68),
+    scales={"Neck": (1, 1.35, 1), "UpperArm.L": (0.74, 1.0, 0.74), "UpperArm.R": (0.74, 1, 0.74), "LowerArm.L": (0.85, 1.12, 0.85), "Hand.L": (0.68, 0.72, 0.68),
             "Fingers.L": (0.7, 0.86, 0.7), "Hand.R": (0.78, 0.95, 0.78)},
 )
 bpy.ops.object.select_all(action="DESELECT")
@@ -1384,12 +1388,14 @@ def walk(t):
     # the upper arm (the follow-through). Rotations on top of the rest pose kept her right forearm raised.
     # The hands hang out from the robe's flare (in at her sides, the forearms sank into the skirt), and the
     # two arms swing unevenly, the right a little later and shorter (a mirror pair read as a wind-up toy).
-    for s, sgn, amp, ph in (("L", 1.0, 1.1, 0.0), ("R", -1.0, 0.85, 0.04)):
+    for s, sgn, amp, ph in (("L", 1.0, 1.15, 0.0), ("R", -1.0, 1.0, 0.04)):
         a = sgn * amp * sw(tc, ph)                       # + swings the arm back
         f = sgn * 1.3 * amp * sw(tc, ph + 0.1)           # the forearm trails the upper arm
         g = sgn * 1.4 * amp * sw(tc, ph + 0.16)          # the claws trail the forearm
         # out 9 degrees, not 18: both arms passing mid-swing together opened into an A-pose every step
-        dirs = [(0.15, a, -0.95), (0.2, f - 0.65, -0.75), (0.1, g - 0.55, -0.8), (0.0, g - 0.3, -0.95)]
+        # the claws flex open on the forward swing and clench as the arm goes back (a hand, not a fixed hook)
+        c = 0.5 + 0.5 * sw(tc, ph + 0.2) * sgn
+        dirs = [(0.15, a, -0.95), (0.2, f - 0.65, -0.75), (0.1, g - 0.55, -0.8), (0.0, g - 0.75 + 0.85 * c, -0.95)]
         dirs = [Vector(v).normalized()[:] for v in dirs]
         _aim_arm(r, hips, s, dirs)
     return r, {"Hips": hips}
@@ -1706,14 +1712,15 @@ _REACH_LEGS = {}
 LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.1, (0, 0.06, 0.0)), (0.18, (0, 0.1, -0.16)), (0.26, (0, 0.15, -0.28)),
               (0.31, (0, -0.2, -0.04)), (0.37, (0, -0.55, 0.28)), (0.44, (0, -0.86, 0.34)), (0.52, (0, -1.06, 0.12)),
               (0.59, (0, -1.15, -0.16)), (0.66, (0, -1.19, -0.27)), (0.74, (0, -1.24, -0.2)), (0.84, (0, -1.34, -0.1)),
-              (0.92, (0, -1.37, -0.12)), (1.0, (0, -1.38, -0.09))]
+              (0.92, (0, -1.37, -0.06)), (1.0, (0, -1.38, -0.02))]
 # Spine, Chest, Neck, Head pitch (deg, + leans forward; the neck and head bend back to keep her eyes on you and
 # her head up out of the hood in the crouch, but no further than the hood brim follows: bent right back the
 # brim cut across her face) and the chest's twist. She rears back first (the threat), coils down, is thrown
 # at you.
 LUNGE_TRUNK = [(0.0, (0, 0, 0, 0, 0)), (0.1, (-8, -6, 4, 2, -6)), (0.26, (16, 10, -12, -18, 12)),
                (0.32, (12, 8, -8, -14, -4)), (0.44, (18, 12, -12, -20, -6)), (0.56, (20, 14, -12, -20, -4)),
-               (0.64, (22, 16, -12, -20, -2)), (0.76, (14, 10, -10, -18, 0)), (1.0, (10, 8, -8, -16, 0))]
+               (0.64, (22, 16, -12, -20, -2)), (0.76, (14, 10, -10, -18, 0)), (0.88, (6, 4, -6, -12, 3)),
+               (1.0, (1, 0, -3, -6, 0))]
 # reared: both claws up and wide over her, hooked (the threat); drawn: pulled back by her shoulders for the
 # throw; strike: both thrown straight at your face, converging; grab: closing on you; hold.
 REARED = ((0.55, 0.25, -0.8), (0.5, -0.1, 0.86), (0.15, -0.6, 0.78), (0.0, -0.75, -0.66))
