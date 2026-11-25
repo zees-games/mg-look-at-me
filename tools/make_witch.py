@@ -477,7 +477,7 @@ def pose(rots=None, scales=None, locs=None):
     bpy.context.view_layer.update()
 
 
-for n in ("LowerArm.L", "Hand.L", "Fingers.L", "Hand.R", "UpperArm.L", "Head"):
+for n in ("LowerArm.L", "Hand.L", "Fingers.L", "LowerArm.R", "Hand.R", "UpperArm.L", "Head"):
     arm.data.bones[n].inherit_scale = "NONE"
 pose(
     # hunched at the back, but the neck carries the head up and forward out of the mantle (bent over it
@@ -486,7 +486,8 @@ pose(
           "UpperArm.L": (d(3), 0, d(-5)), "UpperArm.R": (d(5), 0, d(6)), "Fingers.L": (d(-22), 0, 0),
           "Tips.L": (d(-16), 0, 0)},
     # long bony fingers, but a hand no bigger than her face (the source's left one was a shovel)
-    scales={"Neck": (1, 1.35, 1), "UpperArm.L": (1, 1.15, 1), "LowerArm.L": (0.85, 1.12, 0.85), "Hand.L": (0.68, 0.72, 0.68),
+    # bony upper arms: the source's were as thick as her thighs, twice her forearm
+    scales={"Neck": (1, 1.35, 1), "UpperArm.L": (0.74, 1.15, 0.74), "UpperArm.R": (0.74, 1, 0.74), "LowerArm.L": (0.85, 1.12, 0.85), "Hand.L": (0.68, 0.72, 0.68),
             "Fingers.L": (0.7, 0.86, 0.7), "Hand.R": (0.78, 0.95, 0.78)},
 )
 bpy.ops.object.select_all(action="DESELECT")
@@ -1195,7 +1196,7 @@ def base_idle(t):
 
 
 STRIDE = 35
-LIFT = 0.09
+LIFT = 0.12
 
 
 def _ankle(r, drop, side, axis=2):
@@ -1211,7 +1212,7 @@ WALK_SPEED = 1.3     # m/s, the speed the game plays the walk clip at (rate 1)
 WALK_CYCLE = 0.625   # s, two stride cycles in the 30-frame clip: short quick steps her short legs can make
                      # (one 1.6 m cycle threw the back foot so far behind her it read as a leg splayed out)
 WALK_KNEE = 40       # deg, the most a swinging knee bends
-WALK_TRACK = 0.95    # of her rest foot spread, where the walking feet land (under her, not straddling)
+WALK_TRACK = 1.1     # of her rest foot spread, where the walking feet land (under her, not straddling)
 M_RISE = 0.02        # cycles of the swing, from lift-off, the foot is still low and still sweeping back
 M_LAND = 0.07        # cycles before touchdown the foot is already low and sweeping back
 
@@ -1607,19 +1608,24 @@ REACH_REST = ((0.35, -0.2, -0.92), (0.3, -0.75, -0.2), (0.1, -0.9, -0.2), (0.0, 
 REACH_WIND = ((0.6, 0.55, -0.35), (0.45, -0.25, 0.86), (0.15, -0.65, 0.7), (0.0, -0.85, -0.5))
 REACH_STRIKE = ((0.3, -0.92, 0.25), (0.12, -0.97, 0.2), (0.05, -0.98, 0.18), (0.0, -0.98, -0.2))
 REACH_CLUTCH = ((0.29, -0.92, 0.24), (0.1, -0.97, 0.2), (0.03, -0.98, 0.17), (0.0, -0.3, -0.95))
+# a second snatch: the claw thrown on lower and further, fingers sprung open again
+REACH_SNATCH = ((0.27, -0.95, 0.12), (0.06, -0.99, 0.08), (0.0, -0.99, 0.05), (0.0, -0.97, 0.15))
 REACH_RECOVER = ((0.35, -0.55, -0.7), (0.3, -0.9, 0.1), (0.1, -0.9, -0.1), (0.0, -0.5, -0.85))
 OFF_COCK = ((0.45, 0.1, -0.88), (0.25, -0.65, -0.72), (0.1, -0.92, -0.3), (0.0, -0.7, -0.7))
-REACH_KEYS = [(0.0, REACH_REST), (0.1, REACH_REST), (0.3, REACH_WIND), (0.4, REACH_STRIKE), (0.5, REACH_STRIKE),
-              (0.58, REACH_CLUTCH), (0.66, REACH_CLUTCH), (0.82, REACH_RECOVER), (0.95, REACH_REST), (1.0, REACH_REST)]
-OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.3, REACH_REST), (0.42, OFF_COCK), (0.7, OFF_COCK),
-            (0.86, REACH_RECOVER), (0.96, REACH_REST), (1.0, REACH_REST)]
+# never held still out there: strike, clutch, snatch again, clutch, drawn back
+REACH_KEYS = [(0.0, REACH_REST), (0.1, REACH_REST), (0.28, REACH_WIND), (0.38, REACH_STRIKE), (0.46, REACH_CLUTCH),
+              (0.53, REACH_SNATCH), (0.6, REACH_CLUTCH), (0.74, REACH_RECOVER), (0.9, REACH_REST), (1.0, REACH_REST)]
+OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.28, REACH_REST), (0.4, OFF_COCK), (0.62, OFF_COCK),
+            (0.78, REACH_RECOVER), (0.92, REACH_REST), (1.0, REACH_REST)]
 # her trunk through it (deg, + leans forward): Spine, Chest, Neck, Head pitch and the hips forward (m, - is
 # forward): coiled back on the wind-up, thrown after her claw at the strike, hunched over the clutch
-REACH_TRUNK = [(0.0, (4, 2, -6, -10, 0.0)), (0.1, (4, 2, -6, -10, 0.0)), (0.3, (-6, -8, 4, 0, 0.08)),
-               (0.4, (15, 8, -14, -22, -0.22)), (0.5, (15, 8, -14, -22, -0.22)), (0.66, (13, 7, -12, -20, -0.17)),
-               (0.8, (9, 5, -9, -15, -0.07)), (0.94, (4, 2, -6, -10, 0.0)), (1.0, (4, 2, -6, -10, 0.0))]
+REACH_TRUNK = [(0.0, (4, 2, -6, -10, 0.0)), (0.1, (4, 2, -6, -10, 0.0)), (0.28, (-6, -8, 4, 0, 0.08)),
+               (0.38, (15, 8, -14, -22, -0.22)), (0.46, (12, 6, -12, -19, -0.16)), (0.53, (17, 9, -15, -23, -0.26)),
+               (0.62, (12, 6, -11, -19, -0.15)), (0.74, (9, 5, -9, -15, -0.07)), (0.9, (4, 2, -6, -10, 0.0)),
+               (1.0, (4, 2, -6, -10, 0.0))]
 # the shoulders turn into the strike (deg about the spine, + turns her right shoulder forward)
-REACH_TWIST = [(0.0, (0,)), (0.1, (0,)), (0.3, (-14,)), (0.4, (16,)), (0.66, (12,)), (0.92, (0,)), (1.0, (0,))]
+REACH_TWIST = [(0.0, (0,)), (0.1, (0,)), (0.28, (-14,)), (0.38, (16,)), (0.46, (10,)), (0.53, (18,)), (0.62, (12,)),
+               (0.88, (0,)), (1.0, (0,))]
 STALK_CYCLES = 4          # foot cycles a 48-frame clip: short quick steps, not the walk's long stride
 STALK_SWING = 0.35        # of a cycle, the foot in the air
 STALK_LIFT = 0.08
@@ -1653,7 +1659,7 @@ def attack_idle(t):
     r["Hips"] = (d(6), d(4 * sw(tc)), d(3 * sw(tc, 0.25)))
     tw = 0.3 * sw(t)
     tr = _track(t, REACH_TRUNK)
-    shake = 2.0 * sw(t * 12) * _env(t, 0.52, 0.58) * (1.0 - _env(t, 0.7, 0.78))   # the clutch trembles
+    shake = 2.0 * sw(t * 12) * _env(t, 0.42, 0.46) * (1.0 - _env(t, 0.64, 0.7))   # the clutch trembles
     tz = _track(t, REACH_TWIST)[0]
     r["Spine"] = (d(tr[0] + 2 * sw(tc * 2)), d(-3 * tw), d(-4 * tw + 0.5 * tz))
     r["Chest"] = (d(tr[1] + shake), 0, d(-5 * tw + 0.5 * tz))
@@ -1691,8 +1697,8 @@ _REACH_LEGS = {}
 # overhead), land 0.6-0.66 (she drops into a deep crouch a long leap on, the left foot ahead), then she holds
 # you: the claws stay on you, she pants over you (the capture and the game both stop near 0.93).
 LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.1, (0, 0.06, 0.0)), (0.18, (0, 0.1, -0.16)), (0.26, (0, 0.15, -0.28)),
-              (0.31, (0, -0.12, -0.12)), (0.38, (0, -0.45, 0.12)), (0.46, (0, -0.78, 0.2)), (0.54, (0, -1.02, 0.08)),
-              (0.6, (0, -1.14, -0.14)), (0.66, (0, -1.18, -0.26)), (0.78, (0, -1.2, -0.14)), (0.9, (0, -1.2, -0.08)),
+              (0.31, (0, -0.2, -0.04)), (0.37, (0, -0.55, 0.28)), (0.44, (0, -0.86, 0.34)), (0.52, (0, -1.06, 0.12)),
+              (0.59, (0, -1.15, -0.16)), (0.66, (0, -1.18, -0.26)), (0.78, (0, -1.2, -0.14)), (0.9, (0, -1.2, -0.08)),
               (1.0, (0, -1.2, -0.08))]
 # Spine, Chest, Neck, Head pitch (deg, + leans forward; the neck and head bend back to keep her eyes on you and
 # her head up out of the hood in the crouch, but no further than the hood brim follows: bent right back the
@@ -1710,8 +1716,10 @@ COCKED = ((0.45, 0.4, -0.35), (0.3, -0.2, 0.93), (0.05, -0.7, 0.7), (0.0, -0.6, 
 STRIKE = ((0.1, -0.97, 0.2), (0.0, -0.99, 0.12), (-0.05, -0.99, 0.05), (0.0, -0.85, -0.5))
 GRAB = ((0.14, -0.96, 0.12), (-0.15, -0.95, 0.18), (-0.25, -0.9, 0.05), (-0.15, -0.25, -0.95))
 HOLD = ((0.2, -0.93, 0.1), (-0.1, -0.93, 0.18), (-0.2, -0.9, 0.05), (-0.1, -0.35, -0.9))
-LUNGE_ARMS = [(0.0, REARED), (0.1, REARED), (0.24, COCKED), (0.42, STRIKE), (0.54, STRIKE),
-              (0.64, GRAB), (0.78, HOLD), (1.0, HOLD)]
+# pulled in, elbows bent, claws clenched: she drags at you rather than holding a pose
+TUG = ((0.24, -0.88, -0.05), (-0.05, -0.9, 0.38), (-0.2, -0.92, 0.12), (-0.1, -0.05, -0.99))
+LUNGE_ARMS = [(0.0, REARED), (0.1, REARED), (0.24, COCKED), (0.4, STRIKE), (0.52, STRIKE),
+              (0.62, GRAB), (0.72, HOLD), (0.82, TUG), (0.92, HOLD), (1.0, TUG)]
 # Each foot: (take-off, landing, landing spot ahead of the stand (m), height of its tuck (m)). Both push off
 # together and leave the floor before the hips peak; the left lands first, a little ahead of her hips, the
 # right just behind them.

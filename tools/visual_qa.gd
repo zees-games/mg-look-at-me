@@ -42,9 +42,13 @@ const REACH_BEHIND := Vector3(3.6, 1.5, -0.4)
 ## her in milky grey), and a depth haze in the sky's colour so the floor fades out instead of ending in an edge.
 const WITCH_AMBIENT := Color(0.36, 0.37, 0.43)
 const WITCH_HAZE := Vector2(9.0, 18.0)
+## Her night sky (and the haze it fades into): the shared stage's pale grey sky left her on a milky backdrop.
+const WITCH_SKY := Color(0.07, 0.08, 0.11)
 ## The stage sun turned round this far (degrees about up) for her clips, to light her from the side: the shared stage lights
 ## from behind her, which left her face in its own shadow in every front view.
 const WITCH_SUN_YAW := 100.0
+## The seconds of her lunge both feet are off the floor (0.30-0.62 of the 1.5 s clip, see tools/make_witch.py LUNGE_FEET).
+const WITCH_LEAP := Vector2(0.45, 0.93)
 ## How high the floating clown bust hangs (metres), its bust being 0.9 m.
 const CLOWN_HEIGHT := 1.6
 
@@ -57,6 +61,7 @@ var _staged := ""
 var _torch := SpotLight3D.new()
 var _env: Environment = null
 var _ambient := Color.WHITE
+var _sky := Color.WHITE
 var _sun_turned := false
 
 
@@ -104,8 +109,9 @@ func _build() -> void:
 		_env = (found as WorldEnvironment).environment
 	if _env != null:
 		_ambient = _env.ambient_light_color
+		_sky = _env.background_color
 		_env.fog_mode = Environment.FOG_MODE_DEPTH
-		_env.fog_light_color = _env.background_color
+		_env.fog_light_color = WITCH_SKY
 		_env.fog_depth_begin = WITCH_HAZE.x
 		_env.fog_depth_end = WITCH_HAZE.y
 
@@ -117,6 +123,7 @@ func _witch_light(on: bool) -> void:
 	_env.ambient_light_color = WITCH_AMBIENT if on else _ambient
 	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if on else Environment.TONE_MAPPER_LINEAR
 	_env.fog_enabled = on
+	_env.background_color = WITCH_SKY if on else _sky
 	if on == _sun_turned:
 		return
 	_sun_turned = on
@@ -251,6 +258,8 @@ func _place(item: String, clip: String, frame: int) -> void:
 
 
 func _grounded(_item: String, clip: String, t: float) -> bool:
+	if _kind == "witch" and clip == "lunge":
+		return t < WITCH_LEAP.x or t > WITCH_LEAP.y
 	return not (_kind == "person" and clip == "jump" and fmod(t, 1.0) < 0.6)
 
 
