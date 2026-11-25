@@ -1,7 +1,5 @@
 {
 	"clips": {
-		"run": {"hover_share": 0.30},
-		"gown_walk": {"slide_mps": 99.0, "hover_share": 1.0, "sink_m": 0.5, "pop_deg": 100.0},
-		"gown_reach": {"slide_mps": 99.0, "hover_share": 1.0, "sink_m": 0.5, "pop_deg": 100.0}
+		"run": {"hover_share": 0.30}
 	}
 }

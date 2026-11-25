@@ -35,9 +35,9 @@ const FAN_SEEING := 0.26
 
 ## Her eyes and the lamp in her face, at rest and seeing you.
 const EYES_IDLE := 3.0
-const EYES_SEEING := 9.0
-const GLOW_IDLE := 0.7
-const GLOW_SEEING := 2.6
+const EYES_SEEING := 4.0
+const GLOW_IDLE := 0.05
+const GLOW_SEEING := 0.25
 
 ## The body's clip playing now, for the suite and describe().
 var clip: StringName = &"":
@@ -151,8 +151,8 @@ func _dress_head(head: Node3D) -> void:
 	for side in [EYE_SIDE - EYE_APART * 0.5, EYE_SIDE + EYE_APART * 0.5]:
 		var eye := MeshInstance3D.new()
 		var dot := SphereMesh.new()
-		dot.radius = 0.014
-		dot.height = 0.028
+		dot.radius = 0.02
+		dot.height = 0.04
 		eye.mesh = dot
 		eye.material_override = _eyes_material
 		eye.position = Vector3(side, EYE_DROP, -EYE_FORWARD)
@@ -161,7 +161,7 @@ func _dress_head(head: Node3D) -> void:
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.18, 0.1)
 	_glow.light_energy = GLOW_IDLE
-	_glow.omni_range = 3.2
+	_glow.omni_range = 0.7
 	_glow.position = Vector3(EYE_SIDE, EYE_DROP, -EYE_FORWARD - 0.08)
 	head.add_child(_glow)
 
@@ -182,8 +182,10 @@ func _play(clip: StringName, rate: float) -> void:
 	_anim.speed_scale = rate
 	if _clip == clip:
 		return
+	# The first clip starts clean: blended from the rig's bind pose it would drag the feet.
+	var blend := 0.25 if _clip != &"" else 0.0
 	_clip = clip
-	_anim.play(clip, 0.25)
+	_anim.play(clip, blend)
 
 
 ## The sight: a fan on the floor, its point under her.
@@ -247,7 +249,7 @@ func place(at: Vector3, facing: float, head: float, delta: float, speed: float =
 			_play(&"idle", 1.0)
 		elif seeing > 0.5:
 			# Arms up and reaching, legs shambling: she lurches at you.
-			_play(&"attack_idle", 1.0)
+			_play(&"attack_idle", clampf(speed / 1.3, 0.6, 1.8))
 		else:
 			_play(&"walk", clampf(speed / 1.3, 0.6, 1.8))
 		_anim.advance(delta)

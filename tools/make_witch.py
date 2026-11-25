@@ -175,10 +175,13 @@ for i in range(12):
 
 # hollow eye sockets: dark ellipsoids over the eyes, black texels (the game lights the eyes in them)
 dark_uv = skin_uv(Vector((0.1, -3.0, fz(25.2))))
+EYE_IDX = []
 EYES = [Vector((0.3, -3.05, fz(26.05))), Vector((1.45, -3.05, fz(26.05)))]
 for c in EYES:
     geom = bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=6, radius=1.0)
     vs = [g for g in geom["verts"]]
+    bm.verts.index_update()
+    EYE_IDX.append([v.index for v in vs])
     for v in vs:
         v.co = c + Vector((v.co.x * 0.4, v.co.y * 0.2 + 0.18, v.co.z * 0.28))
     for f in {f for v in vs for f in v.link_faces}:
@@ -268,6 +271,8 @@ for v in body.data.vertices:
         if w > 0.004:
             body.vertex_groups[n].add([v.index], w, "REPLACE")
 
+for i, idx in enumerate(EYE_IDX):
+    body.vertex_groups.new(name="Socket%d" % i).add(idx, 1.0, "REPLACE")
 mod = body.modifiers.new("Armature", "ARMATURE")
 mod.object = arm
 body.parent = arm
@@ -349,6 +354,12 @@ img.pixels = px.ravel().tolist()
 img.filepath_raw = os.path.join(os.path.dirname(os.path.abspath(DST)), "witch_atlas.png")
 img.file_format = "PNG"
 img.save()
+try:   # shrink on disk: 128-colour dithered palette PNG (the texture is dark and near-grey)
+    from PIL import Image
+    _p = img.filepath_raw
+    Image.open(_p).convert("RGB").quantize(128, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG).save(_p, optimize=True)
+except ImportError:
+    print("PIL missing: atlas left uncompressed")
 mat = bpy.data.materials.new("Witch")
 mat.use_nodes = True
 tex = mat.node_tree.nodes.new("ShaderNodeTexImage")
@@ -371,13 +382,13 @@ def clip(name, frames, fn, loop=True):
         rots, locs = fn(t)
         pose(rots=rots, locs=locs)
         for pb in arm.pose.bones:
-            pb.keyframe_insert("rotation_quaternion", frame=f + 1)
+            pb.keyframe_insert("rotation_quaternion", frame=f)
             if pb.name == "Hips":
-                pb.keyframe_insert("location", frame=f + 1)
+                pb.keyframe_insert("location", frame=f)
     act.use_fake_user = True
     tr = arm.animation_data.nla_tracks.new()
     tr.name = name
-    tr.strips.new(name, 1, act)
+    tr.strips.new(name, 0, act)
 
 
 def sw(t, ph=0.0):
@@ -386,22 +397,13 @@ def sw(t, ph=0.0):
 
 def base_idle(t):
     return {
-        "Spine": (d(2.0 * sw(t)), 0, d(1.5 * sw(t, 0.25))),
-        "Chest": (d(2.5 * sw(t, 0.1)), 0, 0),
-        "Head": (d(2.0 * sw(t, 0.3)), d(3.0 * sw(t, 0.5)), d(2.0 * sw(t, 0.2))),
-        "UpperArm.L": (d(3 * sw(t, 0.2)), 0, d(-2 * sw(t))),
-        "UpperArm.R": (d(2 * sw(t, 0.4)), 0, d(2 * sw(t))),
-        "Hand.L": (d(-5 * sw(t, 0.3)), 0, 0),
-        "Fingers.L": (d(10 * sw(t, 0.5)), 0, d(4 * sw(t, 0.6))),
-        "Fingers.R": (0, 0, 0),
-    } if False else {
-        "Spine": (d(2.0 * sw(t)), 0, d(1.5 * sw(t, 0.25))),
-        "Chest": (d(2.5 * sw(t, 0.1)), 0, 0),
-        "Head": (d(2.0 * sw(t, 0.3)), d(3.0 * sw(t, 0.5)), d(2.0 * sw(t, 0.2))),
-        "UpperArm.L": (d(3 * sw(t, 0.2)), 0, d(-2 * sw(t))),
-        "UpperArm.R": (d(2 * sw(t, 0.4)), 0, d(2 * sw(t))),
-        "Hand.L": (d(-5 * sw(t, 0.3)), 0, 0),
-        "Fingers.L": (d(10 * sw(t, 0.5)), 0, d(4 * sw(t, 0.6))),
+        "Spine": (d(4.0 * sw(t)), 0, d(3.5 * sw(t, 0.25))),
+        "Chest": (d(5.0 * sw(t, 0.1)), d(4.0 * sw(t, 0.35)), 0),
+        "Head": (d(4.0 * sw(t, 0.3)), d(7.0 * sw(t, 0.5)), d(4.0 * sw(t, 0.2))),
+        "UpperArm.L": (d(7 * sw(t, 0.2)), 0, d(-5 * sw(t))),
+        "UpperArm.R": (d(5 * sw(t, 0.4)), 0, d(5 * sw(t))),
+        "Hand.L": (d(-12 * sw(t, 0.3)), 0, 0),
+        "Fingers.L": (d(18 * sw(t, 0.5)), 0, d(8 * sw(t, 0.6))),
     }
 
 
@@ -409,20 +411,166 @@ def idle(t):
     return base_idle(t), {"Hips": (0, 0, 0.012 * sw(t * 2))}
 
 
+STRIDE = 35
+LIFT = 0.13
+
+
+def _ankle(r, drop, side, axis=2):
+    pose(rots=r, locs={"Hips": (0, 0, drop)})
+    return (arm.matrix_world @ arm.pose.bones["Foot." + side].head)[axis]
+
+
+def _ankle_z(r, drop, side):
+    return _ankle(r, drop, side, 2)
+
+
+WALK_SPEED = 1.3     # m/s, the speed the game plays the walk clip at (rate 1)
+WALK_CYCLE = 1.25    # s, 30 frames at 24 fps
+M_RISE = 0.02        # cycles of the swing, from lift-off, the foot is still low and still sweeping back
+M_LAND = 0.07        # cycles before touchdown the foot is already low and sweeping back
+
+
+def _solve_thigh(r, drop, side, target, probe=0.0):
+    """The thigh angle (deg) that puts the ankle's forward coordinate at `target` (bisection)."""
+    key = "UpperLeg." + side
+    roll = r[key][2]
+
+    def f(deg):
+        r[key] = (d(deg), 0, roll)
+        return _ankle(r, drop, side, 1) - target
+
+    lo, hi = -70.0, 70.0
+    flo, fhi = f(lo), f(hi)
+    if flo * fhi > 0:
+        best = lo if abs(flo) < abs(fhi) else hi
+        r[key] = (d(best), 0, roll)
+        return best
+    for _ in range(22):
+        mid = 0.5 * (lo + hi)
+        fm = f(mid)
+        if (fm > 0) == (flo > 0):
+            lo, flo = mid, fm
+        else:
+            hi = mid
+    r[key] = (d(0.5 * (lo + hi)), 0, roll)
+    return 0.5 * (lo + hi)
+
+
+def _solve_roll(r, drop, side, target):
+    """Rolls the thigh sideways (keeping its swing) until the ankle stands at lateral `target`."""
+    key = "UpperLeg." + side
+    sw_x = r[key][0]
+
+    def f(deg):
+        r[key] = (sw_x, 0, d(deg))
+        return _ankle(r, drop, side, 0) - target
+
+    lo, hi = -35.0, 35.0
+    flo, fhi = f(lo), f(hi)
+    if flo * fhi > 0:
+        best = lo if abs(flo) < abs(fhi) else hi
+        r[key] = (sw_x, 0, d(best))
+        return
+    for _ in range(22):
+        mid = 0.5 * (lo + hi)
+        fm = f(mid)
+        if (fm > 0) == (flo > 0):
+            lo, flo = mid, fm
+        else:
+            hi = mid
+    r[key] = (sw_x, 0, d(0.5 * (lo + hi)))
+
+
+def _sweep(tau):
+    """Forward offset (m) of a foot from its standing spot, by swing phase tau in cycles (0 = lift-off,
+    0.5 = touchdown). Linear at the ground speed through the whole stance and a little either side, so the
+    foot never slides while it is low; a cubic that keeps that speed at both ends carries it forward."""
+    v = WALK_SPEED * WALK_CYCLE                      # m per cycle
+    span = 0.5 - M_RISE - M_LAND                      # cycles of free swing
+    half = v * (0.5 + M_RISE + M_LAND) * 0.5
+    if tau >= 0.5 - M_LAND:                           # stance, from the late swing
+        return half - v * (tau - (0.5 - M_LAND))
+    if tau < M_RISE:                                  # the stance's far end
+        return half - v * (tau + 1.0 - (0.5 - M_LAND))
+    k = (tau - M_RISE) / span
+    h00, h10 = 2 * k ** 3 - 3 * k ** 2 + 1, k ** 3 - 2 * k ** 2 + k
+    h01, h11 = -2 * k ** 3 + 3 * k ** 2, k ** 3 - k ** 2
+    tan = -v * span
+    return h00 * (-half) + h10 * tan + h01 * half + h11 * tan
+
+
+def legs(r, t):
+    """Walks the legs so each planted foot sweeps back at exactly the ground speed (no slide), and
+    solves the hips so the planted foot stays at floor height while the other clears it (the foot-slide
+    metric counts any foot within 6 cm of the floor as planted)."""
+    r["UpperLeg.L"] = (0, 0, 0)
+    r["UpperLeg.R"] = (0, 0, 0)
+    r["Hips"] = (0, d(5 * sw(t)), d(2 * sw(t)))
+    for s in ("L", "R"):
+        r["LowerLeg." + s] = (0, 0, 0)
+        r["Foot." + s] = (0, 0, 0)
+    hips = r["Hips"]
+    r["Hips"] = (0, 0, 0)
+    stand_x = {s: _ankle(r, 0.0, s, 0) for s in ("L", "R")}
+    r["Hips"] = hips
+    floor = _ankle_z({"Hips": r["Hips"]}, 0.0, "L")   # standing, legs straight down
+    lifts, taus, f0, sign = {}, {}, {}, {}
+    for s, ph in (("L", 0.5), ("R", 0.0)):
+        tau = ((t + ph) % 1.0 - 0.75) % 1.0
+        taus[s] = tau
+        x = tau / 0.5
+        u = min(1.0, x / 0.1, (1.0 - x) / 0.3) if x < 1.0 else 0.0
+        lifts[s] = u * u * (3.0 - 2.0 * u)
+        r["UpperLeg." + s] = (0, 0, 0)
+        f0[s] = _ankle(r, 0.0, s, 1)
+        r["UpperLeg." + s] = (d(10), 0, 0)
+        sign[s] = -1.0 if _ankle(r, 0.0, s, 1) > f0[s] else 1.0   # forward is where the thigh angle falls
+        r["UpperLeg." + s] = (0, 0, 0)
+    for s in ("L", "R"):
+        _solve_thigh(r, 0.0, s, f0[s] + sign[s] * _sweep(taus[s]))
+        _solve_roll(r, 0.0, s, stand_x[s])
+        _solve_thigh(r, 0.0, s, f0[s] + sign[s] * _sweep(taus[s]))
+    straight = {s: _ankle_z(r, 0.0, s) for s in ("L", "R")}
+    stance = "L" if lifts["L"] < lifts["R"] else "R"
+    drop = floor - straight[stance]       # the hips sink as the legs open
+    for s in ("L", "R"):
+        if lifts[s] <= 0.0:
+            continue
+        # The smallest knee bend, past the point where bending only lowers a forward-leaning leg, that
+        # puts the ankle at the lift height above the floor.
+        target = floor + LIFT
+        heights = []
+        for deg in range(0, 121, 3):
+            r["LowerLeg." + s] = (d(deg), 0, 0)
+            r["Foot." + s] = (d(-0.5 * deg), 0, 0)
+            heights.append(_ankle_z(r, drop, s))
+        low = heights.index(min(heights))
+        pick = len(heights) - 1
+        for n in range(low, len(heights)):
+            if heights[n] >= target:
+                pick = n
+                break
+        k = pick * 3 * lifts[s]
+        r["LowerLeg." + s] = (d(k), 0, 0)
+        r["Foot." + s] = (d(-0.5 * k), 0, 0)
+        # the bent knee pulls the ankle back: swing the thigh until the ankle is where the sweep puts it
+        _solve_thigh(r, drop, s, f0[s] + sign[s] * _sweep(taus[s]))
+        _solve_roll(r, drop, s, stand_x[s])
+        _solve_thigh(r, drop, s, f0[s] + sign[s] * _sweep(taus[s]))
+    return drop
+
+
 def walk(t):
     r = base_idle(t)
-    a = 34
-    r["UpperLeg.L"] = (d(a * sw(t)), 0, 0)
-    r["UpperLeg.R"] = (d(-a * sw(t)), 0, 0)
-    r["LowerLeg.L"] = (d(max(0, -sw(t, 0.25)) * 30), 0, 0)
-    r["LowerLeg.R"] = (d(max(0, sw(t, 0.25)) * 30), 0, 0)
-    r["Foot.L"] = (d(-8 * sw(t, 0.1)), 0, 0)
-    r["Foot.R"] = (d(8 * sw(t, 0.1)), 0, 0)
-    r["Hips"] = (0, d(5 * sw(t)), d(2 * sw(t)))
-    r["Spine"] = (d(2.0 * sw(t, 0.0)), d(-5 * sw(t)), d(2 * sw(t, 0.25)))
-    r["UpperArm.L"] = (d(-14 * sw(t)), 0, d(-3))
-    r["UpperArm.R"] = (d(14 * sw(t)), 0, d(3))
-    return r, {"Hips": (0, 0, 0.03 * abs(sw(t)))}
+    drop = legs(r, t)
+    r["Spine"] = (d(3.0 * sw(t * 2)), d(-8 * sw(t)), d(4 * sw(t, 0.25)))
+    r["Chest"] = (d(4.0 * sw(t * 2, 0.1)), d(-6 * sw(t)), d(3 * sw(t * 2, 0.3)))
+    r["Head"] = (d(4.0 * sw(t * 2, 0.3)), d(10 * sw(t)), d(5 * sw(t * 2, 0.2)))
+    r["UpperArm.L"] = (d(-26 * sw(t)), 0, d(-6 + 4 * sw(t * 2)))
+    r["UpperArm.R"] = (d(26 * sw(t)), 0, d(6 + 4 * sw(t * 2)))
+    r["LowerArm.L"] = (d(-10 - 8 * sw(t, 0.25)), 0, 0)
+    r["LowerArm.R"] = (d(-10 + 8 * sw(t, 0.25)), 0, 0)
+    return r, {"Hips": (0, 0, drop)}
 
 
 def attack_idle(t):
@@ -433,23 +581,26 @@ def attack_idle(t):
     r["LowerArm.R"] = (d(-20), 0, 0)
     r["Fingers.L"] = (d(25 * sw(t, 0.2)), 0, d(8 * sw(t)))
     r["Head"] = (d(-6 + 3 * sw(t, 0.3)), 0, d(3 * sw(t, 0.2)))
-    return r, {"Hips": (0, 0, 0.015 * sw(t * 2))}
+    drop = legs(r, t)
+    return r, {"Hips": (0, 0, drop)}
 
 
 def attack(t):
-    r = attack_idle(t)[0]
+    r = attack_idle(0.0)[0]
+    for n in ("UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R", "Foot.L", "Foot.R", "Hips"):
+        r[n] = (0, 0, 0)
     lunge = smooth(t * 2.5) * (1 - smooth((t - 0.6) / 0.4))
     r["Chest"] = (d(20 * lunge), 0, 0)
     r["Spine"] = (d(14 * lunge), 0, 0)
     r["UpperArm.L"] = (d(-95 - 35 * lunge), 0, d(-12 + 14 * lunge))
     r["UpperArm.R"] = (d(-100 - 35 * lunge), 0, d(14 - 14 * lunge))
     r["Fingers.L"] = (d(-30 * lunge), 0, 0)
-    return r, {"Hips": (0, -0.35 * lunge, 0)}
+    return r, {"Hips": (0, 0, 0)}
 
 
 clip("idle", 60, idle)
-clip("walk", 36, walk)
-clip("attack_idle", 48, attack_idle)
+clip("walk", 30, walk)
+clip("attack_idle", 30, attack_idle)
 clip("attack", 40, attack, loop=False)
 arm.animation_data.action = None
 pose()
