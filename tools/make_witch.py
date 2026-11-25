@@ -218,6 +218,12 @@ B("Fingers.L", "Hand.L", (6.2, 2.4, 10.8), (6.0, 2.2, 9.0))
 B("UpperArm.R", "Chest", (-4.5, 2.5, 20.0), (-5.9, 2.0, 16.4))
 B("LowerArm.R", "UpperArm.R", (-5.9, 2.0, 16.4), (-7.0, -1.6, 19.2))
 B("Hand.R", "LowerArm.R", (-7.0, -1.6, 19.2), (-7.0, -2.9, 22.0))
+# cloth: four hem bones hanging off the hips, one for the hood's crown and back
+B("Robe.F", "Hips", (0.8, -2.2, 12.5), (0.8, -2.8, 6.0))
+B("Robe.B", "Hips", (0.8, 4.8, 12.5), (0.8, 5.6, 6.0))
+B("Robe.L", "Hips", (4.6, 1.5, 12.5), (5.2, 1.5, 6.0))
+B("Robe.R", "Hips", (-3.0, 1.5, 12.5), (-3.6, 1.5, 6.0))
+B("Hood", "Head", (0.8, 0.6, 26.0), (0.9, 1.4, 31.0))
 
 arm = bpy.data.objects.new("Rig", bpy.data.armatures.new("Rig"))
 bpy.context.scene.collection.objects.link(arm)
@@ -270,6 +276,40 @@ for v in body.data.vertices:
     for n, w in g.items():
         if w > 0.004:
             body.vertex_groups[n].add([v.index], w, "REPLACE")
+
+CLOTH = ["Robe.F", "Robe.B", "Robe.L", "Robe.R", "Hood"]
+for n in CLOTH:
+    body.vertex_groups.new(name=n)
+for v in body.data.vertices:
+    p = v.co
+    if abs(p.x - 0.8) > 5.6:      # sleeves and hands stay on the arms
+        continue
+    ws = {}
+    if fz(5.0) < p.z < fz(14.0):
+        k = smooth((fz(14.0) - p.z) / (fz(14.0) - fz(7.0))) * 0.85
+        dx, dy = p.x - 0.8, p.y - 1.5
+        for n, (ax, ay) in (("Robe.F", (0, -1)), ("Robe.B", (0, 1)), ("Robe.L", (1, 0)), ("Robe.R", (-1, 0))):
+            c = max(0.0, (dx * ax + dy * ay) / max(math.hypot(dx, dy), 1e-6))
+            if c > 0.0 and math.hypot(dx, dy) > 1.0:
+                ws[n] = k * c * c
+    if p.z > fz(24.5) and abs(p.x - 0.8) < 4.6 and p.y < 4.5:
+        ws["Hood"] = smooth((p.z - fz(24.5)) / 3.0) * 0.7 * smooth((p.y + 3.0) / 4.0)
+    tot = sum(ws.values())
+    if tot <= 0.004:
+        continue
+    if tot > 0.95:
+        ws = {n: w * 0.95 / tot for n, w in ws.items()}
+        tot = 0.95
+    for g in body.vertex_groups:      # take the cloth share from the existing weights
+        if g.name in CLOTH:
+            continue
+        try:
+            w0 = g.weight(v.index)
+        except RuntimeError:
+            continue
+        g.add([v.index], w0 * (1.0 - tot), "REPLACE")
+    for n, w in ws.items():
+        body.vertex_groups[n].add([v.index], w, "REPLACE")
 
 for i, idx in enumerate(EYE_IDX):
     body.vertex_groups.new(name="Socket%d" % i).add(idx, 1.0, "REPLACE")
@@ -348,6 +388,7 @@ lum = px[..., :3] @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
 grey = np.stack([lum, lum, lum], -1)
 px[..., :3] = (0.15 * px[..., :3] + 0.85 * grey)                   # drain
 px[..., :3] *= np.array([0.78, 0.8, 0.86], dtype=np.float32)      # cold and dark
+px[..., :3] = np.clip(px[..., :3], 0, 1) ** 0.65
 px[..., 3] = 1.0
 px[0:3, 0:3, :3] = 0.0   # texel (0,0) is the socket black
 img.pixels = px.ravel().tolist()
@@ -357,13 +398,15 @@ img.save()
 try:   # shrink on disk: 128-colour dithered palette PNG (the texture is dark and near-grey)
     from PIL import Image
     _p = img.filepath_raw
-    Image.open(_p).convert("RGB").quantize(128, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG).save(_p, optimize=True)
+    Image.open(_p).convert("RGB").quantize(256, method=Image.MEDIANCUT, dither=Image.NONE).save(_p, optimize=True)
 except ImportError:
     print("PIL missing: atlas left uncompressed")
 mat = bpy.data.materials.new("Witch")
 mat.use_nodes = True
 tex = mat.node_tree.nodes.new("ShaderNodeTexImage")
 tex.image = img
+mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
+mat.node_tree.nodes["Principled BSDF"].inputs["Specular IOR Level"].default_value = 0.1
 mat.node_tree.links.new(tex.outputs["Color"], mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
 body.data.materials.clear()
 body.data.materials.append(mat)
@@ -380,6 +423,8 @@ def clip(name, frames, fn, loop=True):
     for f in range(frames + 1):
         t = (f % frames) / frames if loop else f / frames
         rots, locs = fn(t)
+        rots = dict(rots)
+        rots.update(cloth(t, name))
         pose(rots=rots, locs=locs)
         for pb in arm.pose.bones:
             pb.keyframe_insert("rotation_quaternion", frame=f)
@@ -395,6 +440,21 @@ def sw(t, ph=0.0):
     return math.sin(2 * math.pi * (t + ph))
 
 
+CLOTH_AMP = {"idle": (5.0, 1), "walk": (14.0, 2), "attack_idle": (7.0, 1), "attack": (22.0, 1)}
+
+
+def cloth(t, name):
+    a, f = CLOTH_AMP[name]
+    u = t * f
+    return {
+        "Robe.F": (d(a * sw(u, 0.30)), 0, d(0.4 * a * sw(u, 0.1))),
+        "Robe.B": (d(-a * sw(u, 0.30)), 0, d(0.4 * a * sw(u, 0.6))),
+        "Robe.L": (d(0.4 * a * sw(u, 0.2)), d(a * sw(u, 0.55)), 0),
+        "Robe.R": (d(0.4 * a * sw(u, 0.7)), d(-a * sw(u, 0.55)), 0),
+        "Hood": (d(0.7 * a * sw(u, 0.45)), d(0.4 * a * sw(u, 0.15)), d(0.5 * a * sw(u, 0.8))),
+    }
+
+
 def base_idle(t):
     return {
         "Spine": (d(4.0 * sw(t)), 0, d(3.5 * sw(t, 0.25))),
@@ -403,6 +463,8 @@ def base_idle(t):
         "UpperArm.L": (d(7 * sw(t, 0.2)), 0, d(-5 * sw(t))),
         "UpperArm.R": (d(5 * sw(t, 0.4)), 0, d(5 * sw(t))),
         "Hand.L": (d(-12 * sw(t, 0.3)), 0, 0),
+        "LowerArm.R": (d(8 * sw(t, 0.15)), 0, d(6 * sw(t, 0.5))),
+        "Hand.R": (d(18 * sw(t, 0.35)), d(14 * sw(t, 0.1)), d(16 * sw(t, 0.6))),
         "Fingers.L": (d(18 * sw(t, 0.5)), 0, d(8 * sw(t, 0.6))),
     }
 
@@ -569,7 +631,8 @@ def walk(t):
     r["UpperArm.L"] = (d(-26 * sw(t)), 0, d(-6 + 4 * sw(t * 2)))
     r["UpperArm.R"] = (d(26 * sw(t)), 0, d(6 + 4 * sw(t * 2)))
     r["LowerArm.L"] = (d(-10 - 8 * sw(t, 0.25)), 0, 0)
-    r["LowerArm.R"] = (d(-10 + 8 * sw(t, 0.25)), 0, 0)
+    r["LowerArm.R"] = (d(-10 + 10 * sw(t, 0.25)), 0, d(8 * sw(t * 2, 0.5)))
+    r["Hand.R"] = (d(20 * sw(t * 2, 0.3)), d(16 * sw(t, 0.1)), d(18 * sw(t * 2, 0.6)))
     return r, {"Hips": (0, 0, drop)}
 
 
@@ -590,8 +653,9 @@ def attack(t):
     for n in ("UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R", "Foot.L", "Foot.R", "Hips"):
         r[n] = (0, 0, 0)
     lunge = smooth(t * 2.5) * (1 - smooth((t - 0.6) / 0.4))
-    r["Chest"] = (d(20 * lunge), 0, 0)
-    r["Spine"] = (d(14 * lunge), 0, 0)
+    r["Chest"] = (d(12 * lunge), 0, 0)
+    r["Spine"] = (d(8 * lunge), 0, 0)
+    r["Head"] = (d(-6 + 3 * sw(t, 0.3) - 14 * lunge), 0, d(3 * sw(t, 0.2)))
     r["UpperArm.L"] = (d(-95 - 35 * lunge), 0, d(-12 + 14 * lunge))
     r["UpperArm.R"] = (d(-100 - 35 * lunge), 0, d(14 - 14 * lunge))
     r["Fingers.L"] = (d(-30 * lunge), 0, 0)

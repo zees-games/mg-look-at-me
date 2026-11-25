@@ -22,9 +22,9 @@ const SKIN := Color("9aa293")
 ## Where her eyes are from the top of her hood (the mount), measured on the model: below it, in
 ## front of the head bone, and a little off to one side of it; and how far apart they sit.
 const EYE_DROP := -0.235
-const EYE_FORWARD := 0.247
-const EYE_SIDE := -0.068
-const EYE_APART := 0.04
+const EYE_FORWARD := 0.285
+const EYE_SIDE := -0.075
+const EYE_APART := 0.07
 
 ## The clips that loop (glTF clips import once-through).
 const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"run_arms", &"attack_idle"]
@@ -55,6 +55,7 @@ var fan: MeshInstance3D = null
 
 var _fan_material: StandardMaterial3D = null
 var _eyes_material: StandardMaterial3D = null
+var _halo_material: StandardMaterial3D = null
 var _glow: OmniLight3D = null
 var _last_at: Vector3 = Vector3.INF
 var _head_bone := -1
@@ -148,15 +149,30 @@ func _dress_head(head: Node3D) -> void:
 	_eyes_material.emission_energy_multiplier = EYES_IDLE
 	_eyes_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
+	_halo_material = StandardMaterial3D.new()
+	_halo_material.albedo_color = Color(1.0, 0.1, 0.04, 0.22)
+	_halo_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
 	for side in [EYE_SIDE - EYE_APART * 0.5, EYE_SIDE + EYE_APART * 0.5]:
 		var eye := MeshInstance3D.new()
 		var dot := SphereMesh.new()
-		dot.radius = 0.02
-		dot.height = 0.04
+		dot.radius = 0.014
+		dot.height = 0.028
 		eye.mesh = dot
 		eye.material_override = _eyes_material
 		eye.position = Vector3(side, EYE_DROP, -EYE_FORWARD)
 		head.add_child(eye)
+		var halo := MeshInstance3D.new()      # a short soft halo round the bright core
+		var haze := SphereMesh.new()
+		haze.radius = 0.032
+		haze.height = 0.064
+		halo.mesh = haze
+		halo.material_override = _halo_material
+		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		halo.position = eye.position
+		head.add_child(halo)
 
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.18, 0.1)
