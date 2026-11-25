@@ -615,7 +615,11 @@ mid_n = fbm(P, 6.0, 2)        # cloth mottling
 fine_n = fbm(P, 30.0, 3, 3)   # weave and grain
 # The source's painted detail (wrinkles, wrap stripes, the face): its local contrast only.
 lum_s = box(src_lum, UP)
-detail = np.clip(lum_s / np.maximum(box(src_lum, 18 * UP), 0.02), 0.55, 1.6)
+# the local mean over painted texels only: averaged with the empty atlas round an island (her left hand sits
+# at one's edge), the mean fell and the ratio lit the whole hand cream
+_valid = ((KINDS != 0) & (KINDS != SOCKET)).astype(np.float32)
+_mean = box(src_lum * _valid, 18 * UP) / np.maximum(box(_valid, 18 * UP), 1e-3)
+detail = np.clip(lum_s / np.maximum(_mean, 0.02), 0.55, 1.6)
 ang = np.arctan2(P[..., 1] - 0.05, P[..., 0] - 0.07)   # around her body axis, for folds
 
 out = np.full((H, W, 3), 0.3, dtype=np.float32)
@@ -662,7 +666,7 @@ for i, (pc, size, tint) in enumerate((((-0.12, -0.24, 0.85), 0.09, (0.26, 0.24, 
     col[m & stitch] = C(0.55, 0.5, 0.4)
 out[m] = col[m]
 hgt[m] = (0.9 * folds + 0.5 * back * pleat + 0.12 * twill + 0.25 * fine_n)[m]
-rough[m] = (0.9 + 0.08 * fine_n)[m]
+rough[m] = (0.78 + 0.18 * fine_n)[m]     # wool with a dull grease sheen where it is worn
 rough[m & (hem > 0.5)] = 0.98
 
 # Cloak and hood: moss-green wool fading to peat brown, deep folds, a twill weave, darned holes,
@@ -718,18 +722,18 @@ for kk, strength in ((SKIN, 0.7), (FACE, 0.65)):
     # the crêpe and pores kept faint: at full strength they read as speckled stone at play distance
     col *= (0.92 + 0.08 * crepe ** 2 + 0.03 * crepe2 - 0.02)[..., None]
     col *= (0.9 + 0.16 * ridge ** 2)[..., None] * (0.97 + 0.04 * pores)[..., None]
-    col *= (1.0 + strength * (detail - 1.0))[..., None] * (0.9 + 0.2 * fine_n)[..., None]
+    col *= (1.0 + strength * (np.clip(detail, 0.7, 1.25) - 1.0))[..., None] * (0.9 + 0.2 * fine_n)[..., None]
     # never pale: the source's light-painted palms read as a cream glove under the torch. Skin past a
     # dead-grey luminance is pulled back, so the whole hand is one sickly tone.
     lum = col @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
-    col *= np.minimum(1.0, 0.44 / np.maximum(lum, 1e-3))[..., None]
+    col *= np.minimum(1.0, 0.4 / np.maximum(lum, 1e-3))[..., None]
     if kk == FACE:
         # gaunt: the source's hollows (cheeks, temples, under the brow) sunk deeper and bruised
         hollow = np.clip((1.0 - box(detail, 2 * UP)) * 3.0, 0, 1)
         col = mix(col, C(0.16, 0.12, 0.17), hollow * 0.7)
     out[m] = col[m]
     hgt[m] = (0.25 * crepe + 0.12 * crepe2 + 0.5 * ridge + 0.05 * pores + 0.6 * (detail - 1.0) + 0.3 * vein)[m]
-    rough[m] = (0.62 + 0.15 * fine_n - 0.1 * vein)[m]
+    rough[m] = (0.42 + 0.14 * fine_n - 0.08 * vein + 0.12 * crepe)[m]   # clammy, waxy: the light slides on it
 # Nails and fingertips: the darkest skin texels are the source's nails: keep them dark and horn-yellow.
 m = (k == SKIN) & (lum_s < 0.18)
 out[m] = (C(0.2, 0.18, 0.1) * (0.8 + 0.4 * fine_n[..., None]))[m]
@@ -781,7 +785,7 @@ def _slope(ax):
     okb = (kb == k) & (np.linalg.norm(pb - POS, axis=-1) < near)
     d = np.where(oka, a, hgt) - np.where(okb, b, hgt)
     return d / np.maximum(oka.astype(np.float32) + okb.astype(np.float32), 1.0)
-BUMP = 2.2
+BUMP = 3.0
 nx, ny = -BUMP * _slope(1), -BUMP * _slope(0)
 nz = np.ones_like(nx)
 nl = np.sqrt(nx * nx + ny * ny + nz * nz)
@@ -901,8 +905,10 @@ def _cloth_rows(name, rows, loop):
         rb = robe[f]
         kf = math.atan2(max(0.0, r["knee_f"] - KNEE_F0 - 0.02), 0.5)
         kb = math.atan2(max(0.0, r["knee_b"] - KNEE_B0 - 0.02), 0.5)
-        hx = (hood_x[f] - r["head_x"]) * fade
-        hz = (hood_z[f] - r["head_z"]) * fade
+        # the hood lags the head by half its spring, capped: the full lag at the lunge's snap down stood the
+        # hood up off her head into a tent that buried her face
+        hx = max(-d(8), min(d(8), 0.5 * (hood_x[f] - r["head_x"]))) * fade
+        hz = max(-d(8), min(d(8), 0.5 * (hood_z[f] - r["head_z"]))) * fade
         cx = (cape_x[f] - r["chest_x"]) * fade
         cz = (cape_z[f] - r["chest_z"]) * fade
         # a shoulder flap rides up with its arm once the arm is raised past 40 degrees, out to her side
@@ -1386,22 +1392,22 @@ def idle(t):
 # fingers spread), clutch (held out at you, the fingers curling shut, trembling), recover (sunk back to rest).
 # The other claw counters: drawn back by her hip, its claws turned at you.
 REACH_REST = ((0.35, -0.2, -0.92), (0.3, -0.75, -0.2), (0.1, -0.9, -0.2), (0.0, -0.6, -0.8))
-REACH_WIND = ((0.45, 0.6, -0.55), (0.35, 0.1, 0.92), (0.15, -0.45, 0.88), (0.0, -0.7, -0.7))
-REACH_STRIKE = ((0.16, -0.88, 0.45), (0.12, -0.9, 0.42), (0.1, -0.93, 0.36), (0.08, -0.97, 0.1))
-REACH_CLUTCH = ((0.15, -0.89, 0.43), (0.1, -0.91, 0.4), (0.06, -0.94, 0.34), (0.0, -0.3, -0.95))
+REACH_WIND = ((0.75, 0.45, -0.5), (0.7, 0.05, 0.7), (0.35, -0.6, 0.72), (0.0, -0.7, -0.7))
+REACH_STRIKE = ((0.3, -0.92, 0.25), (0.12, -0.97, 0.2), (0.05, -0.98, 0.18), (0.0, -0.98, -0.2))
+REACH_CLUTCH = ((0.29, -0.92, 0.24), (0.1, -0.97, 0.2), (0.03, -0.98, 0.17), (0.0, -0.3, -0.95))
 REACH_RECOVER = ((0.35, -0.55, -0.7), (0.3, -0.9, 0.1), (0.1, -0.9, -0.1), (0.0, -0.5, -0.85))
 OFF_COCK = ((0.35, 0.4, -0.85), (0.25, -0.65, -0.72), (0.1, -0.92, -0.3), (0.0, -0.7, -0.7))
 REACH_KEYS = [(0.0, REACH_REST), (0.1, REACH_REST), (0.3, REACH_WIND), (0.4, REACH_STRIKE), (0.5, REACH_STRIKE),
-              (0.58, REACH_CLUTCH), (0.7, REACH_CLUTCH), (0.84, REACH_RECOVER), (0.94, REACH_REST), (1.0, REACH_REST)]
+              (0.58, REACH_CLUTCH), (0.66, REACH_CLUTCH), (0.82, REACH_RECOVER), (0.95, REACH_REST), (1.0, REACH_REST)]
 OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.3, REACH_REST), (0.42, OFF_COCK), (0.7, OFF_COCK),
             (0.86, REACH_RECOVER), (0.96, REACH_REST), (1.0, REACH_REST)]
 # her trunk through it (deg, + leans forward): Spine, Chest, Neck, Head pitch and the hips forward (m, - is
 # forward): coiled back on the wind-up, thrown after her claw at the strike, hunched over the clutch
 REACH_TRUNK = [(0.0, (4, 2, -6, -10, 0.0)), (0.1, (4, 2, -6, -10, 0.0)), (0.3, (-6, -8, 4, 0, 0.08)),
-               (0.4, (22, 14, -16, -26, -0.22)), (0.5, (22, 14, -16, -26, -0.22)), (0.7, (18, 12, -14, -24, -0.16)),
-               (0.84, (10, 6, -8, -14, -0.04)), (0.94, (4, 2, -6, -10, 0.0)), (1.0, (4, 2, -6, -10, 0.0))]
+               (0.4, (15, 8, -14, -22, -0.22)), (0.5, (15, 8, -14, -22, -0.22)), (0.66, (13, 7, -12, -20, -0.17)),
+               (0.8, (9, 5, -9, -15, -0.07)), (0.94, (4, 2, -6, -10, 0.0)), (1.0, (4, 2, -6, -10, 0.0))]
 # the shoulders turn into the strike (deg about the spine, + turns her right shoulder forward)
-REACH_TWIST = [(0.0, (0,)), (0.1, (0,)), (0.3, (-14,)), (0.4, (16,)), (0.7, (12,)), (0.9, (0,)), (1.0, (0,))]
+REACH_TWIST = [(0.0, (0,)), (0.1, (0,)), (0.3, (-14,)), (0.4, (16,)), (0.66, (12,)), (0.92, (0,)), (1.0, (0,))]
 STALK_CYCLES = 4          # foot cycles a 48-frame clip: short quick steps, not the walk's long stride
 STALK_SWING = 0.35        # of a cycle, the foot in the air
 STALK_LIFT = 0.08

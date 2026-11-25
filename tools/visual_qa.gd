@@ -35,7 +35,7 @@ const WITCH_LOOK := 1.15
 ## lunges from a node that stays put, so this view follows her hips across the floor (see _place) or she leaps out of it.
 const LUNGE_BEHIND := Vector3(2.6, 1.45, 1.4)
 const LUNGE_LOOK := 1.0
-const REACH_BEHIND := Vector3(2.8, 1.7, 0.6)
+const REACH_BEHIND := Vector3(3.6, 1.5, -0.4)
 ## The witch's stage light: a filmic curve and a dimmer, cooler fill than the shared stage's flat grey (which cast
 ## her in milky grey), and a depth haze in the sky's colour so the floor fades out instead of ending in an edge.
 const WITCH_AMBIENT := Color(0.36, 0.37, 0.43)
