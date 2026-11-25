@@ -37,10 +37,12 @@ const WITCH_LOOK := 1.15
 ## lunges from a node that stays put, so this view follows her hips across the floor (see _place) or she leaps out of it.
 const LUNGE_BEHIND := Vector3(2.6, 1.45, 1.4)
 const LUNGE_LOOK := 1.0
-const REACH_BEHIND := Vector3(3.6, 1.5, -0.4)
+const REACH_BEHIND := Vector3(4.1, 1.5, -0.2)
 ## The witch's stage light: a filmic curve and a dimmer, cooler fill than the shared stage's flat grey (which cast
 ## her in milky grey), and a depth haze in the sky's colour so the floor fades out instead of ending in an edge.
-const WITCH_AMBIENT := Color(0.36, 0.37, 0.43)
+const WITCH_AMBIENT := Color(0.42, 0.43, 0.5)
+## The grid floor's tint under her moonlight: the stage's white grid clips to a glare beside her dark robe.
+const WITCH_FLOOR := Color(0.4, 0.4, 0.46)
 const WITCH_HAZE := Vector2(9.0, 18.0)
 ## Her night sky (and the haze it fades into): the shared stage's pale grey sky left her on a milky backdrop.
 const WITCH_SKY := Color(0.07, 0.08, 0.11)
@@ -62,6 +64,7 @@ var _torch := SpotLight3D.new()
 var _env: Environment = null
 var _ambient := Color.WHITE
 var _sky := Color.WHITE
+var _floor: StandardMaterial3D
 var _sun_turned := false
 
 
@@ -110,6 +113,9 @@ func _build() -> void:
 	if _env != null:
 		_ambient = _env.ambient_light_color
 		_sky = _env.background_color
+	for found in stage.find_children("*", "MeshInstance3D", true, false):
+		if (found as MeshInstance3D).material_override is StandardMaterial3D:
+			_floor = (found as MeshInstance3D).material_override
 		_env.fog_mode = Environment.FOG_MODE_DEPTH
 		_env.fog_light_color = WITCH_SKY
 		_env.fog_depth_begin = WITCH_HAZE.x
@@ -124,6 +130,8 @@ func _witch_light(on: bool) -> void:
 	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if on else Environment.TONE_MAPPER_LINEAR
 	_env.fog_enabled = on
 	_env.background_color = WITCH_SKY if on else _sky
+	if _floor != null:
+		_floor.albedo_color = WITCH_FLOOR if on else Color.WHITE
 	if on == _sun_turned:
 		return
 	_sun_turned = on

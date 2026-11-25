@@ -1586,7 +1586,11 @@ def idle(t):
     for s, sgn, ph in (("L", 1.0, 0.0), ("R", -1.0, 0.37)):
         k = sw(t * 2, ph)
         dirs = [(0.18, -0.12 + 0.04 * sw(t, ph), -0.97), (0.22, -0.55 - 0.08 * k, -0.8),
-                (0.08, -0.8, -0.55 + 0.1 * sw(t * 3, ph)), (0.0, -0.45 - 0.2 * k, -0.9)]
+                (0.08, -0.8, -0.55 + 0.1 * sw(t * 3, ph))]
+        # the claws clench and spring open, three times a loop, each hand on its own beat (held splayed the
+        # whole idle they read as a rig, not a hand)
+        c = 0.5 + 0.5 * sw(t * 3, ph + 0.2)
+        dirs.append(tuple(o + (q - o) * c for o, q in zip((0.0, -0.85, -0.5), (0.0, 0.15, -0.99))))
         _aim_arm(r, hips, s, [Vector(v).normalized()[:] for v in dirs])
     return r, {"Hips": hips}
 
@@ -1605,27 +1609,30 @@ def idle(t):
 REACH_REST = ((0.35, -0.2, -0.92), (0.3, -0.75, -0.2), (0.1, -0.9, -0.2), (0.0, -0.6, -0.8))
 # the wind-up a claw raised high beside the hood, elbow out and up (drawn back behind her, the elbow pushed
 # out through the shawl's back)
-REACH_WIND = ((0.6, 0.55, -0.35), (0.45, -0.25, 0.86), (0.15, -0.65, 0.7), (0.0, -0.85, -0.5))
+REACH_WIND = ((0.8, 0.45, -0.25), (0.65, -0.05, 0.75), (0.35, -0.5, 0.8), (0.0, -0.85, -0.5))
 REACH_STRIKE = ((0.3, -0.92, 0.25), (0.12, -0.97, 0.2), (0.05, -0.98, 0.18), (0.0, -0.98, -0.2))
 REACH_CLUTCH = ((0.29, -0.92, 0.24), (0.1, -0.97, 0.2), (0.03, -0.98, 0.17), (0.0, -0.3, -0.95))
 # a second snatch: the claw thrown on lower and further, fingers sprung open again
 REACH_SNATCH = ((0.27, -0.95, 0.12), (0.06, -0.99, 0.08), (0.0, -0.99, 0.05), (0.0, -0.97, 0.15))
+# the recoil between: elbow drawn back and bent, the clenched claw pulled in to her chest
+REACH_DRAW = ((0.35, -0.6, -0.1), (0.2, -0.85, 0.45), (0.05, -0.9, 0.3), (0.0, -0.2, -0.97))
 REACH_RECOVER = ((0.35, -0.55, -0.7), (0.3, -0.9, 0.1), (0.1, -0.9, -0.1), (0.0, -0.5, -0.85))
 OFF_COCK = ((0.45, 0.1, -0.88), (0.25, -0.65, -0.72), (0.1, -0.92, -0.3), (0.0, -0.7, -0.7))
 # never held still out there: strike, clutch, snatch again, clutch, drawn back
-REACH_KEYS = [(0.0, REACH_REST), (0.1, REACH_REST), (0.28, REACH_WIND), (0.38, REACH_STRIKE), (0.46, REACH_CLUTCH),
-              (0.53, REACH_SNATCH), (0.6, REACH_CLUTCH), (0.74, REACH_RECOVER), (0.9, REACH_REST), (1.0, REACH_REST)]
-OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.28, REACH_REST), (0.4, OFF_COCK), (0.62, OFF_COCK),
-            (0.78, REACH_RECOVER), (0.92, REACH_REST), (1.0, REACH_REST)]
+REACH_KEYS = [(0.0, REACH_REST), (0.08, REACH_REST), (0.32, REACH_WIND), (0.45, REACH_STRIKE), (0.52, REACH_CLUTCH),
+              (0.6, REACH_DRAW), (0.68, REACH_SNATCH), (0.75, REACH_CLUTCH), (0.86, REACH_RECOVER), (0.95, REACH_REST),
+              (1.0, REACH_REST)]
+OFF_KEYS = [(0.0, REACH_REST), (0.12, REACH_REST), (0.32, REACH_REST), (0.45, OFF_COCK), (0.78, OFF_COCK),
+            (0.88, REACH_RECOVER), (0.96, REACH_REST), (1.0, REACH_REST)]
 # her trunk through it (deg, + leans forward): Spine, Chest, Neck, Head pitch and the hips forward (m, - is
 # forward): coiled back on the wind-up, thrown after her claw at the strike, hunched over the clutch
-REACH_TRUNK = [(0.0, (4, 2, -6, -10, 0.0)), (0.1, (4, 2, -6, -10, 0.0)), (0.28, (-6, -8, 4, 0, 0.08)),
-               (0.38, (15, 8, -14, -22, -0.22)), (0.46, (12, 6, -12, -19, -0.16)), (0.53, (17, 9, -15, -23, -0.26)),
-               (0.62, (12, 6, -11, -19, -0.15)), (0.74, (9, 5, -9, -15, -0.07)), (0.9, (4, 2, -6, -10, 0.0)),
-               (1.0, (4, 2, -6, -10, 0.0))]
+REACH_TRUNK = [(0.0, (4, 2, -6, -10, 0.0)), (0.08, (4, 2, -6, -10, 0.0)), (0.32, (-6, -8, 4, 0, 0.08)),
+               (0.45, (14, 8, -13, -21, -0.2)), (0.52, (12, 6, -12, -19, -0.16)), (0.6, (6, 3, -7, -12, -0.05)),
+               (0.68, (17, 9, -15, -23, -0.26)), (0.75, (13, 7, -12, -20, -0.17)), (0.86, (7, 4, -8, -13, -0.04)),
+               (0.95, (4, 2, -6, -10, 0.0)), (1.0, (4, 2, -6, -10, 0.0))]
 # the shoulders turn into the strike (deg about the spine, + turns her right shoulder forward)
-REACH_TWIST = [(0.0, (0,)), (0.1, (0,)), (0.28, (-14,)), (0.38, (16,)), (0.46, (10,)), (0.53, (18,)), (0.62, (12,)),
-               (0.88, (0,)), (1.0, (0,))]
+REACH_TWIST = [(0.0, (0,)), (0.08, (0,)), (0.32, (-14,)), (0.45, (16,)), (0.52, (10,)), (0.6, (2,)), (0.68, (18,)),
+               (0.75, (12,)), (0.92, (0,)), (1.0, (0,))]
 STALK_CYCLES = 4          # foot cycles a 48-frame clip: short quick steps, not the walk's long stride
 STALK_SWING = 0.35        # of a cycle, the foot in the air
 STALK_LIFT = 0.08
@@ -1659,7 +1666,7 @@ def attack_idle(t):
     r["Hips"] = (d(6), d(4 * sw(tc)), d(3 * sw(tc, 0.25)))
     tw = 0.3 * sw(t)
     tr = _track(t, REACH_TRUNK)
-    shake = 2.0 * sw(t * 12) * _env(t, 0.42, 0.46) * (1.0 - _env(t, 0.64, 0.7))   # the clutch trembles
+    shake = 2.0 * sw(t * 12) * _env(t, 0.48, 0.52) * (1.0 - _env(t, 0.78, 0.84))   # the clutch trembles
     tz = _track(t, REACH_TWIST)[0]
     r["Spine"] = (d(tr[0] + 2 * sw(tc * 2)), d(-3 * tw), d(-4 * tw + 0.5 * tz))
     r["Chest"] = (d(tr[1] + shake), 0, d(-5 * tw + 0.5 * tz))
@@ -1698,8 +1705,8 @@ _REACH_LEGS = {}
 # you: the claws stay on you, she pants over you (the capture and the game both stop near 0.93).
 LUNGE_HIPS = [(0.0, (0, 0, 0)), (0.1, (0, 0.06, 0.0)), (0.18, (0, 0.1, -0.16)), (0.26, (0, 0.15, -0.28)),
               (0.31, (0, -0.2, -0.04)), (0.37, (0, -0.55, 0.28)), (0.44, (0, -0.86, 0.34)), (0.52, (0, -1.06, 0.12)),
-              (0.59, (0, -1.15, -0.16)), (0.66, (0, -1.18, -0.26)), (0.78, (0, -1.2, -0.14)), (0.9, (0, -1.2, -0.08)),
-              (1.0, (0, -1.2, -0.08))]
+              (0.59, (0, -1.15, -0.16)), (0.66, (0, -1.19, -0.27)), (0.74, (0, -1.24, -0.2)), (0.84, (0, -1.34, -0.1)),
+              (0.92, (0, -1.37, -0.12)), (1.0, (0, -1.38, -0.09))]
 # Spine, Chest, Neck, Head pitch (deg, + leans forward; the neck and head bend back to keep her eyes on you and
 # her head up out of the hood in the crouch, but no further than the hood brim follows: bent right back the
 # brim cut across her face) and the chest's twist. She rears back first (the threat), coils down, is thrown
@@ -1724,6 +1731,8 @@ LUNGE_ARMS = [(0.0, REARED), (0.1, REARED), (0.24, COCKED), (0.4, STRIKE), (0.52
 # together and leave the floor before the hips peak; the left lands first, a little ahead of her hips, the
 # right just behind them.
 LUNGE_FEET = (("L", 0.30, 0.58, 1.18 + 0.22, 0.62), ("R", 0.33, 0.62, 1.18 - 0.15, 0.55))
+# after the landing the trailing (right) foot steps up beside the left: (start, end, further on (m), lift (m))
+LUNGE_STEP = {"R": (0.72, 0.84, 0.3, 0.1)}
 
 
 def _lunge_foot(t, stand, off, land, ahead, high):
@@ -1736,6 +1745,17 @@ def _lunge_foot(t, stand, off, land, ahead, high):
     # the feet trail the hips off the floor and kick through late (heels tucked up under her, not hanging)
     tgt.y -= ahead * smooth(u * u * (3.0 - 2.0 * u))
     tgt.z += high * math.sin(math.pi * u) ** 0.7
+    return tgt
+
+
+def _lunge_step(t, tgt, side):
+    """The recovery step after the landing (see LUNGE_STEP), on top of where the leap planted the foot."""
+    if side not in LUNGE_STEP:
+        return tgt
+    a, b, on, lift = LUNGE_STEP[side]
+    u = max(0.0, min(1.0, (t - a) / (b - a)))
+    tgt.y -= on * smooth(u)
+    tgt.z += lift * math.sin(math.pi * u)
     return tgt
 
 
@@ -1762,7 +1782,7 @@ def attack(t):
         _aim_arm(r, hips, s, dirs, wa)
     feet = _stand()
     for s, off, land, ahead, high in LUNGE_FEET:
-        tgt = _lunge_foot(t, feet[s], off, land, ahead, high)
+        tgt = _lunge_step(t, _lunge_foot(t, feet[s], off, land, ahead, high), s)
         if s in _LUNGE_LEGS:
             r["UpperLeg." + s], r["LowerLeg." + s] = _LUNGE_LEGS[s]
         else:
