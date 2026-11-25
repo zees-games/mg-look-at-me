@@ -18,7 +18,7 @@ The client asks `LmGame.exposure` for the local player only, from the same clock
 
 ## The witch
 
-`game/lm_witch.gd`. "Witch" by Tamko Dmitry (Sketchfab, CC-BY 4.0), remade in Blender by `tools/make_witch.py`: staff and bottle dropped, gaunt and hunched, long crooked fingers and nails, tattered hem and cloak, stringy hair ribbons, hollow sockets, a dark desaturated atlas, rigged (head bone `Head`) with idle, walk, attack_idle and attack clips; 2.2 m tall. Two glowing eyes sit in the sockets on a `BoneAttachment3D` of her head. The family's people (gs-player-char) were tried first and drew a cheerful girl in a crop top.
+`game/lm_witch.gd`. "Witch" by Tamko Dmitry (Sketchfab, CC-BY 4.0), remade in Blender by `tools/make_witch.py`: staff and bottle dropped, gaunt and hunched, long crooked fingers and nails, tattered hem and cloak, hollow sockets, a dark desaturated atlas, rigged (head bone `Head`) with idle, walk, attack_idle and attack clips; 2.2 m tall. Two glowing eyes sit in the sockets on a `BoneAttachment3D` of her head. The family's people (gs-player-char) were tried first and drew a cheerful girl in a crop top.
 
 - **Animated from her loop's speed, posed at the interpolated time.** Her pose only changes when the clock ticks; measured per frame, she stood still on every frame between ticks and flickered between her walk and her idle, and posed at the tick she stepped at the tick rate on any faster display.
 - **The head turn is written right after the clip is advanced, every frame.** Written onto a pose the clip did not just write, it adds up.

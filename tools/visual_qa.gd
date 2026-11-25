@@ -25,8 +25,8 @@ const SECONDS := {"idle": 2.0, "walk": 2.4, "run": 2.0, "crouch": 2.0, "jump": 1
 ## The witch walks at her own slower loop speed, not a player's.
 const WITCH_WALK := 1.3
 ## The witch's victim (the first-person view): where they stand per clip, far enough back that her boots stay in frame
-## (the lunge ends 1.6 m short of them, her reach, the scare distance); their eye height and torch.
-const VICTIM_Z := {"idle": -3.4, "walk": -4.4, "reach": -3.3, "lunge": -2.3}
+## (the lunge, a 1.2 m leap, ends 1.6 m short of them, her reach, the scare distance); their eye height and torch.
+const VICTIM_Z := {"idle": -3.4, "walk": -4.4, "reach": -3.3, "lunge": -2.8}
 const VICTIM_EYE := 1.65
 const VICTIM_SIDE := -0.12
 const VICTIM_FOV := 70.0
