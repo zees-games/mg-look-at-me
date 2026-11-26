@@ -136,6 +136,9 @@ func _stand(me: LmPlayer, from: Vector3, at: Vector3) -> void:
 func _beat(name: String, seconds: float) -> void:
 	if seconds > 0.0:
 		await get_tree().create_timer(seconds).timeout
+	var busy := GSBusyIndicator.current()
+	if busy != null:
+		busy.visible = false  # the "Still loading" toast outlasts a software-rendered run
 	for _i in 2:
 		await RenderingServer.frame_post_draw
 	var path := ProjectSettings.globalize_path("%s/play_%s.png" % [_out, name])

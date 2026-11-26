@@ -46,6 +46,18 @@ Christian's rule: every map starts from a community workshop map as its base, an
 - None of the maps above had a "do not port, reupload or redistribute" statement in its description. No map was dropped for that reason; if one turns up in comments, drop it.
 - GameBanana: not searched. Its horror coverage is for other engines and the Workshop covered every setting asked for.
 
+## Houses by source (2026-11-26)
+
+| House | Geometry | Source |
+| --- | --- | --- |
+| The House (`house`, 32 levels) | 4 m grid, our walls | none: no BSP source, keeps its grid |
+| The Forgotten Wing (`forgotten`) | 4 m grid, hand-laid plan | Forgotten Asylum's wall plan; not a real BSP conversion (its walls are props, see Not done below) |
+| The Asylum (`asylum`) | real BSP, world pack | Blackbrook Asylum |
+| The Pit (`ashpit`), The Mall Deck (`mallparking`) | real BSP, world pack | community maps |
+| Villa by Night (`lam_villa_night`), Deco Mansion by Night (`lam_deco_mansion_night`), Functionalist Night (`lam_functionalist_night`) | real BSP, world pack | lam-maps; source credit in lam-maps' README and `licence.json`; layout in `lam-maps/tools/layouts/`, spec in `lam-maps/tools/convert/`, textures/models mapped to free or own ones (`textures.tsv`, `models.tsv`, `sounds.tsv`) |
+
+A converted house's world pack resolves beside its own document, and a converted plan needs no glimpse corridor ([converted-houses.md](converted-houses.md)). lam-maps ids are neutral; the credit lives in that repository's README and `licence.json` only.
+
 ## Built so far
 
 - **The Forgotten Wing** (`houses/forgotten/forgotten_01.json`, one level, 51 rooms, about 10,800 m2, nine witches; the largest level in the game by twice), 2026-10-20, from #2 Forgotten Asylum by WhiteKnuckles (page re-read that day: no request against porting, sharing or reuploading; licence none stated). Credited in the README with a link and an offer to remove it.
