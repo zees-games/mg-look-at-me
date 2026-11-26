@@ -28,7 +28,7 @@ game/
   net/           lm_events (JSON kinds), lm_event/lm_request, lm_net_link, lm_net_command (the move), lm_player_net (movement + level/flashlight/won, meter/caught to the owner), lm_net_bridge
   lm_figure.gd   a player drawn as one of the family's animated people (gs-player-char's GSHumanoidFigure; the avatar's blocky atlas letter picks the person; told floor, vertical speed, crouch)
   lm_bot.gd      a stand-in player (tests and the soak only): walks the puzzle with real movement and E; see docs/soak.md
-  lm_avatars.gd, lm_paths.gd   mg-deathrun's, renamed (the avatar schema, mount paths)
+  lm_avatars.gd, lm_paths.gd   mg-deathrun's avatars, renamed (the avatar schema); lm_paths is a three-line shim over gs-game's GSGamePaths (mount paths)
 levels/          The House: lm_01 .. lm_32 and house.json, written by tools/build_levels.py
 houses/asylum/   The Asylum: asylum_01 .. asylum_20, cut from a converted plan (tools/convert, docs/converted-houses.md)
 houses/ashpit/, houses/mallparking/   The Pit and the Mall Deck: one level each, converted from community maps with a world pack (`world/<pack>/`)
