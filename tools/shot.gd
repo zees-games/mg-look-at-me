@@ -310,21 +310,12 @@ func _stage_action(client: Node, me: Node3D, kind: StringName, id: String) -> vo
 		camera.look_at_from_position(feet + ahead * 3.0 + Vector3.UP * 1.6, feet + Vector3.UP * 1.0)
 		for _i in range(3):
 			await get_tree().process_frame
-		_hide_busy()
+		await GSShotGate.wait_lifted(get_tree(), client.get("platform"))  # also keeps the busy toast out of the frame
 		await RenderingServer.frame_post_draw
 		var out := str(_args.get("out", "res://screenshots/shot.png"))
 		var path := ProjectSettings.globalize_path(out.trim_suffix(".png") + "_%s.png" % part)
 		var _saved := get_viewport().get_texture().get_image().save_png(path)
 		print("wrote ", path, " action=", figure.get("action") if figure != null else "n/a")
-
-
-## The "Still loading, the game may stutter." toast (gs-core's GSBusyIndicator) stays up until 30 frames in a
-## row take 80 ms or less, and a software-rendered capture never does until its 45 s limit, so every shot
-## carried it. A capture is not a player who needs the warning: hide it before the frame is read.
-func _hide_busy() -> void:
-	var busy := GSBusyIndicator.current()
-	if busy != null:
-		busy.visible = false
 
 
 func _save(client: Node) -> void:
@@ -334,7 +325,6 @@ func _save(client: Node) -> void:
 		printerr("shot: load cover still up after the wait; shooting anyway")
 	print("cover %s" % ("lifted" if platform == null or platform.is_shown() else "up"))
 	if str(_args.get("view", "")) != "cover":
-		_hide_busy()
 		await RenderingServer.frame_post_draw
 	var path := ProjectSettings.globalize_path(str(_args.get("out", "res://screenshots/shot.png")))
 	var saved := get_viewport().get_texture().get_image().save_png(path)
