@@ -52,6 +52,7 @@ Christian's rule: every map starts from a community workshop map as its base, an
 | --- | --- | --- |
 | The House (`house`, 32 levels) | 4 m grid, our walls | none: no BSP source, keeps its grid |
 | The Forgotten Wing (`forgotten`) | 4 m grid, hand-laid plan | Forgotten Asylum's wall plan; not a real BSP conversion (its walls are props, see Not done below) |
+| The Forgotten Wing (`lam_forgotten_wing`) | real BSP, world pack | lam-maps, 2026-11-26: the main floor only (36 rooms, 900 m2). Its func_brush panes with Solidity 1 are walked through (`honour_solidity` in the spec); the source joins its floors only by teleports, so the upper wing (32 rooms), attic (9) and basement (5) wait for teleport links in the converter and builder, and the way out is a spec `exits` door at the south corridor. The grid `forgotten` stays until those are in |
 | The Asylum (`asylum`) | real BSP, world pack | Blackbrook Asylum |
 | The Pit (`ashpit`), The Mall Deck (`mallparking`) | real BSP, world pack | community maps |
 | Villa by Night (`lam_villa_night`), Deco Mansion by Night (`lam_deco_mansion_night`), Functionalist Night (`lam_functionalist_night`) | real BSP, world pack | lam-maps; source credit in lam-maps' README and `licence.json`; layout in `lam-maps/tools/layouts/`, spec in `lam-maps/tools/convert/`, textures/models mapped to free or own ones (`textures.tsv`, `models.tsv`, `sounds.tsv`) |

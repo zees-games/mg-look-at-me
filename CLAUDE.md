@@ -33,7 +33,7 @@ levels/          The House: lm_01 .. lm_32 and house.json, written by tools/buil
 houses/asylum/   The Asylum: asylum_01 .. asylum_20, cut from a converted plan (tools/convert, docs/converted-houses.md)
 houses/forgotten/ The Forgotten Wing: one 51-room level laid over a Workshop map's plan (tools/layouts/forgotten.json, tools/bsp_layout.py, docs/map-bases.md)
 houses/ashpit/, houses/mallparking/   The Pit and the Mall Deck: one level each, converted from community maps with a world pack (`world/<pack>/`)
-houses/lam_*/    lam-maps' houses, linked in by gs-bootstrap (gitignored `bootstrap-link`): Villa, Deco Mansion and Functionalist, each by night, real BSP conversions with a free-mapped world pack. The House has no BSP source and keeps its grid. Which houses are real BSP and which grid: docs/map-bases.md "Houses by source"
+houses/lam_*/    lam-maps' houses, linked in by gs-bootstrap (gitignored `bootstrap-link`): Villa, Deco Mansion and Functionalist, each by night, and the Forgotten Wing's main floor, real BSP conversions with a free-mapped world pack. The House has no BSP source and keeps its grid. Which houses are real BSP and which grid: docs/map-bases.md "Houses by source"
 scenes/          lm_server.tscn
 audio/          the sounds and their CREDITS.md (tools/make_sounds.py)
 assets/witch/   her body and atlas, CC-BY (CREDITS.md; tools/make_witch.py)

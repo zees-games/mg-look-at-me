@@ -67,6 +67,8 @@ tools/__pycache__/
 # bootstrap-link: lam-maps/houses/lam_functionalist_night
 /houses/lam_functionalist_night
 # bootstrap-link: lam-maps/houses/lam_deco_mansion_night
+# bootstrap-link: lam-maps/houses/lam_forgotten_wing
+/houses/lam_forgotten_wing
 /houses/lam_deco_mansion_night
 
 # More gs-* addons linked locally (gs-bootstrap links them; each is its own repository).

@@ -38,7 +38,12 @@ func _solve_house(solver: LmPlayer) -> PackedStringArray:
 					# What it has done, events included: a slam shuts a door it opened, and the
 					# events only ever add up, so a pass that only reopened one still counts.
 					var before := solver.holds.size() + solver.opened.size() + solver.used.size() + solver.taken.size() + solver.fired.size()
-					_stand_before(solver, level, at + Vector3(0, lift, 0))
+					# A fire burns on its door's near side: come at it from there, or a door on the
+					# room's south wall puts the solver in the doorway, nearer the door than the fire.
+					var facing := Vector3.FORWARD
+					if kind == "station" and level.stations[id]["doc"].has("door"):
+						facing = level.doors[str(level.stations[id]["doc"]["door"])]["normal"]
+					_stand_before(solver, level, at + Vector3(0, lift, 0), facing)
 					var _said := game.interact(&"solver")
 					if solver.holds.size() + solver.opened.size() + solver.used.size() + solver.taken.size() + solver.fired.size() > before:
 						progress = true
@@ -56,14 +61,13 @@ func _drawn() -> void:
 	await get_tree().process_frame
 
 
-func _stand_before(player: LmPlayer, level: LmLevel, at: Vector3) -> void:
+func _stand_before(player: LmPlayer, level: LmLevel, at: Vector3, facing := Vector3.FORWARD) -> void:
 	var world_at := level.position + at
-	var back := Vector3(0, 0, 1.2)
-	var eye := world_at + back
+	var eye := world_at - facing * 1.2
 	player.place_at(eye - Vector3(0, player.EYE_HEIGHT, 0), 0.0)
 	var to := (world_at - eye).normalized()
 	player.controller.state.pitch = rad_to_deg(asin(clampf(to.y, -1.0, 1.0)))
-	player.controller.state.yaw = 0.0
+	player.controller.state.yaw = rad_to_deg(atan2(-facing.x, -facing.z))
 
 
 func _unlock(player: LmPlayer, door_id: String) -> void:
@@ -564,7 +568,7 @@ func _test_map_houses() -> void:
 	_section("map houses from lam-maps")
 	var solver := game.join(&"solver", "Solver")
 	var seen := 0
-	for id in [&"lam_villa_night", &"lam_functionalist_night", &"lam_deco_mansion_night"]:
+	for id in [&"lam_villa_night", &"lam_functionalist_night", &"lam_deco_mansion_night", &"lam_forgotten_wing"]:
 		if not game.houses.has(id):
 			for _i in 4:
 				_check(true, "%s is not linked here, skipped" % id)

@@ -5,7 +5,7 @@ extends "headless_run_witch.gd"
 ##   godot --headless --path . res://examples/headless_run.tscn
 
 const SECTIONS := 27
-const CHECKS := 220
+const CHECKS := 224
 
 
 func _ready() -> void:
