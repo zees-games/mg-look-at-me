@@ -281,6 +281,16 @@ func _plan(level: LmLevel, local: Vector3, here: String, came: Dictionary) -> vo
 		var side := 1.0 if str((door["doc"] as Dictionary)["a"]) == at_room else -1.0
 		var centre: Vector3 = door["centre"]
 
+		# A teleport door: up to the end on this side and into it; the warp replans from the far room.
+		if door.has("far"):
+			var end: Vector3 = centre if side > 0.0 else door["far"]
+			var out: Vector3 = normal if side > 0.0 else door["far_normal"]
+			_route.append(end - out * 1.2)
+			_route.append(end + out * 0.3)
+			_progress_at = local
+			_progress_clock = 0.0
+			return
+
 		_route.append(centre - normal * side * 1.2)
 		_route.append(centre + normal * side * 1.2)
 		at_room = _other(door["doc"], at_room)

@@ -83,6 +83,7 @@ func _exit_tree() -> void:
 ## What the vote does, and what `lm_house` does for an operator.
 func change_house(id: StringName) -> GSResult:
 	sync_content()
+	id = RETIRED_HOUSES.get(id, id) as StringName
 
 	if not houses.has(id):
 		return GSResult.fail(GSError.CODE_INVALID, "There is no house '%s'." % id)
@@ -216,6 +217,7 @@ func step(delta: float) -> void:
 		player.simulate(tick, delta)
 		_watch(player, seconds, delta)
 		fire_events(player)
+		_check_warps(player)
 		_check_exit(player)
 
 
@@ -234,6 +236,19 @@ func _put_back(player: LmPlayer) -> void:
 		player.taken = keep_taken
 		player.fired = keep_fired
 		_apply_doors(player)
+
+
+## Through an opened teleport door of the source map's: out of its other end, facing away from it.
+func _check_warps(player: LmPlayer) -> void:
+	var level := level_of(player)
+
+	if level == null or player.opened.is_empty():
+		return
+
+	var to := level.warp_at(player.global_position - level.position, player.opened)
+
+	if not to.is_empty():
+		player.place_at(level.position + (to["at"] as Vector3), float(to["yaw"]))
 
 
 func _check_exit(player: LmPlayer) -> void:
@@ -274,7 +289,12 @@ func _read_winners() -> void:
 
 	for k: Variant in parsed:
 		if parsed[k] is Dictionary:
-			_all_winners[str(k)] = parsed[k]
+			var into := str(RETIRED_HOUSES.get(StringName(str(k)), StringName(str(k))))
+
+			if not _all_winners.has(into):
+				_all_winners[into] = {}
+
+			(_all_winners[into] as Dictionary).merge(parsed[k] as Dictionary)
 		else:
 			# The file before houses had winners: one flat {key: when}, and the only house there
 			# was the built-in one. Read as that house's, so nobody's crown goes missing.

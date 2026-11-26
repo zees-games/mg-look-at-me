@@ -195,7 +195,9 @@ def room_geometry(doc, room):
     for d in doc["doors"]:
         if d["a"] != room["id"] and d.get("b") != room["id"]:
             continue
-        px, pz = d["at"][0] * cell - ox, d["at"][1] * cell - oz
+        # A teleport door's end in its second room is its "warp" one.
+        at = d["warp"]["at"] if d.get("warp") and d.get("b") == room["id"] else d["at"]
+        px, pz = at[0] * cell - ox, at[1] * cell - oz
         doors.append((px, pz))
     spots = []
     for thing in doc["items"] + doc["stations"]:
@@ -204,9 +206,13 @@ def room_geometry(doc, room):
     return width, depth, doors, spots
 
 
-def keepouts(width, depth, doors, spots):
+def keepouts(width, depth, doors, spots, spawn=False):
     """Rectangles a piece may not overlap."""
     out = []
+    if spawn:
+        # Where LmLevel.spawn_point puts players down: rings round the centre, min(w, d) / 4 and / 2 out.
+        r = min(min(width, depth) * 0.5 + 0.4, 3.5)
+        out.append(Rect(width / 2 - r, depth / 2 - r, width / 2 + r, depth / 2 + r))
     for (px, pz) in doors:
         if abs(pz) < 0.01:
             out.append(Rect(px - DOOR_W / 2, 0, px + DOOR_W / 2, DOOR_D))
@@ -227,6 +233,12 @@ def keepouts(width, depth, doors, spots):
             z = cz + (pz - cz) * i / steps
             out.append(Rect(x - LANE, z - LANE, x + LANE, z + LANE))
     return out
+
+
+def spawn_clear(doc, room):
+    """A converted house's start room keeps its spawn ring clear: its shape is the source's (often a
+    corridor), not a lobby laid out round the ring. Grid houses keep their furnishing."""
+    return bool(room.get("spawn")) and "world" in doc
 
 
 def reachable(width, depth, doors, spots, boxes):
@@ -276,7 +288,7 @@ def room_ok(doc, room, pieces):
     """The proof for one room. pieces: [(model, x, z, rot)] with collision."""
     width, depth, doors, spots = room_geometry(doc, room)
     boxes = []
-    keep = keepouts(width, depth, doors, spots)
+    keep = keepouts(width, depth, doors, spots, spawn_clear(doc, room))
     for (model, x, z, rot) in pieces:
         r = footprint(model, x, z, rot)
         if r.x0 < 0.15 or r.z0 < 0.15 or r.x1 > width - 0.15 or r.z1 > depth - 0.15:
@@ -290,7 +302,7 @@ def room_ok(doc, room, pieces):
 def furnish_room(rng, doc, room):
     """The pieces of one room: [model, x, z, rot, y] (y 0 for something on the floor)."""
     width, depth, doors, spots = room_geometry(doc, room)
-    keep = keepouts(width, depth, doors, spots)
+    keep = keepouts(width, depth, doors, spots, spawn_clear(doc, room))
     placed = []      # (model, x, z, rot, y)
     boxes = []
 

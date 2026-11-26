@@ -29,13 +29,12 @@ The start room of every level is safe: no witch ever walks into it. Level 1 has 
 
 Finish all 32 and you get a crown everybody else can see.
 
-There are five **houses**. A server plays one at a time. After 45 minutes by default (`house_minutes`; 0 means only `!rtv` calls a vote) the players vote on the next. `!rtv` calls a vote at any time. A server holds 24 players by default (`max_players` in `game.yml`).
+There are four **houses** here, and lam-maps links in more (the Forgotten Wing among them; `forgotten` still names it). A server plays one at a time. After 45 minutes by default (`house_minutes`; 0 means only `!rtv` calls a vote) the players vote on the next. `!rtv` calls a vote at any time. A server holds 24 players by default (`max_players` in `game.yml`).
 
 | House | Levels | What it is |
 | --- | --- | --- |
 | The House (`house`) | 32 | The main game, grown by `tools/build_levels.py` |
 | The Asylum (`asylum`) | 20 | Cut from a converted asylum plan |
-| Forgotten Wing (`forgotten`) | 1 | A 51-room level over a Workshop asylum's plan |
 | The Pit (`ashpit`) | 1 | Converted from a community map |
 | The Mall Deck (`mallparking`) | 1 | Converted from a community map |
 
@@ -152,7 +151,6 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 | Witch | [Witch](https://sketchfab.com/3d-models/witch-0b6f69bbaa864bd78c0cfa98dabca0aa) by Tamko Dmitry; made gaunt and hunched, rigged and animated | CC BY 4.0 | `assets/witch/`, `tools/make_witch.py` |
 | Clown hallucination | [Da-Clown #StylizedBustChallenge](https://sketchfab.com/3d-models/da-clown-stylizedbustchallenge-59bdbb3cc60748b995106b6020b25303) by Nwilly_art; eyes split off, jaw bone added | CC BY 4.0 | `assets/clown/`, `tools/make_clown.py` |
 | Everything else | Drawn in code | none | in code |
-| The Forgotten Wing (`houses/forgotten/`) | Laid out over the floor plan of [Forgotten Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=1682965311) by WhiteKnuckles. Only the plan was used; rebuilt by hand with this game's own art | none stated (no request against porting on 2026-10-20) | [docs/map-bases.md](docs/map-bases.md) |
 | The Asylum (`houses/asylum/`) | Converted from the plan of [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=903842886) by The Old Swashbuckler; rooms read automatically, then grown, cut into twenty levels and furnished by this game; no original textures, props, sounds or text | none stated (no request against porting on 2026-10-20) | [docs/converted-houses.md](docs/converted-houses.md) |
 | The Pit (`houses/ashpit/`) | Converted the same way from [Ashpit](https://steamcommunity.com/sharedfiles/filedetails/?id=2902149974) by Redstone.Co; every texture is a CC0 replacement | none stated | `houses/*/world/*/CREDITS.md` |
 | The Mall Deck (`houses/mallparking/`) | Converted the same way from the ground deck of [gm_mallparking](https://steamcommunity.com/sharedfiles/filedetails/?id=2619660952) by bean; every texture is a CC0 replacement | none stated | `houses/*/world/*/CREDITS.md` |

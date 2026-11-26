@@ -103,6 +103,10 @@ var _all_winners: Dictionary = {}
 ## Every house this server can play: id -> {"name", "directory"}. And the one being played.
 var houses: Dictionary = {}
 
+## Houses gone from the game, by the id that plays them now: a vote, a config or a winners file
+## that names an old one gets the new.
+const RETIRED_HOUSES := {&"forgotten": &"lam_forgotten_wing"}
+
 
 var house_id: StringName = &""
 

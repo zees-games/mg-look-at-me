@@ -47,10 +47,14 @@ From [Blackbrook Asylum](https://steamcommunity.com/sharedfiles/filedetails/?id=
 
 Each needs its own spec and a check of its page for a request against porting. A map whose author forbids porting is skipped and reported.
 
-- **The Forgotten Wing** (Forgotten Asylum, WhiteKnuckles): today a hand-laid plan (`tools/layouts/forgotten.json`). Its walls are mostly props and brush entities, so the converter needs a spec per segment, or props as walls.
 - **Henbane Mansion** (Drizz): not downloaded.
 - **The House** (the built-in 32 levels): needs a base chosen from the shortlist in `docs/map-bases.md`.
 - **The lam-maps houses** (done 2026-11-26): Villa by Night, Deco Mansion by Night and Functionalist Night are converted by the same converter (`bsp.py store/regen`, `bsp_house.py` with `lam-maps/tools/convert/lam_*.json`, then `build_levels.py --layout`) and ship a world pack under `lam-maps/houses/<id>/world/<pack>/`. A pack-mounted house resolves its `world.path` beside its own document (`LmLevel._world_prefix`, from the document's `directory`). A converted world skips the glimpse-corridor requirement (a plan such as the Functionalist has no 8 m corridor). `examples/headless_workshop` holds a world house loaded from a pack.
+- **The Forgotten Wing** (done 2026-11-26): lam-maps' `lam_forgotten_wing`, all four storeys (82 rooms: basement 5, main floor 36, upper wing 32, attic 9) in one level. The source joins its storeys only by teleports: the spec's `teleports` (`from`, `to`, map units) become doors whose two ends are on two walls (below). The hand-laid grid house `forgotten` is gone; its id plays the converted one (`RETIRED_HOUSES`), and its winners carry over.
+
+## Teleport doors
+
+A source teleport between two rooms is a door of the tree like any other, with a `warp`: the `at`, `side` and `y` of its other end, on the second room's wall. `bsp_house.py` snaps each end to the nearest wall of the room it is in; `build_levels.py` puts the door on the first room's floor, never boards a teleport's end, keeps witches' rounds off it and furnishes clear of both ends. In the game the door opens like any (`LmLevel._place_door_world` adds `far` and `far_normal`), both ends are drawn dark with a plaque naming the room beyond, and a player who walks into an open end is put out of the other facing away from its wall (`LmLevel.warp_at`, `LmGame._check_warps`, which bumps `warps` so a stand-in replans). A stand-in walks into the end on its side and plans again from the far room.
 
 ## Phase 2: the source's meshes (the Asylum)
 

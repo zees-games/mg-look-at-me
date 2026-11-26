@@ -200,14 +200,28 @@ func _place_door_at(door: Dictionary, a: Rect2) -> Dictionary:
 func _place_door_world(door: Dictionary) -> Dictionary:
 	var cell := float(doc.get("cell", 2.0))
 	var at: Array = door.get("at", [])
-	var normal: Vector3 = {"n": Vector3(0, 0, -1), "s": Vector3(0, 0, 1), "w": Vector3(-1, 0, 0), "e": Vector3(1, 0, 0)}.get(str(door.get("side", "")), Vector3.ZERO)
+	var normal: Vector3 = SIDE_NORMALS.get(str(door.get("side", "")), Vector3.ZERO)
 
 	if at.size() != 2 or normal == Vector3.ZERO or (str(door.get("b", "")) != "" and not rooms.has(str(door["b"]))):
 		return {}
 
 	# A little over the doorway each way, into its jambs and lintel, so a locked door has no gap round it.
-	return {"centre": Vector3(float(at[0]) * cell, float(door.get("y", 0.0)), float(at[1]) * cell), "normal": normal, "doc": door, "body": null,
+	var placed := {"centre": Vector3(float(at[0]) * cell, float(door.get("y", 0.0)), float(at[1]) * cell), "normal": normal, "doc": door, "body": null,
 		"width": float(door.get("w", DOOR_WIDTH)) + 0.2, "height": WORLD_DOOR_HEIGHT}
+	# A teleport of the source's: a door on a wall here and its other end on a wall of room b.
+	var warp: Dictionary = door.get("warp", {})
+
+	if not warp.is_empty():
+		var far_at: Array = warp.get("at", [])
+		var far_normal: Vector3 = SIDE_NORMALS.get(str(warp.get("side", "")), Vector3.ZERO)
+
+		if far_at.size() != 2 or far_normal == Vector3.ZERO:
+			return {}
+
+		placed["far"] = Vector3(float(far_at[0]) * cell, float(warp.get("y", 0.0)), float(far_at[1]) * cell)
+		placed["far_normal"] = far_normal
+
+	return placed
 
 
 ## The converted map's building, solid: every hull of its world model, scaled as the document says.

@@ -9,7 +9,7 @@ const RATE := 0.4
 const DEFAULT_MOOD := &"interior_horror"
 
 ## By house id; any house not listed takes the default.
-const HOUSE_MOODS := {&"asylum": &"indoor_hall", &"forgotten": &"industrial"}
+const HOUSE_MOODS := {&"asylum": &"indoor_hall", &"lam_forgotten_wing": &"industrial"}
 
 
 static func make_rules() -> GSAmbienceRules:

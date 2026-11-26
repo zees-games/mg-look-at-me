@@ -412,7 +412,7 @@ func _test_wheel_jumps() -> void:
 func _test_collision_audit() -> void:
 	_section("nothing drawn is walked through")
 
-	for house_id: StringName in [&"house", &"asylum", &"forgotten"]:
+	for house_id: StringName in [&"house", &"asylum"]:
 		var _changed := game.change_house(house_id)
 		var examined := 0
 		var found := 0

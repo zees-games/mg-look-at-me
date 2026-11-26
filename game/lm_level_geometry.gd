@@ -33,6 +33,12 @@ const ROOM_THEMES := {
 
 const DOOR_WIDTH := 1.5
 
+## A door's "side" as the way it faces, out of the room it is entered from.
+const SIDE_NORMALS := {"n": Vector3(0, 0, -1), "s": Vector3(0, 0, 1), "w": Vector3(-1, 0, 0), "e": Vector3(1, 0, 0)}
+
+## How close to a teleport door's face (metres) a player is taken through it.
+const WARP_REACH := 0.75
+
 
 const DOOR_HEIGHT := 2.3
 
@@ -224,6 +230,12 @@ func spawn_room() -> String:
 	return str(doc["rooms"][0]["id"])
 
 
+## The way a player faces when put down: south (180), or along a start room much longer east-west than deep.
+func spawn_yaw() -> float:
+	var rect: Rect2 = rooms[spawn_room()]["rect"]
+	return 90.0 if rect.size.x > rect.size.y * 2.0 else 180.0
+
+
 ## Where player [param slot] is put down in the start room, local to the level.
 func spawn_point(slot: int) -> Vector3:
 	var rect: Rect2 = rooms[spawn_room()]["rect"]
@@ -281,6 +293,28 @@ func is_out(local: Vector3) -> bool:
 	return past > 0.6 and local.y > (exit["centre"] as Vector3).y - 0.9 and room_at(local) == ""
 
 
+## Where a player at [param local] who has opened [param opened] (door id -> true) is taken: a
+## teleport door's other end, stepped out of ({"at", "yaw"} local), or {} where there is none.
+func warp_at(local: Vector3, opened: Dictionary) -> Dictionary:
+	for door_id: String in opened:
+		var door: Dictionary = doors.get(door_id, {})
+
+		if not door.has("far"):
+			continue
+
+		for end: int in 2:
+			var centre: Vector3 = door["centre"] if end == 0 else door["far"]
+			var normal: Vector3 = door["normal"] if end == 0 else door["far_normal"]
+			var to: Vector3 = door["far"] if end == 0 else door["centre"]
+			var to_normal: Vector3 = door["far_normal"] if end == 0 else door["normal"]
+			var off := local - centre
+			var across := off - normal * off.dot(normal)
+
+			if off.dot(normal) > -WARP_REACH and off.dot(normal) < 0.5 and Vector2(across.x, across.z).length() < 0.6 and absf(off.y) < 1.5:
+				var out := to - to_normal * (WARP_REACH + 0.6)
+				return {"at": out + Vector3(0, 0.05, 0), "yaw": rad_to_deg(atan2(to_normal.x, to_normal.z))}
+
+	return {}
 
 
 ## Where witch [param index] is at [param seconds], local to the level: {"at", "facing", "head",

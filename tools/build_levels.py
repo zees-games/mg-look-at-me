@@ -95,10 +95,9 @@ CONVERTED = {
 # Houses laid out by hand over a Workshop map's plan (tools/bsp_layout.py reads the plan; the layout
 # is a JSON of rooms on the 4 m grid). id -> (directory, layout file, seed base, the difficulty the
 # level is dealt at: witches, locks and the rest come from plan(difficulty)). One level each: a layout
-# is one big map, not a house of thirty-two.
-LAYOUTS = {
-    "forgotten": ("houses/forgotten", "tools/layouts/forgotten.json", 7000, 24),
-}
+# is one big map, not a house of thirty-two. None today: the hand-laid Forgotten Wing is lam-maps'
+# converted lam_forgotten_wing now (the id "forgotten" plays it, LmGame.RETIRED_HOUSES).
+LAYOUTS = {}
 
 # 8 to 16 m a side: the first build's 12 to 20 m rooms were too big (full game review).
 ROOM_SHAPES = [(2, 2), (3, 2), (2, 3), (3, 3), (3, 3), (4, 3), (3, 4)]
@@ -568,9 +567,13 @@ def world_grower(g, layout):
             d = sp["door"]
             other = g.by_id[parent]
             # On the floor of whichever side is not a stairwell: a stairwell spans two.
-            inner = other if room["kind"] == "stair" else room
+            # A teleport of the map's is a door on the first room's wall, its other end on this one's.
+            inner = other if room["kind"] == "stair" or d.get("warp") else room
             room["door"] = {"at": [round(d["c"][0] / cell, 3), round(d["c"][1] / cell, 3)], "floor": inner["floor"],
                             "side": d["side"], "w": float(d["w"]), "y": inner["y"], "open": bool(d.get("open"))}
+            if d.get("warp"):
+                room["door"]["warp"] = {"at": [round(d["warp"]["c"][0] / cell, 3), round(d["warp"]["c"][1] / cell, 3)],
+                                        "side": d["warp"]["side"], "y": room["y"]}
     return g
 
 
@@ -604,6 +607,8 @@ def world_seals(g, doors):
     for room in g.rooms:
         for o in room.get("openings", []):
             other = by_name.get(o.get("to") or "")
+            if o.get("warp"):
+                continue  # a teleport's end is a wall, with nothing to board
             if room["kind"] == "stair":
                 y = room["y2"] if o.get("top") else room["y"]
             elif other is not None and other["kind"] == "stair":
@@ -747,7 +752,7 @@ def glimpse_corridors(g):
     for room in g.rooms:
         if room["kind"] != "corridor" or room["parent"] is None:
             continue
-        at = room["door"]["at"]
+        at = room["door"].get("warp", room["door"])["at"]
         far = far_end(room, at)
         if far is None:
             continue
@@ -847,7 +852,7 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
         did = "d%d" % len(doors)
         door = {"id": did, "a": room["parent"], "b": room["id"], "at": [float(v) for v in room["door"]["at"]],
                 "floor": room["door"]["floor"], "lock": "", "label": "Door", "colour": "brown"}
-        for k in ("side", "w", "y"):
+        for k in ("side", "w", "y", "warp"):
             if k in room["door"]:
                 door[k] = room["door"][k]
         # An arch in the map's own walls: most stay arches, a few get a gate fitted to lock.
@@ -1034,7 +1039,7 @@ def make_events(rng, g, n, p, doors, items):
         w, d = room["w"], room["d"]
         at = [round((far[0] - room["x"]) / w, 3), round((far[1] - room["z"]) / d, 3)]
         events.append({"id": "ev%d" % len(events), "when": {"entered": room["id"]}, "do": "glimpse",
-                       "room": room["id"], "at": at, "look": [float(v) for v in room["door"]["at"]], "seconds": 2.5, "text": ""})
+                       "room": room["id"], "at": at, "look": [float(v) for v in room["door"].get("warp", room["door"])["at"]], "seconds": 2.5, "text": ""})
 
     return events
 
@@ -1047,8 +1052,8 @@ def patrol(rng, rooms, doors):
     by_id = {r["id"]: r for r in rooms}
     links = {}
     for door in doors:
-        if door.get("exit"):
-            continue
+        if door.get("exit") or door.get("warp"):
+            continue  # a teleport's two ends are storeys apart: she keeps to her own
         links.setdefault(door["a"], []).append((door["b"], door))
         links.setdefault(door["b"], []).append((door["a"], door))
     candidates = [r["id"] for r in rooms if not r["spawn"] and r["kind"] != "stair"]

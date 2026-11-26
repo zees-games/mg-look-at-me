@@ -15,7 +15,7 @@ func send_to(player: LmPlayer, number: int) -> void:
 	player.reset_level()
 	_apply_doors(player)
 	var slot := players.keys().find(player.player_key)
-	player.place_at(level.position + level.spawn_point(maxi(slot, 0)), 180.0)
+	player.place_at(level.position + level.spawn_point(maxi(slot, 0)), level.spawn_yaw())
 
 
 func _apply_doors(player: LmPlayer) -> void:

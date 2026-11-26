@@ -272,23 +272,6 @@ func _test_every_level_finishes() -> void:
 	var _asylum := game.change_house(&"asylum")
 	var asylum_stuck := _solve_house(solver)
 	_check(game.levels.size() == 20 and asylum_stuck.is_empty(), "and out of all 20 of the Asylum's", ", ".join(asylum_stuck))
-	# The Forgotten Wing: one big level laid out over a Workshop map's plan (51 rooms, about 10,800 m2).
-	var _forgotten := game.change_house(&"forgotten")
-	var forgotten_stuck := _solve_house(solver)
-	_check(game.levels.size() == 1 and forgotten_stuck.is_empty(), "and out of the Forgotten Wing", ", ".join(forgotten_stuck))
-	var wing: LmLevel = game.levels[1]
-	# Much larger than any level of the other houses (level 32 is about 5,200 m2), nine witches walking
-	# rounds that stay on the floor, and a long straight run she can be seen down.
-	var wing_floating := 0
-	for i in wing.witches.size():
-		var round_s := float(wing.witches[i]["total"]) / float(wing.witches[i]["speed"])
-		for k in 120:
-			var at: Vector3 = wing.witch_pose(i, round_s * float(k) / 120.0)["at"]
-			var room := wing.room_at(at)
-			if room != "" and absf(at.y - wing.floor_at(room, at)) > 0.05:
-				wing_floating += 1
-	_check(wing.floor_area() > 10000.0 and wing.rooms.size() >= 50 and wing.witches.size() >= 9 and wing_floating == 0,
-		"the Forgotten Wing is much larger: %d rooms, %d m2, %d witches" % [wing.rooms.size(), int(wing.floor_area()), wing.witches.size()])
 	var _home := game.change_house(&"house")
 	game.leave(&"solver")
 	_finished_section()
@@ -570,7 +553,7 @@ func _test_map_houses() -> void:
 	var seen := 0
 	for id in [&"lam_villa_night", &"lam_functionalist_night", &"lam_deco_mansion_night", &"lam_forgotten_wing"]:
 		if not game.houses.has(id):
-			for _i in 4:
+			for _i in (7 if id == &"lam_forgotten_wing" else 4):
 				_check(true, "%s is not linked here, skipped" % id)
 			continue
 		seen += 1
@@ -582,10 +565,43 @@ func _test_map_houses() -> void:
 		_check(level.doc.has("mood") and level.rooms.size() >= 10, "%s: a mood and %d rooms" % [id, level.rooms.size()])
 		# A converted house keeps the source's storeys: none is required below the ground.
 		_check(level.floor_count() >= 1, "%s: floors %d to %d" % [id, level.lowest_floor(), level.lowest_floor() + level.floor_count() - 1])
+		if id == &"lam_forgotten_wing":
+			_check_forgotten_wing(level)
 	var _home := game.change_house(&"house")
 	game.leave(&"solver")
 	_check(game.house_id == &"house", "and the House comes back (%d map houses checked)" % seen)
 	_finished_section()
+
+
+## The Forgotten Wing's four storeys, joined only by teleport doors: each end of one puts a player
+## into the other room, facing away from its wall; witches walk on the floor of every storey.
+func _check_forgotten_wing(level: LmLevel) -> void:
+	_check(level.floor_count() == 4 and level.lowest_floor() == -1 and level.rooms.size() >= 80, "lam_forgotten_wing: basement to attic, %d rooms" % level.rooms.size())
+	var warps := 0
+	var landed := 0
+	for door_id: String in level.doors:
+		var door: Dictionary = level.doors[door_id]
+		if not door.has("far"):
+			continue
+		warps += 1
+		var doc: Dictionary = door["doc"]
+		var opened := {door_id: true}
+		var there := level.warp_at((door["centre"] as Vector3) - (door["normal"] as Vector3) * 0.3 + Vector3(0, 0.1, 0), opened)
+		var back := level.warp_at((door["far"] as Vector3) - (door["far_normal"] as Vector3) * 0.3 + Vector3(0, 0.1, 0), opened)
+		var shut := level.warp_at((door["centre"] as Vector3) - (door["normal"] as Vector3) * 0.3 + Vector3(0, 0.1, 0), {})
+		if not there.is_empty() and not back.is_empty() and shut.is_empty() \
+				and level.room_at(there["at"]) == str(doc["b"]) and level.room_at(back["at"]) == str(doc["a"]):
+			landed += 1
+	_check(warps >= 3 and landed == warps, "lam_forgotten_wing: %d teleport doors, %d carry a player each way and only when open" % [warps, landed])
+	var floating := 0
+	for i in level.witches.size():
+		var round_s := float(level.witches[i]["total"]) / float(level.witches[i]["speed"])
+		for k in 120:
+			var at: Vector3 = level.witch_pose(i, round_s * float(k) / 120.0)["at"]
+			var room := level.room_at(at)
+			if room != "" and absf(at.y - level.floor_at(room, at)) > 0.05:
+				floating += 1
+	_check(level.witches.size() >= 9 and floating == 0, "lam_forgotten_wing: %d witches, none off the floor (%d poses)" % [level.witches.size(), floating])
 
 
 ## A cellar: a lobby on the ground, a stairwell down from it (foot on floor -1, head on 0) and
@@ -672,7 +688,7 @@ func _test_lift() -> void:
 
 func _test_houses() -> void:
 	_section("houses")
-	_check(game.houses.size() >= 3 and game.houses.has(&"asylum") and game.houses.has(&"forgotten") and game.house_id == &"house", "the built-in houses (and any linked map house), playing the House (%s)" % [game.houses.keys()])
+	_check(game.houses.size() >= 3 and game.houses.has(&"asylum") and not game.houses.has(&"forgotten") and game.house_id == &"house", "the built-in houses (and any linked map house), playing the House (%s)" % [game.houses.keys()])
 	var a: LmPlayer = game.players[&"a"]
 	a.best = 9
 	game.send_to(a, 9)

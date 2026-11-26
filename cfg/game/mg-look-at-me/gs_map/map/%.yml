@@ -1,4 +1,4 @@
-# Per-house rules for every house (the file name is the house id: house, asylum, forgotten; a
+# Per-house rules for every house (the file name is the house id: house, asylum, ashpit; a
 # house-specific file may sit beside this one). Everything is commented, so nothing changes until a
 # line is uncommented; an operator overrides in cfg/server/game/mg-look-at-me/gs_map/map/.
 # Keys: lm_witch_hear_voice lm_scares_enabled lm_scare_interval_min lm_scare_interval_max

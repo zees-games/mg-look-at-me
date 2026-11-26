@@ -503,7 +503,9 @@ func _swing_doors(delta: float) -> void:
 		# The hinge is one edge of the door; it swings into the room it opens into.
 		var width := float(door.get("width", LmLevel.DOOR_WIDTH))
 		var hinge := Vector3(-width * 0.5, 0, 0) if absf(normal.z) > 0.5 else Vector3(0, 0, -width * 0.5)
-		var turn := Basis(Vector3.UP, now * (1.0 if normal.z + normal.x > 0.0 else -1.0))
+		# A teleport door's far side is a wall: it swings back into the room it is opened from.
+		var way := (1.0 if normal.z + normal.x > 0.0 else -1.0) * (-1.0 if door.has("far") else 1.0)
+		var turn := Basis(Vector3.UP, now * way)
 		for child in body.get_children():
 			if child is VisualInstance3D:
 				var rest: Transform3D = child.get_meta(&"rest", (child as Node3D).transform)

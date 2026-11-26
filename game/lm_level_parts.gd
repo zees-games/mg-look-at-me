@@ -235,6 +235,7 @@ func _build_door(door_id: String) -> void:
 		return
 
 	var exit := bool(door["doc"].get("exit", false)) or str(door["doc"].get("b", "")) == ""
+	var warp := door.has("far")
 
 	for face in [-1.0, 1.0]:
 		var turned := atan2(normal.x, normal.z) + (PI if face < 0.0 else 0.0)
@@ -258,25 +259,51 @@ func _build_door(door_id: String) -> void:
 		# wall inside its edge, a whole WALL deep.
 		if exit and face > 0.0:
 			continue
+		# A teleport door's far side is in the wall: its plaque is over its other end instead.
+		if warp and face > 0.0:
+			continue
 		var into := str(door["doc"].get("a", "")) if face > 0.0 else str(door["doc"].get("b", ""))
 		var named := "Out" if exit else str(rooms.get(into, {}).get("doc", {}).get("name", ""))
-		if named == "":
-			continue
-		var plaque_at: Vector3 = (door["centre"] as Vector3) + normal * face * (WALL + 0.02) + Vector3(0, tall + 0.32, 0)
-		var plaque := _box(self, Vector3(minf(width, DOOR_WIDTH) * 0.8, 0.24, 0.02) if absf(normal.z) > 0.5 else Vector3(0.02, 0.24, minf(width, DOOR_WIDTH) * 0.8),
-			plaque_at, _material("plaque", Color(0.12, 0.09, 0.07)), false)
-		plaque.name = "Plaque_%s_%s" % [door_id, "b" if face > 0.0 else "a"]
-		var sign := Label3D.new()
-		sign.name = "Name"
-		sign.text = named
-		sign.font_size = 56
-		sign.pixel_size = 0.0022
-		sign.modulate = Color(0.86, 0.78, 0.6, 0.85)
-		sign.outline_size = 0
-		sign.position = normal * face * 0.015
-		sign.rotation.y = turned
-		_fade_up_close(sign, 0.0, 11.0)
-		plaque.add_child(sign)
+		if named != "":
+			_door_plaque(door["centre"], normal * face, width, tall, named, "Plaque_%s_%s" % [door_id, "b" if face > 0.0 else "a"])
+
+	if not warp:
+		return
+
+	# Both ends dark, a way through and not the wall behind; the other end opens from this one.
+	var dark := _material("warp_dark", Color(0.015, 0.012, 0.01))
+
+	for end in [[door["centre"] as Vector3, normal], [door["far"] as Vector3, door["far_normal"] as Vector3]]:
+		var at: Vector3 = end[0]
+		var out: Vector3 = end[1]
+		var flat := Vector3(width, tall, 0.04) if absf(out.z) > 0.5 else Vector3(0.04, tall, width)
+		var shade := _box(self, flat, at + out * (WALL + 0.03) + Vector3(0, tall * 0.5, 0), dark, false)
+		shade.name = "Warp_%s" % door_id
+
+	_door_plaque(door["far"], -(door["far_normal"] as Vector3), width, tall, str(rooms.get(str(door["doc"].get("a", "")), {}).get("doc", {}).get("name", "")), "Plaque_%s_far" % door_id)
+
+
+## Over a door, on the wall facing [param out], a plaque naming the room it leads into.
+## In front of the wall's face: each room builds its own wall inside its edge, a whole WALL deep.
+func _door_plaque(centre: Vector3, out: Vector3, width: float, tall: float, named: String, node_name: String) -> void:
+	if named == "":
+		return
+
+	var plaque_at := centre + out * (WALL + 0.02) + Vector3(0, tall + 0.32, 0)
+	var plaque := _box(self, Vector3(minf(width, DOOR_WIDTH) * 0.8, 0.24, 0.02) if absf(out.z) > 0.5 else Vector3(0.02, 0.24, minf(width, DOOR_WIDTH) * 0.8),
+		plaque_at, _material("plaque", Color(0.12, 0.09, 0.07)), false)
+	plaque.name = node_name
+	var sign := Label3D.new()
+	sign.name = "Name"
+	sign.text = named
+	sign.font_size = 56
+	sign.pixel_size = 0.0022
+	sign.modulate = Color(0.86, 0.78, 0.6, 0.85)
+	sign.outline_size = 0
+	sign.position = out * 0.015
+	sign.rotation.y = atan2(out.x, out.z)
+	_fade_up_close(sign, 0.0, 11.0)
+	plaque.add_child(sign)
 
 
 func _build_item(item: Dictionary, at: Vector3) -> Node3D:
