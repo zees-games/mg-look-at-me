@@ -50,7 +50,7 @@ Each needs its own spec and a check of its page for a request against porting. A
 - **The Forgotten Wing** (Forgotten Asylum, WhiteKnuckles): today a hand-laid plan (`tools/layouts/forgotten.json`). Its walls are mostly props and brush entities, so the converter needs a spec per segment, or props as walls.
 - **Henbane Mansion** (Drizz): not downloaded.
 - **The House** (the built-in 32 levels): needs a base chosen from the shortlist in `docs/map-bases.md`.
-- **The lam-maps houses**: the same converter, through `build_levels.py --layout`.
+- **The lam-maps houses** (done 2026-11-26): Villa by Night, Deco Mansion by Night and Functionalist Night are converted by the same converter (`bsp.py store/regen`, `bsp_house.py` with `lam-maps/tools/convert/lam_*.json`, then `build_levels.py --layout`) and ship a world pack under `lam-maps/houses/<id>/world/<pack>/`. A pack-mounted house resolves its `world.path` beside its own document (`LmLevel._world_prefix`, from the document's `directory`). A converted world skips the glimpse-corridor requirement (a plan such as the Functionalist has no 8 m corridor). `examples/headless_workshop` holds a world house loaded from a pack.
 
 ## Phase 2: the source's meshes (the Asylum)
 

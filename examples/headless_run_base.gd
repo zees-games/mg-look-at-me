@@ -576,9 +576,8 @@ func _test_map_houses() -> void:
 		_check(stuck.is_empty(), "%s: the solver opens the way out" % id, ", ".join(stuck))
 		var level: LmLevel = game.levels[1]
 		_check(level.doc.has("mood") and level.rooms.size() >= 10, "%s: a mood and %d rooms" % [id, level.rooms.size()])
-		# The functionalist house goes underground: the solver had something to do down there.
-		var below := (level.items.values() + level.stations.values()).filter(func(t: Dictionary) -> bool: return (t["at"] as Vector3).y < -1.0).size()
-		_check(id != &"lam_functionalist_night" or (level.lowest_floor() < 0 and below > 0), "%s: floors %d to %d, %d things under the ground" % [id, level.lowest_floor(), level.lowest_floor() + level.floor_count() - 1, below])
+		# A converted house keeps the source's storeys: none is required below the ground.
+		_check(level.floor_count() >= 1, "%s: floors %d to %d" % [id, level.lowest_floor(), level.lowest_floor() + level.floor_count() - 1])
 	var _home := game.change_house(&"house")
 	game.leave(&"solver")
 	_check(game.house_id == &"house", "and the House comes back (%d map houses checked)" % seen)

@@ -214,7 +214,7 @@ func _place_door_world(door: Dictionary) -> Dictionary:
 ## Drawn too where this level draws; the drawing is fetched and comes in when it comes.
 func _build_world() -> GSResult:
 	var world: Dictionary = doc["world"]
-	var prefix := LmPaths.rebase("res://" + str(world["path"]))
+	var prefix := _world_prefix(str(world["path"]))
 	var loaded := GSMapBspMesh.load_prefix(prefix)
 
 	if not loaded.ok:
@@ -242,6 +242,17 @@ func _build_world() -> GSResult:
 		_draw_world(prefix, Transform3D(Basis.from_scale(Vector3.ONE * k), origin))
 
 	return GSResult.success(body)
+
+
+## The world's file prefix: beside the house document that was read, else under this game's own files.
+## [param path] is `houses/<house>/world/<pack>/<pack>`; a house delivered in a map pack keeps `world/` next to its levels.
+func _world_prefix(path: String) -> String:
+	var at := path.find("/world/")
+
+	if str(doc.get("directory", "")) != "" and at >= 0:
+		return str(doc["directory"]).path_join(path.substr(at + 1))
+
+	return LmPaths.rebase("res://" + path)
 
 
 static func _world_trimesh(mesh: GSMapBspMesh, k: float, origin: Vector3) -> ConcavePolygonShape3D:

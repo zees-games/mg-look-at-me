@@ -650,7 +650,8 @@ def deal_layout(layout, seed, n, p, level_names, total, house_id, one_level=Fals
     for attempt in range(200):
         rng = random.Random(seed * 1000 + attempt)
         g = layout_grower(rng, layout)
-        if (glimpse and not glimpse_corridors(g)) or (world_exit(g) if g.world else exit_of(g)) is None:
+        # A converted plan keeps the source's rooms: with no corridor long enough for a glimpse it is dealt without one.
+        if (glimpse and not g.world and not glimpse_corridors(g)) or (world_exit(g) if g.world else exit_of(g)) is None:
             continue
         doc = furnish_puzzles(rng, g, n, p, level_names, total, house_id)
         if one_level:
@@ -976,6 +977,12 @@ def furnish_puzzles(rng, g, n, p, level_names, total, prefix):
             if room["kind"] == "stair":
                 r["y2"] = room["y2"]
         out_rooms.append(r)
+    # A converted night house: every other lamp (not a lights-fail room's) is a failing bulb that gutters.
+    if g.world:
+        dying = {r for e in events if e["do"] == "lights" for r in e["rooms"]}
+        lit = [r for r in out_rooms if r["light"] == 0.35 and r["id"] not in dying]
+        for r in lit[::2]:
+            r["light"] = 0.15
 
     world = {}
     if g.world:

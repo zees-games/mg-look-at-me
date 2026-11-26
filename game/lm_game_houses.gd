@@ -540,6 +540,8 @@ func load_directory(directory: String) -> int:
 			refused[file] = "not a level document"
 			continue
 
+		# Where the document was read from: a converted house's world pack sits beside it, in a pack or in the game.
+		(parsed as Dictionary)["directory"] = directory
 		documents[int(parsed["number"])] = parsed
 
 	return documents.size()
