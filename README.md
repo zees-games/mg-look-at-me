@@ -4,7 +4,7 @@ This is a game to demonstrate the capabilities of the [**GameSpice collection**]
 
 **This project and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
 
-This game was built with Claude Code and has had little testing with real players, so please report anything odd you run into.
+Look At Me is one of [Zee's Games](https://zeesgames.com), open source multiplayer games built on the GameSpice platform and run on live servers. Claude Code built it, and the project is MIT. Bug reports are welcome on the issue tracker.
 
 ## How it plays
 You arrive in the lobby, the one lit room in the house and the start of level 1. Every level is a set of rooms behind doors that don't open on their own:
@@ -137,6 +137,32 @@ tools/build_levels.py --check   # the shipped levels are what the builder writes
 | `dedicated` | A real server: boots, loads the game, runs its commands |
 
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
+
+## Built on
+
+The game vendors these GameSpice addons, each in its own repository: [gs-core](https://github.com/gamespice-platform/core), [gs-input](https://github.com/gamespice-platform/input), [gs-profile](https://github.com/gamespice-platform/profile), [gs-profiler](https://github.com/gamespice-platform/profiler), [gs-net](https://github.com/gamespice-platform/net), [gs-sim](https://github.com/gamespice-platform/sim), [gs-player](https://github.com/gamespice-platform/player), [gs-player-controller](https://github.com/gamespice-platform/player-controller), [gs-user-avatar](https://github.com/gamespice-platform/user-avatar), [gs-achievements](https://github.com/gamespice-platform/achievements), [gs-vote](https://github.com/gamespice-platform/vote), [gs-stats](https://github.com/gamespice-platform/stats), [gs-ui](https://github.com/gamespice-platform/ui), [gs-settings](https://github.com/gamespice-platform/settings), [gs-menu](https://github.com/gamespice-platform/menu), [gs-console](https://github.com/gamespice-platform/console), [gs-platform](https://github.com/gamespice-platform/platform), [gs-user](https://github.com/gamespice-platform/user), [gs-auth](https://github.com/gamespice-platform/auth), [gs-cloud](https://github.com/gamespice-platform/cloud), [gs-moderation](https://github.com/gamespice-platform/moderation), [gs-voice](https://github.com/gamespice-platform/voice), [gs-chat](https://github.com/gamespice-platform/chat), [gs-game](https://github.com/gamespice-platform/game), [gs-workbench](https://github.com/gamespice-platform/workbench), [gs-server](https://github.com/gamespice-platform/server), [gs-audio](https://github.com/gamespice-platform/audio), [gs-fx](https://github.com/gamespice-platform/fx), [gs-player-char](https://github.com/gamespice-platform/player-char), [gs-animation](https://github.com/gamespice-platform/animation), [gs-save](https://github.com/gamespice-platform/save), [gs-camera](https://github.com/gamespice-platform/camera), [gs-map](https://github.com/gamespice-platform/map), [gs-bot](https://github.com/gamespice-platform/bot), [gs-spawn](https://github.com/gamespice-platform/spawn), [gs-team](https://github.com/gamespice-platform/team), [gs-flashlight](https://github.com/gamespice-platform/flashlight), [gs-lighting](https://github.com/gamespice-platform/lighting), [gs-bot-record](https://github.com/gamespice-platform/bot-record), [gs-combat](https://github.com/gamespice-platform/combat), [gs-player-class](https://github.com/gamespice-platform/player-class), [gs-server-query](https://github.com/gamespice-platform/server-query), [gs-spectate](https://github.com/gamespice-platform/spectate), [gs-sql](https://github.com/gamespice-platform/sql), [gs-mobile](https://github.com/gamespice-platform/mobile). The addon list is the manifest that [gs-bootstrap](https://github.com/gamespice-platform/bootstrap) reads to link them in.
+
+## More from Zee's Games
+
+These games all run on the same GameSpice addons, so they are the best place to see what the platform can do.
+
+| Game | What it is | Source |
+| --- | --- | --- |
+| [Fatal Contact](https://zeesgames.com/fatal-contact) | Fast first-person deathmatch with GunGame and classic Surf Deathmatch maps. | [game-fatal-contact](https://github.com/zees-games/game-fatal-contact) |
+| [Airdrift](https://zeesgames.com/airdrift) | Bunny hop and surf timer runs with Source-style movement and leaderboards. | [game-airdrift](https://github.com/zees-games/game-airdrift) |
+| [Playlot](https://zeesgames.com/playlot) | A physics sandbox: spawn props, NPCs and weapons and build whatever you like. | [game-playlot](https://github.com/zees-games/game-playlot) |
+| [Hungario](https://zeesgames.com/hungario) | Steer a hungry monster, eat to grow and outlast everyone else. | [game-hungario](https://github.com/zees-games/game-hungario) |
+| [Buses From Hell](https://zeesgames.com/buses-from-hell) | Survive one or more crazy bus drivers trying to run you over. | [mg-buses-from-hell](https://github.com/zees-games/mg-buses-from-hell) |
+| [Smash Copter](https://zeesgames.com/smash-copter) | Stay on wobbly platforms while a cannon rains props down on you. | [mg-smash-copter](https://github.com/zees-games/mg-smash-copter) |
+| [Zombie Zone](https://zeesgames.com/zombie-zone) | Co-op zombie survival: escape through the city or survive waves. | [game-zombie-zone](https://github.com/zees-games/game-zombie-zone) |
+| [Hide n Seek](https://zeesgames.com/hide-n-seek) | Hide as yourself; every hider caught joins the hunt. | [game-hide-n-seek](https://github.com/zees-games/game-hide-n-seek) |
+| [Prop Hunt](https://zeesgames.com/prop-hunt) | Disguise as furniture and keep still while blindfolded hunters search. | [game-prop-hunt](https://github.com/zees-games/game-prop-hunt) |
+| [Murder Mystery](https://zeesgames.com/murder-mystery) | Everybody looks the same. One of them has a knife. | [game-murder-mystery](https://github.com/zees-games/game-murder-mystery) |
+| [Deathrun](https://zeesgames.com/deathrun) | Run a trap-filled course while the activators press every button they have. | [game-deathrun](https://github.com/zees-games/game-deathrun) |
+| [Wipeout](https://zeesgames.com/wipeout) | Obstacle courses over water: sweeper arms, big balls and a fight at the finish. | [mg-wipeout](https://github.com/zees-games/mg-wipeout) |
+| [Dangerous Delivery](https://zeesgames.com/dangerous-delivery) | Haul loads up mountain roads with no guard rails. Riskier runs pay more. | [mg-dangerous-delivery](https://github.com/zees-games/mg-dangerous-delivery) |
+
+Every game, its maps and its servers: [zeesgames.com](https://zeesgames.com).
 
 ## Credits
 
